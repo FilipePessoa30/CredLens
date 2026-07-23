@@ -1,0 +1,39 @@
+name: Feature request
+description: Propose new functionality or a change in scope for CredLens.
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Check `docs/roadmap.md` first — your idea may already be scoped into a future phase. If so, feel free to comment there instead of filing a new issue.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem does this solve?
+      description: Business or technical context — who needs this and why.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+    validations:
+      required: true
+
+  - type: textarea
+    id: phase
+    attributes:
+      label: Which roadmap phase does this belong to?
+      description: See docs/roadmap.md. If it doesn't fit an existing phase, say so.
+    validations:
+      required: false
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+    validations:
+      required: false

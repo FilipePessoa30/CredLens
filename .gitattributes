@@ -1,0 +1,21 @@
+# Normalize line endings across platforms (this project is developed on Windows).
+* text=auto eol=lf
+
+*.py text eol=lf
+*.md text eol=lf
+*.yaml text eol=lf
+*.yml text eol=lf
+*.toml text eol=lf
+*.json text eol=lf
+*.cfg text eol=lf
+*.ini text eol=lf
+*.sh text eol=lf
+Makefile text eol=lf
+
+# Binary-ish or data-adjacent formats: never diff, never auto-convert.
+*.csv -text
+*.parquet -text
+*.duckdb -text
+*.pbix -text binary
+*.png binary
+*.jpg binary

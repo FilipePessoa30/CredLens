@@ -1,0 +1,78 @@
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# --- Virtual environments ---
+.venv/
+venv/
+env/
+ENV/
+
+# --- Package managers ---
+# uv.lock IS versioned intentionally (reproducible installs). Do not ignore it.
+
+# --- Testing & coverage ---
+.pytest_cache/
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+.tox/
+
+# --- Environment / secrets ---
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+credentials.json
+secrets.yaml
+secrets.yml
+
+# --- Data (raw, interim, processed, external) ---
+# The data/ directory must never carry real or downloaded datasets in version control.
+data/*
+!data/README.md
+!data/.gitkeep
+*.csv
+*.tsv
+*.parquet
+*.feather
+*.xlsx
+*.xls
+*.zip
+*.7z
+*.gz
+
+# --- Local databases ---
+*.db
+*.duckdb
+*.sqlite
+*.sqlite3
+
+# --- Power BI ---
+*.pbix
+*.pbit
+
+# --- Docker (future phases) ---
+*.env.docker
+
+# --- OS / editor ---
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+
+# --- Logs ---
+*.log
+logs/

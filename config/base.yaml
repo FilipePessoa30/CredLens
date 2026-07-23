@@ -1,0 +1,23 @@
+# CredLens - base configuration (foundation phase).
+#
+# This file intentionally contains only structural, non-sensitive settings.
+# It must never contain credentials, connection strings, or business
+# thresholds presented as validated facts (e.g. an approval cutoff or a
+# delinquency rate). See config/README.md for the rules that govern this
+# file.
+
+project:
+  name: credlens
+  display_name: "CredLens - Credit Risk & Portfolio Analytics"
+  environment: development # one of: development, test, production
+
+logging:
+  level: INFO # one of: DEBUG, INFO, WARNING, ERROR, CRITICAL
+  format: "%(asctime)s | %(levelname)-8s | %(name)s | %(message)s"
+
+paths:
+  # Logical, relative paths. No dataset currently exists at these locations;
+  # they describe where future phases will read/write, not what exists today.
+  data_dir: data
+  config_dir: config
+  docs_dir: docs
