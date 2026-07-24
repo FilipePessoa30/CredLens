@@ -64,16 +64,30 @@ def test_run_doctor_checks_covers_expected_checks() -> None:
     assert "config_file" in names
     assert "directory:config" in names
     assert "directory:docs" in names
-    assert "dataset" in names
+    assert "data_sources" in names
     assert all(isinstance(check, DoctorCheck) for check in checks)
 
 
-def test_run_doctor_checks_treats_missing_dataset_as_informational() -> None:
+def test_run_doctor_checks_reports_data_sources_registry_status() -> None:
+    # As of Phase 2, the real registry exists in this repository, so this
+    # reflects genuine registered-source counts rather than an absence.
     checks = run_doctor_checks()
-    dataset_check = next(check for check in checks if check.name == "dataset")
+    data_sources_check = next(check for check in checks if check.name == "data_sources")
 
-    assert dataset_check.status == "INFO"
-    assert "future phase" in dataset_check.detail
+    assert data_sources_check.status == "INFO"
+    assert "registered" in data_sources_check.detail
+
+
+def test_run_doctor_checks_data_sources_not_configured_when_registry_missing(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr("credlens.cli.REGISTRY_PATH", Path("does/not/exist.yaml"))
+
+    checks = run_doctor_checks()
+    data_sources_check = next(check for check in checks if check.name == "data_sources")
+
+    assert data_sources_check.status == "INFO"
+    assert "future phase" in data_sources_check.detail
 
 
 def test_run_doctor_checks_reports_failure_outside_repository_root(

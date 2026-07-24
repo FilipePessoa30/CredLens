@@ -6,8 +6,11 @@ Configuration for the CredLens application.
 
 - `base.yaml` — the default configuration loaded by `credlens.config`.
   It contains only structural, non-sensitive settings: project metadata,
-  environment name, logging level, and logical (not absolute, not
-  credentialed) paths. See the file itself for the current schema.
+  environment name, logging level, logical (not absolute, not
+  credentialed) paths, and (since Phase 2) data-acquisition parameters
+  (HTTP timeout/retries, BCB SGS query defaults). See the file itself for
+  the current schema. The `data:` section is optional — any key you omit
+  falls back to a documented default in `credlens.config.DEFAULT_DATA_CONFIG`.
 
 ## What does NOT belong here
 

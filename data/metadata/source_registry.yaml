@@ -1,0 +1,196 @@
+# CredLens - data source registry (Phase 2).
+#
+# The authoritative, human/process-maintained record of every candidate and
+# acquired data source. Loaded and validated by credlens.data.registry.
+# Status transitions are checked for coherence against data/metadata/
+# file_manifest.csv and reports/data_audit/ - see docs/dataset_selection.md
+# for how each source's role was decided and docs/data_licensing.md for the
+# full license text/verification behind each entry.
+#
+# Status values: candidate | approved | downloaded | verified | blocked |
+#                rejected | optional
+# Role values:   primary_benchmark | secondary_benchmark | optional_restricted
+#                | market_context | future_synthetic | rejected
+#
+# verified_at_utc records when this entry's METADATA (license, DOI, schema,
+# period) was checked against the official source - not file acquisition.
+# A source only reaches status: verified once it also has a manifest entry
+# (file + checksum) and an audit report; see registry.validate_status_coherence.
+
+schema_version: 1
+
+sources:
+  - id: uci-default-credit
+    name: "Default of Credit Card Clients"
+    role: primary_benchmark
+    organization: "UCI Machine Learning Repository (donated by I-Cheng Yeh)"
+    homepage: "https://archive.ics.uci.edu/dataset/350/default+of+credit+card+clients"
+    acquisition_url: "https://archive.ics.uci.edu/static/public/350/data.csv"
+    acquisition_method: http_get
+    filename: "default_of_credit_card_clients.csv"
+    authentication: none
+    license: "CC BY 4.0 (Creative Commons Attribution 4.0 International)"
+    license_url: "https://creativecommons.org/licenses/by/4.0/"
+    doi: "10.24432/C55S3H"
+    citation: "Yeh, I-Cheng. (2009). Default of Credit Card Clients [Dataset]. UCI Machine Learning Repository. https://doi.org/10.24432/C55S3H"
+    country: "Taiwan"
+    period: "April 2005 - September 2005 (6 months of repayment history); dataset donated 2016-01-25, last updated 2024-03-29 per UCI metadata"
+    granularity: "one row per credit card client (anonymized), with 6 months of monthly repayment/billing history as columns"
+    observation_unit: "individual credit card client"
+    target_variable: "Y - default payment next month (binary: 1 = default, 0 = no default)"
+    format: csv
+    update_frequency: "static (one-time research donation; not a live feed)"
+    restrictions: "None beyond CC BY 4.0 attribution requirement."
+    redistribution: allowed_with_attribution
+    status: verified
+    verified_at_utc: "2026-07-23T21:55:00Z"
+    notes: >
+      Verified directly against the UCI API (archive.ics.uci.edu/api/dataset?id=350)
+      on 2026-07-23: 30000 instances, 23 features + 1 ID + 1 target, no documented
+      missing values, CC BY 4.0, DOI 10.24432/C55S3H. Primary benchmark: largest,
+      best-documented, unambiguously licensed individual-level credit risk dataset
+      evaluated in this phase. Single snapshot, not a longitudinal panel - see
+      docs/assumptions_and_limitations.md and docs/dataset_selection.md.
+
+  - id: south-german-credit
+    name: "South German Credit"
+    role: secondary_benchmark
+    organization: "UCI Machine Learning Repository (Groemping, U., Beuth University of Applied Sciences Berlin)"
+    homepage: "https://archive.ics.uci.edu/dataset/522/south+german+credit"
+    acquisition_url: "https://archive.ics.uci.edu/static/public/522/south+german+credit.zip"
+    acquisition_method: http_get
+    filename: "south_german_credit.zip"
+    authentication: none
+    license: "CC BY 4.0 (Creative Commons Attribution 4.0 International)"
+    license_url: "https://creativecommons.org/licenses/by/4.0/"
+    doi: "10.24432/C5X89F"
+    citation: "Groemping, U. (2019). South German Credit [Dataset]. UCI Machine Learning Repository. https://doi.org/10.24432/C5X89F"
+    country: "Germany (South Germany, per dataset documentation)"
+    period: "1973-1975 (original credit data); correction/republication donated 2019-11-28"
+    granularity: "one row per credit applicant"
+    observation_unit: "individual credit applicant"
+    target_variable: "kredit - credit_risk (binary: good/bad credit compliance)"
+    format: zip (contains SouthGermanCredit.asc [whitespace-delimited, header row present], codetable.txt, read_SouthGermanCredit.R)
+    update_frequency: "static (one-time correction of the original Statlog German Credit data; not a live feed)"
+    restrictions: "None beyond CC BY 4.0 attribution requirement."
+    redistribution: allowed_with_attribution
+    status: verified
+    verified_at_utc: "2026-07-23T21:55:00Z"
+    notes: >
+      Verified directly against the UCI API (archive.ics.uci.edu/api/dataset?id=522)
+      on 2026-07-23: 1000 instances, 21 features (700 good / 300 bad credit,
+      deliberately oversampled), no documented missing values, CC BY 4.0, DOI
+      10.24432/C5X89F. UCI's own documentation confirms this dataset "corrects
+      severe errors in the coding information" present in the older, widely-used
+      Statlog German Credit dataset - this South German Credit version is used
+      instead of Statlog for exactly that reason, per the Phase 2 brief. Secondary
+      benchmark only: data from the 1970s, a different country/decade/credit
+      system than the fictional CredLens scenario - never to be treated as
+      representative of a modern Brazilian digital lender. See
+      docs/sensitive_attributes.md for a known ambiguity in the
+      personal_status_sex column documented by the source itself.
+
+  - id: home-credit
+    name: "Home Credit Default Risk"
+    role: optional_restricted
+    organization: "Home Credit Group (via Kaggle)"
+    homepage: "https://www.kaggle.com/competitions/home-credit-default-risk"
+    acquisition_url: "https://www.kaggle.com/competitions/home-credit-default-risk/data"
+    acquisition_method: kaggle_api
+    filename: null
+    authentication: "Kaggle account + competition rules acceptance + Kaggle API token (kaggle.json)"
+    license: "UNVERIFIED - Kaggle competition-specific terms; not confirmed in this phase"
+    license_url: null
+    doi: null
+    citation: "Home Credit Group. Home Credit Default Risk. Kaggle. https://www.kaggle.com/competitions/home-credit-default-risk"
+    country: "Multiple (Home Credit operates across several countries; not specified in accessible metadata)"
+    period: "Unverified in this phase"
+    granularity: "Multi-table: application-level plus related bureau/previous-application/installment tables (per docs/data_strategy.md, Phase 1)"
+    observation_unit: "loan application"
+    target_variable: "TARGET (per public knowledge of this competition; not independently re-verified against a downloaded file in this phase)"
+    format: "csv (multiple files, per Kaggle competition data page)"
+    update_frequency: "static (closed Kaggle competition)"
+    restrictions: "BLOCKED_REQUIRES_USER_ACCESS - see docs/data_licensing.md for the evidence and reasoning."
+    redistribution: unknown_blocked
+    status: blocked
+    verified_at_utc: "2026-07-23T21:50:00Z"
+    notes: >
+      BLOCKED_REQUIRES_USER_ACCESS. Empirically confirmed on 2026-07-23 that
+      Kaggle's competition data/rules pages are client-side-rendered
+      applications: a direct HTTP GET returns only a ~5.6 KB JS application
+      shell with no rules text, no file listing, and no license statement
+      server-rendered - confirmed via curl against
+      kaggle.com/competitions/home-credit-default-risk/rules. Per Kaggle's
+      well-documented platform-wide model, downloading competition data
+      requires an authenticated account, accepting the competition's specific
+      rules, and (for API/CLI access) a personal API token (kaggle.json). None
+      of these were available or obtained in this session, and per the Phase 2
+      brief this project must not bypass authentication, embed credentials, or
+      ask the user to paste a token into chat. This source therefore remains
+      optional/restricted and out of the pipeline's required path - see
+      docs/dataset_selection.md for how the pipeline was scoped without it.
+
+  - id: bcb-sgs-20570
+    name: "Saldo da carteira de credito com recursos livres - Pessoas fisicas - Total"
+    role: market_context
+    organization: "Banco Central do Brasil / Departamento Economico"
+    homepage: "https://dadosabertos.bcb.gov.br/dataset/20570-saldo-da-carteira-de-credito-com-recursos-livres---pessoas-fisicas---total"
+    acquisition_url: "https://api.bcb.gov.br/dados/serie/bcdata.sgs.20570/dados"
+    acquisition_method: bcb_sgs
+    filename: "bcb_sgs_20570.json"
+    authentication: none
+    license: "Open Data Commons Open Database License (ODbL)"
+    license_url: "https://opendatacommons.org/licenses/odbl/1-0/"
+    doi: null
+    citation: "Banco Central do Brasil. Saldo da carteira de credito com recursos livres - Pessoas fisicas - Total. Sistema Gerenciador de Series Temporais (SGS), serie 20570. https://dadosabertos.bcb.gov.br/dataset/20570"
+    country: "Brazil"
+    period: "Starts 2007-03-01 per BCB metadata; queried range recorded per-acquisition in the manifest, not fixed here"
+    granularity: "national aggregate, monthly"
+    observation_unit: "Brazilian National Financial System, freely-negotiated-rate credit portfolio for individuals (pessoas fisicas)"
+    target_variable: null
+    format: json
+    update_frequency: "monthly (per BCB SGS)"
+    restrictions: "Excludes regulated-rate, BNDES-funded, and government-backed credit operations, per BCB's own definition."
+    redistribution: allowed_odbl
+    status: verified
+    verified_at_utc: "2026-07-23T21:47:00Z"
+    notes: >
+      Metadata (title, unit = R$ millions, monthly periodicity, start date
+      2007-03-01, ODbL license) verified directly against
+      dadosabertos.bcb.gov.br on 2026-07-23. This is an aggregate market
+      indicator, not individual-level data - used only as macro context for
+      the fictional CredLens scenario, never joined to individual records as
+      if it described them. See docs/data_sources.md.
+
+  - id: bcb-sgs-21112
+    name: "Inadimplencia da carteira de credito com recursos livres - Pessoas fisicas - Total"
+    role: market_context
+    organization: "Banco Central do Brasil / Departamento Economico"
+    homepage: "https://dadosabertos.bcb.gov.br/dataset/21112-inadimplencia-da-carteira-de-credito-com-recursos-livres---pessoas-fisicas---total"
+    acquisition_url: "https://api.bcb.gov.br/dados/serie/bcdata.sgs.21112/dados"
+    acquisition_method: bcb_sgs
+    filename: "bcb_sgs_21112.json"
+    authentication: none
+    license: "Open Data Commons Open Database License (ODbL)"
+    license_url: "https://opendatacommons.org/licenses/odbl/1-0/"
+    doi: null
+    citation: "Banco Central do Brasil. Inadimplencia da carteira de credito com recursos livres - Pessoas fisicas - Total. Sistema Gerenciador de Series Temporais (SGS), serie 21112. https://dadosabertos.bcb.gov.br/dataset/21112"
+    country: "Brazil"
+    period: "Starts 2011-03-01 per BCB metadata; queried range recorded per-acquisition in the manifest, not fixed here"
+    granularity: "national aggregate, monthly"
+    observation_unit: "Brazilian National Financial System, freely-negotiated-rate credit portfolio for individuals (pessoas fisicas), percentage 90+ days overdue"
+    target_variable: null
+    format: json
+    update_frequency: "monthly (per BCB SGS)"
+    restrictions: "Excludes regulated-rate, BNDES-funded, and government-backed credit operations, per BCB's own definition."
+    redistribution: allowed_odbl
+    status: verified
+    verified_at_utc: "2026-07-23T21:47:30Z"
+    notes: >
+      Metadata (title, unit = percentage, monthly periodicity, start date
+      2011-03-01, ODbL license) verified directly against
+      dadosabertos.bcb.gov.br on 2026-07-23. Defined by BCB as the percentage
+      of the free-rate credit portfolio with at least one installment over 90
+      days overdue - an aggregate market indicator, not an individual-level
+      DPD90 flag; never presented as if it described individual loans. See
+      docs/data_sources.md.

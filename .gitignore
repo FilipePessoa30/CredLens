@@ -39,11 +39,26 @@ secrets.yaml
 secrets.yml
 
 # --- Data (raw, interim, processed, external) ---
-# The data/ directory must never carry real or downloaded datasets in version control.
+# The data/ directory must never carry real or downloaded datasets in version
+# control. Only data/README.md and data/metadata/ (provenance records, no
+# actual data) are versioned - see data/README.md for the full layout.
 data/*
 !data/README.md
 !data/.gitkeep
+!data/metadata/
+data/metadata/*
+!data/metadata/source_registry.yaml
+!data/metadata/dataset_roles.yaml
+!data/metadata/file_manifest.csv
+!data/metadata/schemas/
+data/metadata/schemas/*
+!data/metadata/schemas/*.yaml
+!data/metadata/licenses/
+data/metadata/licenses/*
+!data/metadata/licenses/*.md
+!data/metadata/licenses/*.txt
 *.csv
+!data/metadata/file_manifest.csv
 *.tsv
 *.parquet
 *.feather
@@ -52,6 +67,7 @@ data/*
 *.zip
 *.7z
 *.gz
+*.asc
 
 # --- Local databases ---
 *.db

@@ -4,7 +4,7 @@
 
 **CredLens turns a digital lender's credit portfolio into a reproducible, tested analytics product — from business question to KPI to decision.**
 
-**Status: Foundation phase.** This repository currently contains business framing, architecture, and project scaffolding only. No data has been acquired, no model has been trained, no dashboard exists, and no metric below has been calculated. Every number you might expect to see here (portfolio size, delinquency, ROI, accuracy) is deliberately absent — see [Current capabilities](#current-capabilities) and [`docs/roadmap.md`](docs/roadmap.md) for what happens next.
+**Status: Foundation + Data Acquisition phase.** This repository contains business framing, architecture, project scaffolding, and — as of Phase 2 — reproducibly acquired and audited public benchmark datasets. No model has been trained, no dashboard exists, no KPI value has been computed, and no business result is claimed anywhere in this repository. Every business number you might expect to see here (portfolio size, delinquency, ROI, accuracy) is deliberately absent — see [Current capabilities](#current-capabilities) and [`docs/roadmap.md`](docs/roadmap.md) for what happens next.
 
 ## The business scenario
 
@@ -60,19 +60,19 @@ This is the target architecture for the full project, not what is implemented to
 What exists in the repository right now:
 
 - Project scaffolding: source layout, dependency management, lint/type/test configuration.
-- A minimal, tested CLI (`credlens --help`, `credlens version`, `credlens doctor`) that verifies the *installation*, not the business logic.
+- A tested CLI (`credlens --help`, `credlens version`, `credlens doctor`, plus `credlens data sources|fetch|verify|audit`).
 - Centralized configuration loading (`config/base.yaml`) with validation and clear error messages.
 - Structured logging setup.
-- Business documentation: charter, business problem framing, stakeholder map, KPI dictionary (definitions only, no computed values), data strategy, architecture, assumptions & limitations, glossary, roadmap.
+- **Reproducible public-dataset acquisition and audit** (Phase 2): a source registry with license/DOI/citation per source (`data/metadata/source_registry.yaml`), an idempotent downloader (retries, atomic writes, path-traversal protection, checksum-verified), a Banco Central do Brasil SGS time-series client, and a structural data-quality audit that categorizes findings without ever modifying raw data. Four sources acquired and audited this phase: [Default of Credit Card Clients](https://archive.ics.uci.edu/dataset/350/default+of+credit+card+clients) (UCI, CC BY 4.0), [South German Credit](https://archive.ics.uci.edu/dataset/522/south+german+credit) (UCI, CC BY 4.0), and two BCB SGS series (portfolio balance and delinquency, ODbL). A fifth (Home Credit Default Risk, Kaggle) is registered but blocked — `BLOCKED_REQUIRES_USER_ACCESS`, with evidence — see [`docs/data_licensing.md`](docs/data_licensing.md).
+- Business documentation: charter, business problem framing, stakeholder map, KPI dictionary (definitions only, no computed values), data strategy, architecture, assumptions & limitations, glossary, roadmap — plus Phase 2's dataset selection matrix, data dictionary, data-quality audit, target/leakage audit, and sensitive-attributes audit (see [Repository structure](#repository-structure)).
 - CI (GitHub Actions): lint, format check, type check, tests with coverage — on every push.
 
 ## Planned capabilities (not yet implemented)
 
-- Data acquisition and licensing audit for candidate public datasets.
-- A reproducible synthetic operational data layer.
+- A reproducible synthetic operational data layer (needed because neither acquired public dataset is a true longitudinal portfolio panel).
 - Dimensional data modeling and dbt transformations.
 - A queryable SQL warehouse (DuckDB, optionally Postgres).
-- Data quality validation (Pandera or equivalent).
+- Enforced data quality contracts (Pandera or equivalent) — today's audit is diagnostic, not a gate.
 - Portfolio, vintage, and roll-rate analysis.
 - An interpretable probability-of-default model and expected-loss calculation.
 - A cutoff/policy simulator.
@@ -96,6 +96,12 @@ uv sync --all-groups
 uv run credlens --help
 uv run credlens version
 uv run credlens doctor
+
+# Data acquisition (Phase 2) - works offline; fetch/verify need network
+uv run credlens data sources
+uv run credlens data fetch --source uci-default-credit
+uv run credlens data verify
+uv run credlens data audit
 ```
 
 Without `uv`, use a standard virtual environment instead:
@@ -137,7 +143,7 @@ See [`CONTRIBUTING.md`](CONTRIBUTING.md) for the full contributor workflow.
 uv run pytest
 ```
 
-Foundation-phase tests cover: package import and version exposure, CLI help/version/doctor commands, and configuration loading (including missing-file, invalid-YAML, and schema-validation error paths). Coverage is measured on the code that exists in this phase (`src/credlens`) — it is not a proxy for how much of the eventual product is finished.
+141 tests, 95% coverage on `src/credlens` as of Phase 2. Coverage is a code-quality signal, not a proxy for how much of the eventual product is finished. Tests cover: package import/version, all CLI commands (including `data sources|fetch|verify|audit`), configuration loading, and the full data-acquisition layer — HTTP downloads and the BCB client are tested with mocked HTTP (`responses`), never real network calls; every fetch/verify/audit CLI test is sandboxed to a temp directory and never touches this repository's real `data/` files.
 
 ## Repository structure
 
@@ -146,16 +152,19 @@ credlens-credit-analytics/
 ├── README.md / README.pt-BR.md   # This file, and its Portuguese counterpart
 ├── pyproject.toml                # Package metadata, dependencies, tool config
 ├── config/                       # base.yaml - structural configuration (no secrets)
-├── data/                         # Empty by design in this phase (see data/README.md)
-├── docs/                         # Business and architecture documentation
-├── src/credlens/                 # Application package (CLI, config, logging)
+├── data/                         # raw/ (git-ignored) + metadata/ (versioned provenance) - see data/README.md
+├── docs/                         # Business, architecture, and data-acquisition documentation
+├── src/credlens/                 # Application package (CLI, config, logging, data/)
 ├── tests/                        # Pytest suite
+├── reports/data_audit/           # Generated structural audit reports (reproducible via `credlens data audit`)
 └── .github/                      # CI workflow and issue/PR templates
 ```
 
+Phase 2 documentation, in addition to Phase 1's business docs: [`docs/dataset_selection.md`](docs/dataset_selection.md) (weighted decision matrix), [`docs/data_sources.md`](docs/data_sources.md) (how each source is acquired), [`docs/data_licensing.md`](docs/data_licensing.md), [`docs/data_dictionary.md`](docs/data_dictionary.md), [`docs/data_quality_audit.md`](docs/data_quality_audit.md), [`docs/target_and_leakage_audit.md`](docs/target_and_leakage_audit.md), [`docs/sensitive_attributes.md`](docs/sensitive_attributes.md).
+
 ## Data strategy (summary)
 
-The target strategy is **public data + a reproducible synthetic operational layer**: real, licensed public credit/macroeconomic datasets provide realistic structure and distributions; a documented, code-generated synthetic layer fills in the operational detail (e.g., day-to-day delinquency transitions) that public datasets don't expose, without ever presenting synthetic values as real observed outcomes. Candidate sources, licensing status, and the synthetic/public labeling approach are tracked in [`docs/data_strategy.md`](docs/data_strategy.md). No dataset has been downloaded in this phase.
+The target strategy is **public data + a reproducible synthetic operational layer**: real, licensed public credit/macroeconomic datasets provide realistic structure and distributions; a documented, code-generated synthetic layer (not yet built) fills in the operational detail (e.g., day-to-day delinquency transitions) that public datasets don't expose, without ever presenting synthetic values as real observed outcomes. As of Phase 2, four sources are acquired and licensed (two UCI individual-level benchmarks, two Banco Central do Brasil macro series); a fifth (Kaggle) is blocked pending user-provided credentials this project will not request. See [`docs/data_strategy.md`](docs/data_strategy.md) and [`docs/dataset_selection.md`](docs/dataset_selection.md) for the full picture.
 
 ## Limitations
 

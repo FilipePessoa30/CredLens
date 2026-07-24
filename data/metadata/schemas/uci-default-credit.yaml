@@ -1,0 +1,83 @@
+# Documented schema for uci-default-credit, transcribed from the UCI API
+# (archive.ics.uci.edu/api/dataset?id=350) on 2026-07-23. Used only to
+# detect divergence between "the file we got" and "what UCI documents" -
+# see credlens.data.schema and docs/data_quality_audit.md.
+
+source_id: uci-default-credit
+
+columns:
+  - name: ID
+    description: "Row identifier assigned by UCI (index column, not part of the original 23 explanatory variables)."
+    expected_type: integer
+  - name: X1
+    description: "LIMIT_BAL - amount of the given credit (NT dollar), including individual and family (supplementary) credit."
+    expected_type: integer
+  - name: X2
+    description: "SEX - gender (1 = male; 2 = female)."
+    expected_type: categorical
+  - name: X3
+    description: "EDUCATION (1 = graduate school; 2 = university; 3 = high school; 4 = others)."
+    expected_type: categorical
+  - name: X4
+    description: "MARRIAGE - marital status (1 = married; 2 = single; 3 = others)."
+    expected_type: categorical
+  - name: X5
+    description: "AGE in years."
+    expected_type: integer
+  - name: X6
+    description: "PAY_0 - repayment status in September 2005 (-1 = pay duly; 1 = delay 1 month; ... 9 = delay 9+ months)."
+    expected_type: categorical
+  - name: X7
+    description: "PAY_2 - repayment status in August 2005 (same scale as X6)."
+    expected_type: categorical
+  - name: X8
+    description: "PAY_3 - repayment status in July 2005 (same scale as X6)."
+    expected_type: categorical
+  - name: X9
+    description: "PAY_4 - repayment status in June 2005 (same scale as X6)."
+    expected_type: categorical
+  - name: X10
+    description: "PAY_5 - repayment status in May 2005 (same scale as X6)."
+    expected_type: categorical
+  - name: X11
+    description: "PAY_6 - repayment status in April 2005 (same scale as X6)."
+    expected_type: categorical
+  - name: X12
+    description: "BILL_AMT1 - bill statement amount, September 2005 (NT dollar)."
+    expected_type: integer
+  - name: X13
+    description: "BILL_AMT2 - bill statement amount, August 2005 (NT dollar)."
+    expected_type: integer
+  - name: X14
+    description: "BILL_AMT3 - bill statement amount, July 2005 (NT dollar)."
+    expected_type: integer
+  - name: X15
+    description: "BILL_AMT4 - bill statement amount, June 2005 (NT dollar)."
+    expected_type: integer
+  - name: X16
+    description: "BILL_AMT5 - bill statement amount, May 2005 (NT dollar)."
+    expected_type: integer
+  - name: X17
+    description: "BILL_AMT6 - bill statement amount, April 2005 (NT dollar)."
+    expected_type: integer
+  - name: X18
+    description: "PAY_AMT1 - amount paid, September 2005 (NT dollar)."
+    expected_type: integer
+  - name: X19
+    description: "PAY_AMT2 - amount paid, August 2005 (NT dollar)."
+    expected_type: integer
+  - name: X20
+    description: "PAY_AMT3 - amount paid, July 2005 (NT dollar)."
+    expected_type: integer
+  - name: X21
+    description: "PAY_AMT4 - amount paid, June 2005 (NT dollar)."
+    expected_type: integer
+  - name: X22
+    description: "PAY_AMT5 - amount paid, May 2005 (NT dollar)."
+    expected_type: integer
+  - name: X23
+    description: "PAY_AMT6 - amount paid, April 2005 (NT dollar)."
+    expected_type: integer
+  - name: Y
+    description: "default payment next month (1 = default, 0 = no default). Target variable."
+    expected_type: binary

@@ -45,10 +45,44 @@ class PathsConfig:
 
 
 @dataclass(frozen=True)
+class DataConfig:
+    """Structural parameters for the data acquisition layer (Phase 2).
+
+    Purely mechanical (timeouts, retry counts, paths) - never a business
+    threshold. See config/README.md and docs/data_sources.md.
+    """
+
+    raw_dir: str
+    metadata_dir: str
+    http_timeout_seconds: float
+    http_max_retries: int
+    http_retry_backoff_seconds: float
+    user_agent: str
+    bcb_default_start_date: str
+    bcb_max_days_per_request: int
+
+
+DEFAULT_DATA_CONFIG = DataConfig(
+    raw_dir="data/raw",
+    metadata_dir="data/metadata",
+    http_timeout_seconds=30.0,
+    http_max_retries=3,
+    http_retry_backoff_seconds=2.0,
+    user_agent=(
+        "credlens-data-acquisition/0.1 "
+        "(+https://github.com/OWNER/credlens-credit-analytics; portfolio project)"
+    ),
+    bcb_default_start_date="01/01/2015",
+    bcb_max_days_per_request=3650,
+)
+
+
+@dataclass(frozen=True)
 class Config:
     project: ProjectConfig
     logging: LoggingConfig
     paths: PathsConfig
+    data: DataConfig
     source_path: Path
 
 
@@ -71,6 +105,69 @@ def _require_str(section: dict[str, Any], key: str, section_name: str) -> str:
     if not isinstance(value, str) or not value.strip():
         raise ConfigError(f"Expected '{section_name}.{key}' to be a non-empty string.")
     return value
+
+
+def _get_str(section: dict[str, Any], key: str, section_name: str, default: str) -> str:
+    if key not in section:
+        return default
+    value = section[key]
+    if not isinstance(value, str) or not value.strip():
+        raise ConfigError(f"Expected '{section_name}.{key}' to be a non-empty string.")
+    return value
+
+
+def _get_positive_number(
+    section: dict[str, Any], key: str, section_name: str, default: float
+) -> float:
+    if key not in section:
+        return default
+    value = section[key]
+    if isinstance(value, bool) or not isinstance(value, int | float) or value <= 0:
+        raise ConfigError(f"Expected '{section_name}.{key}' to be a positive number.")
+    return float(value)
+
+
+def _get_positive_int(section: dict[str, Any], key: str, section_name: str, default: int) -> int:
+    if key not in section:
+        return default
+    value = section[key]
+    if isinstance(value, bool) or not isinstance(value, int) or value <= 0:
+        raise ConfigError(f"Expected '{section_name}.{key}' to be a positive integer.")
+    return int(value)
+
+
+def _parse_data_section(data: dict[str, Any]) -> DataConfig:
+    """Parse the optional 'data' section. Absent entirely -> all defaults."""
+    if "data" not in data:
+        return DEFAULT_DATA_CONFIG
+
+    section = _require_mapping(data["data"], "data")
+    return DataConfig(
+        raw_dir=_get_str(section, "raw_dir", "data", DEFAULT_DATA_CONFIG.raw_dir),
+        metadata_dir=_get_str(section, "metadata_dir", "data", DEFAULT_DATA_CONFIG.metadata_dir),
+        http_timeout_seconds=_get_positive_number(
+            section, "http_timeout_seconds", "data", DEFAULT_DATA_CONFIG.http_timeout_seconds
+        ),
+        http_max_retries=_get_positive_int(
+            section, "http_max_retries", "data", DEFAULT_DATA_CONFIG.http_max_retries
+        ),
+        http_retry_backoff_seconds=_get_positive_number(
+            section,
+            "http_retry_backoff_seconds",
+            "data",
+            DEFAULT_DATA_CONFIG.http_retry_backoff_seconds,
+        ),
+        user_agent=_get_str(section, "user_agent", "data", DEFAULT_DATA_CONFIG.user_agent),
+        bcb_default_start_date=_get_str(
+            section, "bcb_default_start_date", "data", DEFAULT_DATA_CONFIG.bcb_default_start_date
+        ),
+        bcb_max_days_per_request=_get_positive_int(
+            section,
+            "bcb_max_days_per_request",
+            "data",
+            DEFAULT_DATA_CONFIG.bcb_max_days_per_request,
+        ),
+    )
 
 
 def load_config(path: Path | str | None = None) -> Config:
@@ -145,4 +242,12 @@ def load_config(path: Path | str | None = None) -> Config:
         docs_dir=_require_str(paths_raw, "docs_dir", "paths"),
     )
 
-    return Config(project=project, logging=logging_config, paths=paths, source_path=config_path)
+    data_config = _parse_data_section(data)
+
+    return Config(
+        project=project,
+        logging=logging_config,
+        paths=paths,
+        data=data_config,
+        source_path=config_path,
+    )

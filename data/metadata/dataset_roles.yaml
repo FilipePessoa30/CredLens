@@ -1,0 +1,75 @@
+# CredLens - dataset role decisions (Phase 2).
+#
+# A short, human-readable decision record answering "what is this source
+# FOR" - the full reasoning (weighted matrix, sensitivity analysis) is in
+# docs/dataset_selection.md; the full operational/licensing record is in
+# data/metadata/source_registry.yaml and docs/data_licensing.md. This file
+# exists so the role decision can be read in isolation, without the
+# operational detail.
+
+decisions:
+  - source_id: uci-default-credit
+    role: primary_benchmark
+    justification: >
+      Largest (30,000 rows), best-documented, unambiguously CC BY 4.0
+      licensed individual-level credit risk dataset evaluated. Has a clear
+      binary target and a real repayment-history structure (6 months),
+      making it the most capable of the evaluated sources for building
+      and testing individual-level risk analysis code in a later phase.
+
+  - source_id: south-german-credit
+    role: secondary_benchmark
+    justification: >
+      Small (1000 rows) and from a different country/decade, so it cannot
+      anchor the project's main analysis - but it is cleanly licensed,
+      well-documented, and useful specifically as a second, structurally
+      different dataset to test that any future modeling/audit code
+      generalizes beyond a single source's quirks, rather than being
+      accidentally overfit to uci-default-credit's specific structure.
+
+  - source_id: home-credit
+    role: optional_restricted
+    justification: >
+      Richer (multi-table, application + bureau + previous-application
+      history) than either UCI dataset, but access is gated behind a
+      Kaggle account, competition rules acceptance, and an API token this
+      project does not have and will not request from the user or bypass.
+      Kept in the registry as BLOCKED_REQUIRES_USER_ACCESS so the option
+      is documented, not silently dropped - but the pipeline's required
+      path does not depend on it.
+
+  - source_id: bcb-sgs-20570
+    role: market_context
+    justification: >
+      Official Brazilian aggregate portfolio-balance series. Provides
+      macro context for the fictional CredLens scenario (which is framed
+      as a Brazilian digital lender) without ever being individual-level
+      data - explicitly not to be joined to uci-default-credit or
+      south-german-credit records as if it described the same customers.
+
+  - source_id: bcb-sgs-21112
+    role: market_context
+    justification: >
+      Official Brazilian aggregate 90+ DPD delinquency series. Same role
+      and same restriction as bcb-sgs-20570: macro context only, never
+      individual-level, never silently blended with the benchmark
+      datasets above.
+
+  - source_id: future-synthetic-operational-layer
+    role: future_synthetic
+    justification: >
+      Not a registry entry (nothing to acquire - it doesn't exist yet).
+      Documented here as a role placeholder because docs/data_strategy.md
+      and this Phase 2 brief both require a longitudinal operational
+      layer (vintages, delinquency transitions, collections, recovery)
+      that no evaluated public dataset provides. Design-only in this
+      phase - see docs/data_strategy.md section "Reproducible synthetic
+      operational data" and docs/roadmap.md phase 4. No data is generated
+      in Phase 2.
+
+rejected: []
+# No candidate evaluated in Phase 2 was rejected outright - the closest
+# case (home-credit) was blocked rather than rejected, since it remains a
+# legitimate future option once user-provided Kaggle access exists. See
+# docs/dataset_selection.md for candidates considered and not pursued
+# further (e.g. Lending Club historical data, other Kaggle credit sets).

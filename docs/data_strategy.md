@@ -1,6 +1,26 @@
-# Data Strategy (Preliminary)
+# Data Strategy
 
-**No dataset has been downloaded, selected as final, or analyzed in this phase.** This document records candidate sources and the criteria that will decide among them. Selection, licensing verification, and acquisition are scoped to a later, explicitly separate phase (see `docs/roadmap.md`, phase 2).
+**Status: candidate sources evaluated, selected, and acquired in Phase 2.** This document is Phase 1's original candidate matrix, kept intact below for context, plus this update summarizing what Phase 2 actually decided and did. For the full reasoning and evidence, see the documents Phase 2 added:
+
+- `docs/dataset_selection.md` - the weighted decision matrix and sensitivity analysis.
+- `docs/data_sources.md` - operational detail per source (how each is acquired).
+- `docs/data_licensing.md` - license verification evidence per source.
+- `data/metadata/source_registry.yaml` and `data/metadata/dataset_roles.yaml` - the machine-readable record.
+
+## Phase 2 outcome
+
+| Candidate below | Outcome |
+|---|---|
+| Home Credit Default Risk (Kaggle) | Evaluated, scores well on content, but **blocked**: `BLOCKED_REQUIRES_USER_ACCESS` - Kaggle's account/rules/API-token requirement could not be satisfied without credentials this project will not create or request. Role: `optional_restricted`. |
+| Other public credit-risk datasets | Narrowed to two, both acquired: **uci-default-credit** (Default of Credit Card Clients, role `primary_benchmark`) and **south-german-credit** (role `secondary_benchmark`, used specifically instead of the older Statlog German Credit dataset per its own documented coding-error corrections). |
+| Public macroeconomic indicators | Narrowed to two Banco Central do Brasil SGS series (portfolio balance and delinquency for individuals), role `market_context`. Acquired. |
+| Reproducible synthetic operational data | Still not built. Remains scoped for a later phase - see "Reproducible synthetic operational data" below, unchanged from Phase 1, and `docs/roadmap.md` phase 4. |
+
+Every acquired file's checksum, size, and retrieval timestamp is in `data/metadata/file_manifest.csv`; every source's structural audit is in `docs/data_quality_audit.md` and `reports/data_audit/quality_metrics.json`.
+
+## What follows is Phase 1's original candidate matrix (kept for context)
+
+At the time this was written, no dataset had been downloaded, selected as final, or analyzed - it recorded candidate sources and the criteria that would decide among them. It is preserved below essentially unedited; where Phase 2 changed a "decision pending" into an actual decision, that's captured in the table above and in the linked documents, not by rewriting history here.
 
 ## Target strategy
 
@@ -68,11 +88,9 @@ Once implemented, this project will enforce (not just document) a separation:
 - **Fit for this problem**: Necessary complement to public data for this project's full KPI scope; not a substitute for it.
 - **Decision pending**: Generation methodology and validation approach (e.g., how its distributions will be checked for plausibility) — to be designed when the data acquisition phase starts.
 
-## Summary of pending decisions
+## Summary of pending decisions (Phase 1) - resolved in Phase 2
 
-1. Confirm the Home Credit Default Risk dataset's license terms and known leakage pitfalls before any download.
-2. Decide whether a secondary public dataset is needed, or whether Home Credit plus a synthetic layer is sufficient.
-3. Select and cite specific macroeconomic series, once the primary dataset's time range and geography are known.
-4. Design the synthetic data generator's scope and validation approach.
-
-None of these decisions are made in this document. They are inputs to the data acquisition phase.
+1. ~~Confirm the Home Credit Default Risk dataset's license terms and known leakage pitfalls before any download.~~ **Resolved**: license could not be confirmed (Kaggle's rules page is a client-rendered app with no accessible rules text); blocked rather than downloaded. See `docs/data_licensing.md`.
+2. ~~Decide whether a secondary public dataset is needed, or whether Home Credit plus a synthetic layer is sufficient.~~ **Resolved**: Home Credit is blocked, so two UCI datasets (primary + secondary benchmark) were acquired instead. See `docs/dataset_selection.md`.
+3. ~~Select and cite specific macroeconomic series, once the primary dataset's time range and geography are known.~~ **Resolved**: BCB SGS series 20570 (portfolio balance) and 21112 (delinquency), both for individuals under freely-negotiated rates. See `docs/data_sources.md`.
+4. Design the synthetic data generator's scope and validation approach. **Still pending** - not addressed in Phase 2, remains scoped for a later phase (see `docs/roadmap.md` phase 4).

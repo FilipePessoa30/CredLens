@@ -1,0 +1,73 @@
+# Documented schema for south-german-credit, transcribed from the UCI API
+# (archive.ics.uci.edu/api/dataset?id=522, additional_info.variable_info)
+# on 2026-07-23. Column names are the original German short codes used in
+# SouthGermanCredit.asc's own header row - not renamed here. Used only to
+# detect divergence between "the file we got" and "what UCI documents" -
+# see credlens.data.schema and docs/data_quality_audit.md.
+
+source_id: south-german-credit
+
+columns:
+  - name: laufkont
+    description: "status - status of the debtor's checking account with the bank."
+    expected_type: categorical
+  - name: laufzeit
+    description: "duration - credit duration in months."
+    expected_type: integer
+  - name: moral
+    description: "credit_history - history of compliance with previous/concurrent credit contracts."
+    expected_type: categorical
+  - name: verw
+    description: "purpose - purpose for which the credit is needed."
+    expected_type: categorical
+  - name: hoehe
+    description: "amount - credit amount in DM (result of an undocumented monotonic transformation, per UCI)."
+    expected_type: integer
+  - name: sparkont
+    description: "savings - debtor's savings account status."
+    expected_type: categorical
+  - name: beszeit
+    description: "employment_duration - duration of debtor's employment with current employer (ordinal)."
+    expected_type: categorical
+  - name: rate
+    description: "installment_rate - credit installments as a percentage of debtor's disposable income (ordinal)."
+    expected_type: categorical
+  - name: famges
+    description: "personal_status_sex - combined sex and marital status. KNOWN AMBIGUITY per UCI: sex cannot always be recovered from this code - see docs/sensitive_attributes.md."
+    expected_type: categorical
+  - name: buerge
+    description: "other_debtors - whether there is another debtor or a guarantor for the credit."
+    expected_type: categorical
+  - name: wohnzeit
+    description: "present_residence - years the debtor has lived at the present residence (ordinal)."
+    expected_type: categorical
+  - name: verm
+    description: "property - debtor's most valuable property (ordinal)."
+    expected_type: categorical
+  - name: alter
+    description: "age - age in years."
+    expected_type: integer
+  - name: weitkred
+    description: "other_installment_plans - installment plans from providers other than the credit-giving bank."
+    expected_type: categorical
+  - name: wohn
+    description: "housing - type of housing the debtor lives in."
+    expected_type: categorical
+  - name: bishkred
+    description: "number_credits - number of credits (including current) the debtor has/had at this bank (ordinal)."
+    expected_type: categorical
+  - name: beruf
+    description: "job - quality of debtor's job (ordinal)."
+    expected_type: categorical
+  - name: pers
+    description: "people_liable - number of persons financially dependent on the debtor (binary/discretized)."
+    expected_type: categorical
+  - name: telef
+    description: "telephone - whether a telephone landline is registered in the debtor's name."
+    expected_type: binary
+  - name: gastarb
+    description: "foreign_worker - whether the debtor is a foreign worker."
+    expected_type: binary
+  - name: kredit
+    description: "credit_risk - whether the credit contract was complied with (good) or not (bad). Target variable."
+    expected_type: binary

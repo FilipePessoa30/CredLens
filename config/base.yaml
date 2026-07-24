@@ -21,3 +21,19 @@ paths:
   data_dir: data
   config_dir: config
   docs_dir: docs
+
+data:
+  # Structural parameters for the data acquisition layer (Phase 2). No
+  # credentials, no business thresholds - see config/README.md and
+  # docs/data_sources.md. This whole section is optional; any key you omit
+  # falls back to the default in credlens.config.DEFAULT_DATA_CONFIG.
+  raw_dir: data/raw
+  metadata_dir: data/metadata
+  http_timeout_seconds: 30
+  http_max_retries: 3
+  http_retry_backoff_seconds: 2
+  user_agent: "credlens-data-acquisition/0.1 (+https://github.com/OWNER/credlens-credit-analytics; portfolio project)"
+  # BCB SGS queries always use an explicit date range (see docs/data_sources.md);
+  # this is only the CLI's default start date when --start is not passed.
+  bcb_default_start_date: "01/01/2015"
+  bcb_max_days_per_request: 3650

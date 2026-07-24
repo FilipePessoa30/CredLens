@@ -7,6 +7,7 @@ This document exists so nobody reading this repository — a recruiter, a hiring
 - The company described in `docs/project_charter.md` and `docs/business_problem.md` is **entirely fictional**. It does not represent any real lender, past employer, or client.
 - No real customer exists in this project, at any phase.
 - No real personal data, financial account data, or credit bureau data will be used at any phase. Public datasets used in later phases (see `docs/data_strategy.md`) are, by their own publishers' design, anonymized/de-identified research or competition data — not live customer records — and their licenses will be checked before use regardless.
+- **Phase 2 update**: two anonymized public research datasets have now been acquired - Taiwan credit card clients (2005) and German credit applicants (1973-1975). Neither describes a real CredLens customer, a Brazilian applicant, or any person a reader could identify - they are decades-old, published academic benchmark datasets. Their acquisition does not change any statement in this document; it is exactly the "public data" half of the strategy described above. See `docs/dataset_selection.md`, `docs/data_licensing.md`, and `docs/sensitive_attributes.md` for what was verified about them.
 
 ## Not usable for real credit decisions
 

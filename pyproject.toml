@@ -1,7 +1,7 @@
 [project]
 name = "credlens"
-version = "0.1.0"
-description = "CredLens - Credit Risk & Portfolio Analytics. Foundation phase: project scaffolding, business framing, and a minimal CLI."
+version = "0.2.0"
+description = "CredLens - Credit Risk & Portfolio Analytics. Project scaffolding, business framing, a CLI, and reproducible public-dataset acquisition/audit."
 readme = "README.md"
 license = { text = "MIT" }
 requires-python = ">=3.11"
@@ -17,9 +17,15 @@ classifiers = [
   "Topic :: Office/Business :: Financial",
 ]
 
-# Runtime dependencies are kept intentionally minimal for the foundation
-# phase: only what the CLI, configuration loading, and logging need.
-dependencies = ["pyyaml>=6.0,<7"]
+# Runtime dependencies are kept intentionally minimal. Phase 1 needed only
+# PyYAML (config). Phase 2 (data acquisition/audit) justifies two additions:
+# requests (HTTP downloads with retries/timeouts) and pandas (reading the
+# original tabular formats and computing structural audit statistics).
+dependencies = [
+  "pyyaml>=6.0,<7",
+  "requests>=2.31,<3",
+  "pandas>=2.2,<3",
+]
 
 [project.urls]
 Repository = "https://github.com/OWNER/credlens-credit-analytics"
@@ -34,6 +40,9 @@ dev = [
   "ruff>=0.6,<1",
   "mypy>=1.11,<2",
   "types-PyYAML>=6.0,<7",
+  "types-requests>=2.31,<3",
+  "responses>=0.25,<1",
+  "pandas-stubs>=2.2,<3",
 ]
 
 [build-system]
