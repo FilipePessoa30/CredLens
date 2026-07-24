@@ -1,0 +1,36 @@
+name: policy_versions
+version: 1
+description: >
+  One row per version of the (not-yet-built) credit policy / decision
+  engine. credit_decisions references exactly one policy_version_id, and
+  the referenced version's [effective_from, effective_to) window must
+  cover the decision instant - see docs/temporal_semantics.md.
+owner: "Credit (conceptual)"
+classification: synthetic_operational
+grain: "one row per policy version"
+status: draft
+evolution_policy: "New policy behavior is always a new row (new policy_version_id), never an edit of an existing row - policy history must stay immutable."
+format: csv
+
+primary_key: [policy_version_id]
+
+foreign_keys: []
+
+columns:
+  - {name: policy_version_id, type: string, nullable: false, domain: null, unit: null, temporality: null, sensitivity: synthetic_operational, available_for_modeling: false, description: "Synthetic policy version identifier."}
+  - {name: name, type: string, nullable: false, domain: null, unit: null, temporality: null, sensitivity: synthetic_operational, available_for_modeling: false, description: "Human-readable policy name."}
+  - {name: version, type: integer, nullable: false, domain: {min: 1}, unit: null, temporality: null, sensitivity: synthetic_operational, available_for_modeling: false, description: "Monotonically increasing version number within `name`."}
+  - {name: effective_from, type: timestamp, nullable: false, domain: null, unit: null, temporality: effective_from, sensitivity: synthetic_operational, available_for_modeling: false, description: "Start of this version's validity window (inclusive)."}
+  - {name: effective_to, type: timestamp, nullable: true, domain: null, unit: null, temporality: effective_to, sensitivity: synthetic_operational, available_for_modeling: false, description: "End of this version's validity window (exclusive); null means still in force."}
+  - {name: status, type: categorical, nullable: false, domain: {in_set: [draft, active, retired]}, unit: null, temporality: null, sensitivity: synthetic_operational, available_for_modeling: false, description: "Lifecycle status of this policy version."}
+  - {name: rules_reference, type: string, nullable: false, domain: null, unit: null, temporality: null, sensitivity: synthetic_operational, available_for_modeling: false, description: "Opaque pointer to the versioned rules/parameters this policy applied (the decision engine itself is out of scope for this phase)."}
+  - {name: change_reason, type: string, nullable: true, domain: null, unit: null, temporality: null, sensitivity: synthetic_operational, available_for_modeling: false, description: "Why this version was introduced, e.g. 'tightening after Q2 delinquency review' (illustrative wording only - no real review exists)."}
+  - {name: scenario, type: categorical, nullable: false, domain: {in_set: [baseline, policy_expansion, policy_tightening, macroeconomic_stress, collections_change, data_quality_incident]}, unit: null, temporality: null, sensitivity: technical_metadata, available_for_modeling: false, description: "Which future generation scenario this policy version belongs to."}
+
+uniqueness_rules:
+  - {name: policy_name_version_unique, columns: [name, version], severity: error}
+
+business_rules:
+  - {code: policy_validity_window_not_inverted, description: "effective_to, when present, must be strictly after effective_from.", severity: error}
+
+strict_unexpected_columns: true

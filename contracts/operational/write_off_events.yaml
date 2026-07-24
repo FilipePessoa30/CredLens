@@ -1,0 +1,36 @@
+name: write_off_events
+version: 1
+description: >
+  One row per write-off event. A write-off never deletes or overwrites any
+  prior event for the same contract - all earlier rows in every other
+  table remain exactly as they were, per docs/business_rules.md.
+owner: "Finance / Risk (conceptual)"
+classification: synthetic_operational
+grain: "one row per write-off event"
+status: draft
+evolution_policy: "Additive only until the generator exists."
+format: csv
+
+primary_key: [write_off_id]
+
+foreign_keys:
+  - {column: contract_id, references_contract: contracts, references_column: contract_id, severity: error}
+
+columns:
+  - {name: write_off_id, type: string, nullable: false, domain: null, unit: null, temporality: null, sensitivity: synthetic_operational, available_for_modeling: false, description: "Synthetic write-off event identifier."}
+  - {name: contract_id, type: string, nullable: false, domain: null, unit: null, temporality: null, sensitivity: synthetic_operational, available_for_modeling: false, description: "Contract written off."}
+  - {name: write_off_date, type: date, nullable: false, domain: null, unit: null, temporality: write_off_date, sensitivity: synthetic_operational, available_for_modeling: false, description: "Date of the write-off - must not precede the contract's contract_date."}
+  - {name: amount, type: decimal, nullable: false, domain: {min: 0.01}, unit: "currency_unit", temporality: null, sensitivity: synthetic_operational, available_for_modeling: false, description: "Total amount written off; must equal principal + interest + fees."}
+  - {name: principal, type: decimal, nullable: false, domain: {min: 0}, unit: "currency_unit", temporality: null, sensitivity: synthetic_operational, available_for_modeling: false, description: "Principal component written off."}
+  - {name: interest, type: decimal, nullable: false, domain: {min: 0}, unit: "currency_unit", temporality: null, sensitivity: synthetic_operational, available_for_modeling: false, description: "Interest component written off."}
+  - {name: fees, type: decimal, nullable: false, domain: {min: 0}, unit: "currency_unit", temporality: null, sensitivity: synthetic_operational, available_for_modeling: false, description: "Fee component written off."}
+  - {name: reason, type: categorical, nullable: false, domain: {in_set: [uncollectible, bankruptcy, deceased, fraud, policy_threshold]}, unit: null, temporality: null, sensitivity: synthetic_operational, available_for_modeling: false, description: "Reason category (illustrative; no real regulatory taxonomy is claimed)."}
+  - {name: policy_reference, type: string, nullable: true, domain: null, unit: null, temporality: null, sensitivity: synthetic_operational, available_for_modeling: false, description: "Opaque pointer to the write-off policy/rule applied, e.g. '180+ DPD' (illustrative wording only)."}
+
+uniqueness_rules: []
+
+business_rules:
+  - {code: write_off_not_before_contract, description: "write_off_date must be >= the contract's contract_date.", severity: error}
+  - {code: write_off_amount_reconciled, description: "amount must equal principal + interest + fees.", severity: error}
+
+strict_unexpected_columns: true

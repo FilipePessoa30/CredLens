@@ -1,0 +1,37 @@
+name: collection_events
+version: 1
+description: >
+  One row per collections contact/action event. Proximity in time to a
+  recovery_events row must never be read as proof of causation - see
+  docs/business_rules.md and docs/assumptions_and_limitations.md's
+  correlation/causality distinction.
+owner: "Collections (conceptual)"
+classification: synthetic_operational
+grain: "one row per collections event"
+status: draft
+evolution_policy: "Additive only until the generator exists."
+format: csv
+
+primary_key: [collection_event_id]
+
+foreign_keys:
+  - {column: contract_id, references_contract: contracts, references_column: contract_id, severity: error}
+
+columns:
+  - {name: collection_event_id, type: string, nullable: false, domain: null, unit: null, temporality: null, sensitivity: synthetic_operational, available_for_modeling: false, description: "Synthetic collections event identifier."}
+  - {name: contract_id, type: string, nullable: false, domain: null, unit: null, temporality: null, sensitivity: synthetic_operational, available_for_modeling: false, description: "Contract this action targeted."}
+  - {name: event_timestamp, type: timestamp, nullable: false, domain: null, unit: null, temporality: event_timestamp, sensitivity: synthetic_operational, available_for_modeling: false, description: "When the action occurred."}
+  - {name: channel, type: categorical, nullable: false, domain: {in_set: [call, sms, email, letter, in_person]}, unit: null, temporality: null, sensitivity: synthetic_operational, available_for_modeling: false, description: "Contact channel."}
+  - {name: strategy, type: string, nullable: false, domain: null, unit: null, temporality: null, sensitivity: synthetic_operational, available_for_modeling: false, description: "Opaque strategy identifier (e.g. 'early_stage_soft', illustrative only)."}
+  - {name: outcome, type: categorical, nullable: false, domain: {in_set: [no_contact, contacted_no_commitment, promise_to_pay, dispute, refused]}, unit: null, temporality: null, sensitivity: synthetic_operational, available_for_modeling: false, description: "Immediate outcome of the contact attempt."}
+  - {name: promise_to_pay, type: boolean, nullable: false, domain: null, unit: null, temporality: null, sensitivity: synthetic_operational, available_for_modeling: false, description: "Whether a payment promise was obtained."}
+  - {name: promised_amount, type: decimal, nullable: true, domain: {min: 0}, unit: "currency_unit", temporality: null, sensitivity: synthetic_operational, available_for_modeling: false, description: "Promised amount; null unless promise_to_pay=true."}
+  - {name: promised_date, type: date, nullable: true, domain: null, unit: null, temporality: due_date, sensitivity: synthetic_operational, available_for_modeling: false, description: "Promised payment date; null unless promise_to_pay=true."}
+  - {name: status, type: categorical, nullable: false, domain: {in_set: [open, kept, broken, cancelled]}, unit: null, temporality: null, sensitivity: synthetic_operational, available_for_modeling: false, description: "Follow-up status of this event's promise, if any."}
+
+uniqueness_rules: []
+
+business_rules:
+  - {code: promise_fields_require_promise_flag, description: "promised_amount and promised_date must be null unless promise_to_pay=true, and non-null when it is true.", severity: error}
+
+strict_unexpected_columns: true

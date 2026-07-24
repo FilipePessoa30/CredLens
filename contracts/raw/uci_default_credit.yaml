@@ -1,0 +1,55 @@
+name: uci_default_credit
+version: 1
+description: >
+  Default of Credit Card Clients (UCI). See docs/data_dictionary.md and
+  data/metadata/source_registry.yaml for full provenance. This contract
+  encodes UCI's own documented column domains so that automated validation
+  - not just a manual read of the audit output - catches values outside
+  them. See docs/data_quality_audit.md for the EDUCATION/MARRIAGE finding
+  this contract is designed to reproduce automatically.
+owner: "Risk (conceptual)"
+classification: public_source
+grain: "one row per credit card client (anonymized), Taiwan, 2005"
+status: active
+evolution_policy: >
+  This contract must only ever be loosened to match what UCI's own
+  documentation says, never loosened to match whatever the file happens to
+  contain - a version bump requires citing the updated UCI documentation.
+format: csv
+
+primary_key: [ID]
+
+foreign_keys: []
+
+columns:
+  - {name: ID, type: integer, nullable: false, domain: {min: 1}, unit: null, temporality: null, sensitivity: public_source, available_for_modeling: false, description: "UCI-assigned row identifier."}
+  - {name: X1, type: integer, nullable: false, domain: {min: 0}, unit: "NT dollar", temporality: null, sensitivity: public_source, available_for_modeling: true, description: "LIMIT_BAL - amount of the given credit."}
+  - {name: X2, type: categorical, nullable: false, domain: {in_set: [1, 2]}, unit: null, temporality: null, sensitivity: evaluation_only, available_for_modeling: true, description: "SEX (1=male, 2=female) - per docs/sensitive_attributes.md, treat as evaluation-sensitive."}
+  - {name: X3, type: categorical, nullable: false, domain: {in_set: [1, 2, 3, 4]}, unit: null, temporality: null, sensitivity: public_source, available_for_modeling: true, description: "EDUCATION (1=graduate school, 2=university, 3=high school, 4=others) per UCI documentation. Real acquired data contains additional undocumented codes - see docs/data_quality_audit.md."}
+  - {name: X4, type: categorical, nullable: false, domain: {in_set: [1, 2, 3]}, unit: null, temporality: null, sensitivity: public_source, available_for_modeling: true, description: "MARRIAGE (1=married, 2=single, 3=others) per UCI documentation. Real acquired data contains an additional undocumented code - see docs/data_quality_audit.md."}
+  - {name: X5, type: integer, nullable: false, domain: {min: 18, max: 100}, unit: "years", temporality: null, sensitivity: evaluation_only, available_for_modeling: true, description: "AGE."}
+  - {name: X6, type: categorical, nullable: false, domain: {min: -2, max: 9}, unit: null, temporality: null, sensitivity: public_source, available_for_modeling: true, description: "PAY_0 - repayment status, September 2005."}
+  - {name: X7, type: categorical, nullable: false, domain: {min: -2, max: 9}, unit: null, temporality: null, sensitivity: public_source, available_for_modeling: true, description: "PAY_2 - repayment status, August 2005."}
+  - {name: X8, type: categorical, nullable: false, domain: {min: -2, max: 9}, unit: null, temporality: null, sensitivity: public_source, available_for_modeling: true, description: "PAY_3 - repayment status, July 2005."}
+  - {name: X9, type: categorical, nullable: false, domain: {min: -2, max: 9}, unit: null, temporality: null, sensitivity: public_source, available_for_modeling: true, description: "PAY_4 - repayment status, June 2005."}
+  - {name: X10, type: categorical, nullable: false, domain: {min: -2, max: 9}, unit: null, temporality: null, sensitivity: public_source, available_for_modeling: true, description: "PAY_5 - repayment status, May 2005."}
+  - {name: X11, type: categorical, nullable: false, domain: {min: -2, max: 9}, unit: null, temporality: null, sensitivity: public_source, available_for_modeling: true, description: "PAY_6 - repayment status, April 2005."}
+  - {name: X12, type: integer, nullable: false, domain: null, unit: "NT dollar", temporality: null, sensitivity: public_source, available_for_modeling: true, description: "BILL_AMT1 - bill statement, September 2005 (may be negative: a credit balance)."}
+  - {name: X13, type: integer, nullable: false, domain: null, unit: "NT dollar", temporality: null, sensitivity: public_source, available_for_modeling: true, description: "BILL_AMT2 - bill statement, August 2005."}
+  - {name: X14, type: integer, nullable: false, domain: null, unit: "NT dollar", temporality: null, sensitivity: public_source, available_for_modeling: true, description: "BILL_AMT3 - bill statement, July 2005."}
+  - {name: X15, type: integer, nullable: false, domain: null, unit: "NT dollar", temporality: null, sensitivity: public_source, available_for_modeling: true, description: "BILL_AMT4 - bill statement, June 2005."}
+  - {name: X16, type: integer, nullable: false, domain: null, unit: "NT dollar", temporality: null, sensitivity: public_source, available_for_modeling: true, description: "BILL_AMT5 - bill statement, May 2005."}
+  - {name: X17, type: integer, nullable: false, domain: null, unit: "NT dollar", temporality: null, sensitivity: public_source, available_for_modeling: true, description: "BILL_AMT6 - bill statement, April 2005."}
+  - {name: X18, type: integer, nullable: false, domain: {min: 0}, unit: "NT dollar", temporality: null, sensitivity: public_source, available_for_modeling: true, description: "PAY_AMT1 - amount paid, September 2005."}
+  - {name: X19, type: integer, nullable: false, domain: {min: 0}, unit: "NT dollar", temporality: null, sensitivity: public_source, available_for_modeling: true, description: "PAY_AMT2 - amount paid, August 2005."}
+  - {name: X20, type: integer, nullable: false, domain: {min: 0}, unit: "NT dollar", temporality: null, sensitivity: public_source, available_for_modeling: true, description: "PAY_AMT3 - amount paid, July 2005."}
+  - {name: X21, type: integer, nullable: false, domain: {min: 0}, unit: "NT dollar", temporality: null, sensitivity: public_source, available_for_modeling: true, description: "PAY_AMT4 - amount paid, June 2005."}
+  - {name: X22, type: integer, nullable: false, domain: {min: 0}, unit: "NT dollar", temporality: null, sensitivity: public_source, available_for_modeling: true, description: "PAY_AMT5 - amount paid, May 2005."}
+  - {name: X23, type: integer, nullable: false, domain: {min: 0}, unit: "NT dollar", temporality: null, sensitivity: public_source, available_for_modeling: true, description: "PAY_AMT6 - amount paid, April 2005."}
+  - {name: Y, type: categorical, nullable: false, domain: {in_set: [0, 1]}, unit: null, temporality: null, sensitivity: public_source, available_for_modeling: false, description: "Target: default payment next month (1=default, 0=no default)."}
+
+uniqueness_rules: []
+
+business_rules: []
+
+strict_unexpected_columns: false

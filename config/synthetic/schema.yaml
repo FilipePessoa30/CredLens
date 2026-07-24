@@ -1,0 +1,29 @@
+# Reference description of the scenario blueprint schema. Enforced by the
+# Pydantic model in src/credlens/synthetic.py (ScenarioBlueprint) - this
+# file is documentation for that model, not a second enforcement path.
+
+schema_name: scenario_blueprint
+version: 1
+
+top_level_fields:
+  scenario_id: "Stable identifier, matches the filename before '.blueprint.yaml'."
+  name: "Human-readable scenario name."
+  description: "What this scenario is meant to exercise once a generator exists."
+  status: "draft | requires_calibration - never anything implying the blueprint is ready to run."
+
+sections:
+  population:
+    purpose: "Parameters governing synthetic customer/application arrival - see docs/synthetic_generation_spec.md 'Population'."
+  origination:
+    purpose: "Parameters governing policy application and approval/rejection - see 'Concessão'."
+  performance:
+    purpose: "Parameters governing payment behavior, delinquency, cure, write-off, recovery - see 'Desempenho'."
+  temporal_dependence:
+    purpose: "Parameters governing seasonality, mix drift, policy-change timing, stress dynamics - see 'Dependência temporal'."
+  reproducibility:
+    purpose: "Parameters governing seed/determinism - see 'Reprodutibilidade'."
+
+parameter_fields:
+  status: "specified | pending | requires_calibration - see config/synthetic/README.md for what each means."
+  description: "What this parameter controls."
+  value: "Only present when status=specified. Never a number presented as a real-world benchmark."

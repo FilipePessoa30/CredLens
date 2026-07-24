@@ -1,7 +1,7 @@
 [project]
 name = "credlens"
-version = "0.2.0"
-description = "CredLens - Credit Risk & Portfolio Analytics. Project scaffolding, business framing, a CLI, and reproducible public-dataset acquisition/audit."
+version = "0.3.0"
+description = "CredLens - Credit Risk & Portfolio Analytics. Project scaffolding, business framing, a CLI, reproducible public-dataset acquisition/audit, conceptual data model, and data contracts."
 readme = "README.md"
 license = { text = "MIT" }
 requires-python = ">=3.11"
@@ -18,13 +18,20 @@ classifiers = [
 ]
 
 # Runtime dependencies are kept intentionally minimal. Phase 1 needed only
-# PyYAML (config). Phase 2 (data acquisition/audit) justifies two additions:
-# requests (HTTP downloads with retries/timeouts) and pandas (reading the
-# original tabular formats and computing structural audit statistics).
+# PyYAML (config). Phase 2 (data acquisition/audit) added requests (HTTP
+# downloads) and pandas (tabular reading + audit statistics). Phase 3 (data
+# contracts) adds pydantic: contract YAML files are structurally complex
+# (nested column/domain/foreign-key/rule specs across 20 contracts) and
+# pydantic gives typed parsing with precise validation errors for a fraction
+# of the hand-written validation code the Phase 1/2 dataclass-based pattern
+# would need here - see docs/data_contracts.md. Actual DATA rows are still
+# validated with vectorized pandas operations, not per-row Pydantic models
+# (see docs/adr/0006-audit-vs-strict-validation.md).
 dependencies = [
   "pyyaml>=6.0,<7",
   "requests>=2.31,<3",
   "pandas>=2.2,<3",
+  "pydantic>=2.6,<3",
 ]
 
 [project.urls]

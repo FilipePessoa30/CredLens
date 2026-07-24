@@ -1,0 +1,51 @@
+name: south_german_credit
+version: 1
+description: >
+  South German Credit (UCI). See docs/data_dictionary.md and
+  data/metadata/source_registry.yaml for full provenance. Domains below are
+  transcribed from the dataset's own codetable.txt (downloaded alongside
+  the data - see docs/data_sources.md).
+owner: "Risk (conceptual)"
+classification: public_source
+grain: "one row per credit applicant, Germany, 1973-1975"
+status: active
+evolution_policy: >
+  This contract must only ever be loosened to match codetable.txt, never
+  loosened to match whatever the file happens to contain.
+format: asc
+
+primary_key: []
+# No natural row identifier is documented for this dataset (per UCI) - the
+# file has no ID column, so a positional/synthetic key would misrepresent
+# the source. Uniqueness is intentionally not enforced at the row level.
+
+foreign_keys: []
+
+columns:
+  - {name: laufkont, type: categorical, nullable: false, domain: {in_set: [1, 2, 3, 4]}, unit: null, temporality: null, sensitivity: public_source, available_for_modeling: true, description: "status - checking account status."}
+  - {name: laufzeit, type: integer, nullable: false, domain: {min: 1}, unit: "months", temporality: null, sensitivity: public_source, available_for_modeling: true, description: "duration - credit duration in months."}
+  - {name: moral, type: categorical, nullable: false, domain: {in_set: [0, 1, 2, 3, 4]}, unit: null, temporality: null, sensitivity: public_source, available_for_modeling: true, description: "credit_history."}
+  - {name: verw, type: categorical, nullable: false, domain: {in_set: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]}, unit: null, temporality: null, sensitivity: public_source, available_for_modeling: true, description: "purpose."}
+  - {name: hoehe, type: integer, nullable: false, domain: {min: 1}, unit: "DM (transformed, per UCI)", temporality: null, sensitivity: public_source, available_for_modeling: true, description: "amount - credit amount."}
+  - {name: sparkont, type: categorical, nullable: false, domain: {in_set: [1, 2, 3, 4, 5]}, unit: null, temporality: null, sensitivity: public_source, available_for_modeling: true, description: "savings."}
+  - {name: beszeit, type: categorical, nullable: false, domain: {in_set: [1, 2, 3, 4, 5]}, unit: null, temporality: null, sensitivity: public_source, available_for_modeling: true, description: "employment_duration."}
+  - {name: rate, type: categorical, nullable: false, domain: {in_set: [1, 2, 3, 4]}, unit: null, temporality: null, sensitivity: public_source, available_for_modeling: true, description: "installment_rate - see docs/target_and_leakage_audit.md for a noted circularity caution."}
+  - {name: famges, type: categorical, nullable: false, domain: {in_set: [1, 2, 3, 4]}, unit: null, temporality: null, sensitivity: evaluation_only, available_for_modeling: true, description: "personal_status_sex - ambiguously coded per UCI itself; see docs/sensitive_attributes.md."}
+  - {name: buerge, type: categorical, nullable: false, domain: {in_set: [1, 2, 3]}, unit: null, temporality: null, sensitivity: public_source, available_for_modeling: true, description: "other_debtors."}
+  - {name: wohnzeit, type: categorical, nullable: false, domain: {in_set: [1, 2, 3, 4]}, unit: null, temporality: null, sensitivity: public_source, available_for_modeling: true, description: "present_residence."}
+  - {name: verm, type: categorical, nullable: false, domain: {in_set: [1, 2, 3, 4]}, unit: null, temporality: null, sensitivity: public_source, available_for_modeling: true, description: "property."}
+  - {name: alter, type: integer, nullable: false, domain: {min: 18, max: 100}, unit: "years", temporality: null, sensitivity: evaluation_only, available_for_modeling: true, description: "age."}
+  - {name: weitkred, type: categorical, nullable: false, domain: {in_set: [1, 2, 3]}, unit: null, temporality: null, sensitivity: public_source, available_for_modeling: true, description: "other_installment_plans."}
+  - {name: wohn, type: categorical, nullable: false, domain: {in_set: [1, 2, 3]}, unit: null, temporality: null, sensitivity: public_source, available_for_modeling: true, description: "housing."}
+  - {name: bishkred, type: categorical, nullable: false, domain: {in_set: [1, 2, 3, 4]}, unit: null, temporality: null, sensitivity: public_source, available_for_modeling: true, description: "number_credits."}
+  - {name: beruf, type: categorical, nullable: false, domain: {in_set: [1, 2, 3, 4]}, unit: null, temporality: null, sensitivity: public_source, available_for_modeling: true, description: "job."}
+  - {name: pers, type: categorical, nullable: false, domain: {in_set: [1, 2]}, unit: null, temporality: null, sensitivity: public_source, available_for_modeling: true, description: "people_liable."}
+  - {name: telef, type: categorical, nullable: false, domain: {in_set: [1, 2]}, unit: null, temporality: null, sensitivity: public_source, available_for_modeling: true, description: "telephone."}
+  - {name: gastarb, type: categorical, nullable: false, domain: {in_set: [1, 2]}, unit: null, temporality: null, sensitivity: evaluation_only, available_for_modeling: true, description: "foreign_worker - see docs/sensitive_attributes.md."}
+  - {name: kredit, type: categorical, nullable: false, domain: {in_set: [0, 1]}, unit: null, temporality: null, sensitivity: public_source, available_for_modeling: false, description: "Target: credit_risk (0=bad, 1=good)."}
+
+uniqueness_rules: []
+
+business_rules: []
+
+strict_unexpected_columns: false

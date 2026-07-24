@@ -1,0 +1,34 @@
+name: macro_context_monthly
+version: 1
+description: >
+  One row per macro indicator per month - designed to hold BCB SGS series
+  (see contracts/raw/bcb_sgs_20570.yaml, bcb_sgs_21112.yaml) re-expressed
+  at operational grain for future joins to synthetic monthly snapshots.
+  This does NOT mean UCI/South-German individual records get joined to
+  this context - see docs/business_rules.md and
+  docs/assumptions_and_limitations.md: macro context stays macro, and is
+  never used to imply individual-level foreign customers are Brazilian.
+owner: "Finance (conceptual)"
+classification: synthetic_operational
+grain: "one row per series code per reference month"
+status: draft
+evolution_policy: "Additive only; a new series is a new row set, not a schema change."
+format: csv
+
+primary_key: [series_code, reference_date]
+
+foreign_keys: []
+
+columns:
+  - {name: series_code, type: integer, nullable: false, domain: {in_set: [20570, 21112]}, unit: null, temporality: null, sensitivity: public_source, available_for_modeling: false, description: "BCB SGS series code - see data/metadata/source_registry.yaml for what each means. Stored as an integer here (unlike the raw BCB contracts' string-typed columns) because this operational re-expression is read with pandas' default numeric inference, per docs/data_contracts.md."}
+  - {name: reference_date, type: date, nullable: false, domain: null, unit: null, temporality: snapshot_date, sensitivity: public_source, available_for_modeling: false, description: "Calendar month this observation refers to."}
+  - {name: value, type: decimal, nullable: false, domain: null, unit: "series-specific - see data/metadata/source_registry.yaml", temporality: null, sensitivity: public_source, available_for_modeling: true, description: "Numeric value for this series and month. Unlike the raw BCB contracts, this operational re-expression may store a parsed numeric value once a transformation phase exists - not done in this phase."}
+  - {name: source, type: string, nullable: false, domain: {in_set: [bcb_sgs]}, unit: null, temporality: null, sensitivity: technical_metadata, available_for_modeling: false, description: "Provenance tag - always 'bcb_sgs' in this phase's scope."}
+  - {name: retrieved_at, type: timestamp, nullable: false, domain: null, unit: null, temporality: ingested_at, sensitivity: technical_metadata, available_for_modeling: false, description: "When the underlying BCB observation was retrieved - traceable back to data/metadata/file_manifest.csv."}
+
+uniqueness_rules:
+  - {name: series_month_unique, columns: [series_code, reference_date], severity: error}
+
+business_rules: []
+
+strict_unexpected_columns: true

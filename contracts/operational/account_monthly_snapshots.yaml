@@ -1,0 +1,44 @@
+name: account_monthly_snapshots
+version: 1
+description: >
+  One row per contract per monthly reference date - a point-in-time
+  snapshot, not an event. See docs/temporal_semantics.md for why this
+  table must never be used as a substitute for the event tables above.
+owner: "Risk / Finance (conceptual)"
+classification: synthetic_operational
+grain: "one row per contract per snapshot_date (monthly)"
+status: draft
+evolution_policy: "Additive only until the generator exists."
+format: csv
+
+primary_key: [contract_id, snapshot_date]
+
+foreign_keys:
+  - {column: contract_id, references_contract: contracts, references_column: contract_id, severity: error}
+
+columns:
+  - {name: contract_id, type: string, nullable: false, domain: null, unit: null, temporality: null, sensitivity: synthetic_operational, available_for_modeling: false, description: "Contract this snapshot describes."}
+  - {name: snapshot_date, type: date, nullable: false, domain: null, unit: null, temporality: snapshot_date, sensitivity: synthetic_operational, available_for_modeling: false, description: "Monthly reference date (convention: last calendar day of the month, per docs/temporal_semantics.md)."}
+  - {name: outstanding_principal, type: decimal, nullable: false, domain: {min: 0}, unit: "currency_unit", temporality: null, sensitivity: synthetic_operational, available_for_modeling: false, description: "Principal still owed as of snapshot_date."}
+  - {name: outstanding_interest, type: decimal, nullable: false, domain: {min: 0}, unit: "currency_unit", temporality: null, sensitivity: synthetic_operational, available_for_modeling: false, description: "Interest still owed as of snapshot_date."}
+  - {name: outstanding_fees, type: decimal, nullable: false, domain: {min: 0}, unit: "currency_unit", temporality: null, sensitivity: synthetic_operational, available_for_modeling: false, description: "Fees still owed as of snapshot_date."}
+  - {name: total_balance, type: decimal, nullable: false, domain: {min: 0}, unit: "currency_unit", temporality: null, sensitivity: synthetic_operational, available_for_modeling: false, description: "Must equal outstanding_principal + outstanding_interest + outstanding_fees."}
+  - {name: past_due_amount, type: decimal, nullable: false, domain: {min: 0}, unit: "currency_unit", temporality: null, sensitivity: synthetic_operational, available_for_modeling: false, description: "Portion of total_balance that is past its due date."}
+  - {name: next_due_date, type: date, nullable: true, domain: null, unit: null, temporality: due_date, sensitivity: synthetic_operational, available_for_modeling: false, description: "Next installment due date after snapshot_date; null if no installment remains (e.g. settled/closed/charged_off)."}
+  - {name: dpd, type: integer, nullable: false, domain: {min: 0}, unit: "days", temporality: null, sensitivity: synthetic_operational, available_for_modeling: false, description: "Days past due per the CredLens DPD convention - see docs/metric_semantics.md. Must be consistent with delinquency_bucket, see business_rules."}
+  - {name: delinquency_bucket, type: categorical, nullable: false, domain: {in_set: [current, "1-29", "30-59", "60-89", "90+"]}, unit: null, temporality: null, sensitivity: synthetic_operational, available_for_modeling: false, description: "Bucketed version of dpd per the CredLens convention in docs/metric_semantics.md - not a claimed regulatory standard."}
+  - {name: status, type: categorical, nullable: false, domain: {in_set: [active, delinquent, settled, closed, charged_off]}, unit: null, temporality: null, sensitivity: synthetic_operational, available_for_modeling: false, description: "Contract status as of this snapshot - see docs/state_machines.md."}
+  - {name: exposure, type: decimal, nullable: false, domain: {min: 0}, unit: "currency_unit", temporality: null, sensitivity: synthetic_operational, available_for_modeling: false, description: "Amount at risk as of this snapshot - conceptually related to a future EAD calculation (docs/kpi_dictionary.md), not computed as EAD in this phase."}
+  - {name: cumulative_paid, type: decimal, nullable: false, domain: {min: 0}, unit: "currency_unit", temporality: null, sensitivity: synthetic_operational, available_for_modeling: false, description: "Total paid on this contract from origination through snapshot_date - non-decreasing month over month except for a documented reversal event."}
+  - {name: cumulative_write_off, type: decimal, nullable: false, domain: {min: 0}, unit: "currency_unit", temporality: null, sensitivity: synthetic_operational, available_for_modeling: false, description: "Total written off on this contract through snapshot_date - non-decreasing month over month."}
+
+uniqueness_rules:
+  - {name: contract_month_unique, columns: [contract_id, snapshot_date], severity: error}
+
+business_rules:
+  - {code: total_balance_reconciled, description: "total_balance must equal outstanding_principal + outstanding_interest + outstanding_fees.", severity: error}
+  - {code: dpd_matches_bucket, description: "delinquency_bucket must match dpd under the CredLens bucket convention in docs/metric_semantics.md (e.g. dpd=45 must map to bucket '30-59', never 'current').", severity: error}
+  - {code: cumulative_paid_non_decreasing, description: "For a given contract_id, cumulative_paid must not decrease from one snapshot_date to the next later one, absent a documented reversal.", severity: warning}
+  - {code: cumulative_write_off_non_decreasing, description: "For a given contract_id, cumulative_write_off must not decrease from one snapshot_date to the next later one.", severity: error}
+
+strict_unexpected_columns: true

@@ -20,6 +20,11 @@ import pandas as pd
 
 from credlens import __version__
 from credlens.config import Config, ConfigError, load_config
+from credlens.contracts.registry import RegistryError as ContractsRegistryError
+from credlens.contracts.registry import get_contract, load_all_contracts
+from credlens.contracts.reporting import format_report
+from credlens.contracts.validators import ValidationRunError
+from credlens.contracts.validators import validate as validate_contract
 from credlens.data.audit import audit_dataframe
 from credlens.data.bcb_client import BcbClientError, fetch_series
 from credlens.data.checksums import compute_sha256
@@ -39,6 +44,12 @@ from credlens.data.registry import (
 )
 from credlens.data.schema import DatasetSchema, SchemaError, load_schema
 from credlens.logging_config import configure_logging, get_logger
+from credlens.synthetic import (
+    BlueprintError,
+    ParameterStatus,
+    load_all_blueprints,
+    load_blueprint,
+)
 
 logger = get_logger("cli")
 
@@ -67,6 +78,10 @@ MANIFEST_PATH = Path("data/metadata/file_manifest.csv")
 SCHEMAS_DIR = Path("data/metadata/schemas")
 AUDIT_REPORTS_DIR = Path("reports/data_audit")
 AUDIT_METRICS_PATH = AUDIT_REPORTS_DIR / "quality_metrics.json"
+
+CONTRACTS_RAW_DIR = Path("contracts/raw")
+CONTRACTS_OPERATIONAL_DIR = Path("contracts/operational")
+SYNTHETIC_SCENARIOS_DIR = Path("config/synthetic/scenarios")
 
 
 @dataclass(frozen=True)
@@ -139,6 +154,53 @@ def _build_parser() -> argparse.ArgumentParser:
         "Never downloads anything.",
     )
     audit_parser.add_argument("--source", default=None, help="Limit to one source id.")
+
+    contracts_parser = subparsers.add_parser(
+        "contracts", help="Data contract listing and validation commands (Phase 3)."
+    )
+    contracts_subparsers = contracts_parser.add_subparsers(dest="contracts_command")
+
+    contracts_subparsers.add_parser(
+        "list", help="List every known contract (raw + operational). Works offline."
+    )
+
+    show_parser = contracts_subparsers.add_parser("show", help="Show full detail for one contract.")
+    show_parser.add_argument("name", help="Contract name, e.g. 'applications'.")
+
+    contracts_validate_parser = contracts_subparsers.add_parser(
+        "validate", help="Validate a file or scenario directory against one contract."
+    )
+    contracts_validate_parser.add_argument("--contract", required=True, help="Contract name.")
+    contracts_validate_parser.add_argument(
+        "--path",
+        required=True,
+        help="Path to a data file, or a scenario directory containing multiple "
+        "<contract_name>.<format> files (see contracts/README.md).",
+    )
+    contracts_validate_parser.add_argument(
+        "--mode",
+        required=True,
+        choices=["audit", "strict"],
+        help="'audit' never fails the command (diagnostic); 'strict' fails on any error finding.",
+    )
+
+    synthetic_parser = subparsers.add_parser(
+        "synthetic",
+        help="Synthetic-generation planning commands (Phase 3: design only, no generation).",
+    )
+    synthetic_subparsers = synthetic_parser.add_subparsers(dest="synthetic_command")
+    synthetic_subparsers.add_parser(
+        "plan", help="Summarize synthetic-generation readiness. Works offline."
+    )
+    synthetic_subparsers.add_parser(
+        "scenarios", help="List scenario blueprints and their status. Works offline."
+    )
+    synthetic_subparsers.add_parser(
+        "validate-blueprints", help="Structurally validate every scenario blueprint. Works offline."
+    )
+    synthetic_subparsers.add_parser(
+        "generate", help="Not implemented in this phase - reports that clearly and exits."
+    )
 
     return parser
 
@@ -621,6 +683,181 @@ def _cmd_data_audit(source: str | None) -> int:
     return 0
 
 
+# --- contracts -----------------------------------------------------------------
+
+
+def _cmd_contracts_list() -> int:
+    try:
+        contracts = load_all_contracts(CONTRACTS_RAW_DIR, CONTRACTS_OPERATIONAL_DIR)
+    except ContractsRegistryError as exc:
+        print(f"Error: {exc}")
+        return 1
+
+    print("CredLens data contracts")
+    print("=" * 24)
+    print(f"{'NAME':<28} {'VER':<4} {'CLASSIFICATION':<22} {'STATUS':<10} GRAIN")
+    for name, contract in sorted(contracts.items()):
+        print(
+            f"{name:<28} {contract.version:<4} {contract.classification.value:<22} "
+            f"{contract.status.value:<10} {contract.grain}"
+        )
+    return 0
+
+
+def _cmd_contracts_show(name: str) -> int:
+    try:
+        contracts = load_all_contracts(CONTRACTS_RAW_DIR, CONTRACTS_OPERATIONAL_DIR)
+        contract = get_contract(contracts, name)
+    except ContractsRegistryError as exc:
+        print(f"Error: {exc}")
+        return 1
+
+    print(f"{contract.name}  (v{contract.version}, {contract.status.value})")
+    print("=" * (len(contract.name) + 20))
+    print(f"Classification: {contract.classification.value}")
+    print(f"Grain:          {contract.grain}")
+    print(f"Owner:          {contract.owner}")
+    print(f"Description:    {contract.description.strip()}")
+    print(f"Primary key:    {', '.join(contract.primary_key) or '(none)'}")
+
+    if contract.foreign_keys:
+        print("Foreign keys:")
+        for fk in contract.foreign_keys:
+            print(
+                f"  {fk.column} -> {fk.references_contract}.{fk.references_column} "
+                f"({fk.severity.value})"
+            )
+
+    print(f"Columns ({len(contract.columns)}):")
+    for column in contract.columns:
+        nullable = "nullable" if column.nullable else "not null"
+        modeling = "modeling-ok" if column.available_for_modeling else "not for modeling"
+        print(
+            f"  {column.name:<24} {column.type.value:<12} {nullable:<10} "
+            f"{modeling:<18} {column.sensitivity.value}"
+        )
+
+    if contract.business_rules:
+        print(f"Business rules ({len(contract.business_rules)}):")
+        for rule in contract.business_rules:
+            print(f"  [{rule.severity.value}] {rule.code}: {rule.description}")
+
+    return 0
+
+
+def _cmd_contracts_validate(contract_name: str, path_str: str, mode: str) -> int:
+    try:
+        contracts = load_all_contracts(CONTRACTS_RAW_DIR, CONTRACTS_OPERATIONAL_DIR)
+        contract = get_contract(contracts, contract_name)
+    except ContractsRegistryError as exc:
+        print(f"Error: {exc}")
+        return 1
+
+    try:
+        report = validate_contract(contract, Path(path_str), mode=mode, all_contracts=contracts)
+    except ValidationRunError as exc:
+        print(f"Error: {exc}")
+        return 1
+
+    print(format_report(report))
+
+    if mode == "strict":
+        return 1 if report.has_errors else 0
+    return 0  # audit mode is diagnostic - it never fails the command itself.
+
+
+# --- synthetic -----------------------------------------------------------------
+
+
+def _cmd_synthetic_scenarios() -> int:
+    try:
+        blueprints = load_all_blueprints(SYNTHETIC_SCENARIOS_DIR)
+    except BlueprintError as exc:
+        print(f"Error: {exc}")
+        return 1
+
+    if not blueprints:
+        print(f"No scenario blueprints found in '{SYNTHETIC_SCENARIOS_DIR}'.")
+        return 0
+
+    print("CredLens synthetic scenarios")
+    print("=" * 28)
+    print(f"{'SCENARIO':<24} {'STATUS':<20} NAME")
+    for scenario_id, blueprint in sorted(blueprints.items()):
+        print(f"{scenario_id:<24} {blueprint.status.value:<20} {blueprint.name}")
+    return 0
+
+
+def _cmd_synthetic_plan() -> int:
+    try:
+        contracts = load_all_contracts(CONTRACTS_RAW_DIR, CONTRACTS_OPERATIONAL_DIR)
+    except ContractsRegistryError as exc:
+        print(f"Error: {exc}")
+        return 1
+    try:
+        blueprints = load_all_blueprints(SYNTHETIC_SCENARIOS_DIR)
+    except BlueprintError as exc:
+        print(f"Error: {exc}")
+        return 1
+
+    operational = [
+        c for c in contracts.values() if c.classification.value == "synthetic_operational"
+    ]
+    total_rules = sum(len(c.business_rules) for c in contracts.values())
+    calibration_pending = sum(
+        1 for bp in blueprints.values() if bp.status == "requires_calibration"
+    )
+
+    print("CredLens synthetic-generation readiness")
+    print("=" * 40)
+    print(f"Operational contracts defined:              {len(operational)}")
+    print(f"Business rules implemented across contracts: {total_rules}")
+    print(f"Scenario blueprints defined:                 {len(blueprints)}")
+    print(f"Blueprints still requiring calibration:      {calibration_pending}/{len(blueprints)}")
+    print()
+    print("credlens synthetic generate: Not implemented: scheduled for the synthetic")
+    print("generation phase. See docs/synthetic_generation_spec.md and docs/roadmap.md.")
+    return 0
+
+
+def _cmd_synthetic_validate_blueprints() -> int:
+    if not SYNTHETIC_SCENARIOS_DIR.is_dir():
+        print(f"No blueprint directory found at '{SYNTHETIC_SCENARIOS_DIR}'.")
+        return 1
+
+    paths = sorted(SYNTHETIC_SCENARIOS_DIR.glob("*.blueprint.yaml"))
+    if not paths:
+        print(f"No blueprint files found in '{SYNTHETIC_SCENARIOS_DIR}'.")
+        return 1
+
+    print("CredLens blueprint validation")
+    print("=" * 30)
+    any_failed = False
+    for path in paths:
+        try:
+            blueprint = load_blueprint(path)
+        except BlueprintError as exc:
+            print(f"[FAIL] {path.name}: {exc}")
+            any_failed = True
+            continue
+        counts = blueprint.parameter_counts()
+        print(
+            f"[  OK] {blueprint.scenario_id} ({blueprint.status.value}): "
+            f"{counts[ParameterStatus.SPECIFIED]} specified, "
+            f"{counts[ParameterStatus.PENDING]} pending, "
+            f"{counts[ParameterStatus.REQUIRES_CALIBRATION]} requires_calibration"
+        )
+
+    print()
+    print(f"Result: {'FAIL' if any_failed else 'OK'}")
+    return 1 if any_failed else 0
+
+
+def _cmd_synthetic_generate() -> int:
+    print("Not implemented: scheduled for the synthetic generation phase.")
+    return 1
+
+
 # --- main --------------------------------------------------------------------
 
 
@@ -640,9 +877,41 @@ def main(argv: list[str] | None = None) -> int:
         return _cmd_doctor()
     if args.command == "data":
         return _dispatch_data_command(args)
+    if args.command == "contracts":
+        return _dispatch_contracts_command(args)
+    if args.command == "synthetic":
+        return _dispatch_synthetic_command(args)
 
     parser.print_help()
     return 0
+
+
+def _dispatch_contracts_command(args: argparse.Namespace) -> int:
+    if args.contracts_command == "list":
+        return _cmd_contracts_list()
+    if args.contracts_command == "show":
+        return _cmd_contracts_show(args.name)
+    if args.contracts_command == "validate":
+        return _cmd_contracts_validate(args.contract, args.path, args.mode)
+
+    print("usage: credlens contracts {list,show,validate} ...")
+    print("Run 'credlens contracts <command> --help' for details.")
+    return 1
+
+
+def _dispatch_synthetic_command(args: argparse.Namespace) -> int:
+    if args.synthetic_command == "plan":
+        return _cmd_synthetic_plan()
+    if args.synthetic_command == "scenarios":
+        return _cmd_synthetic_scenarios()
+    if args.synthetic_command == "validate-blueprints":
+        return _cmd_synthetic_validate_blueprints()
+    if args.synthetic_command == "generate":
+        return _cmd_synthetic_generate()
+
+    print("usage: credlens synthetic {plan,scenarios,validate-blueprints,generate} ...")
+    print("Run 'credlens synthetic <command> --help' for details.")
+    return 1
 
 
 def _dispatch_data_command(args: argparse.Namespace) -> int:

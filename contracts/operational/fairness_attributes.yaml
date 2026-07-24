@@ -1,0 +1,35 @@
+name: fairness_attributes
+version: 1
+description: >
+  One row per application, holding synthetic demographic-style attributes
+  needed for a future fairness/equity audit of the (not-yet-built) credit
+  decision model. Physically separate from application_features on
+  purpose - see docs/adr/0005-fairness-attribute-separation.md and
+  docs/fairness_data_design.md. Physical separation does not, by itself,
+  prevent proxy discrimination through correlated features in
+  application_features - see docs/sensitive_attributes.md and
+  docs/fairness_data_design.md for why this table is necessary but not
+  sufficient.
+owner: "Risk / Audit (conceptual)"
+classification: evaluation_only
+grain: "one row per application"
+status: draft
+evolution_policy: "Additive only; any column here must stay excluded from available_for_modeling: true, by construction of this contract's classification."
+format: csv
+
+primary_key: [application_id]
+
+foreign_keys:
+  - {column: application_id, references_contract: applications, references_column: application_id, severity: error}
+
+columns:
+  - {name: application_id, type: string, nullable: false, domain: null, unit: null, temporality: null, sensitivity: evaluation_only, available_for_modeling: false, description: "Same application_id as applications - one-to-one by construction."}
+  - {name: age_bracket, type: categorical, nullable: false, domain: {in_set: ["18-25", "26-35", "36-50", "51-65", "65+"]}, unit: null, temporality: null, sensitivity: evaluation_only, available_for_modeling: false, description: "Coarse synthetic age bracket, for equity evaluation only."}
+  - {name: synthetic_gender, type: categorical, nullable: false, domain: {in_set: [a, b, unspecified]}, unit: null, temporality: null, sensitivity: evaluation_only, available_for_modeling: false, description: "Deliberately abstract synthetic labels (not 'male'/'female') - this is fictional generated data, not a real demographic survey. For equity evaluation only."}
+  - {name: region, type: categorical, nullable: false, domain: {in_set: [region_1, region_2, region_3, region_4]}, unit: null, temporality: null, sensitivity: evaluation_only, available_for_modeling: false, description: "Synthetic region grouping, for equity evaluation only."}
+
+uniqueness_rules: []
+
+business_rules: []
+
+strict_unexpected_columns: true

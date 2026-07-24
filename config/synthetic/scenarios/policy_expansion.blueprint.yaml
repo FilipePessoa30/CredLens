@@ -1,0 +1,58 @@
+scenario_id: policy_expansion
+name: "Policy Expansion"
+description: >
+  Variation on baseline where a second, looser policy_versions row
+  replaces the first partway through the simulated period - exercises
+  whether portfolio/audit code correctly attributes a mix shift to the
+  policy change rather than treating it as unexplained drift.
+status: requires_calibration
+
+population:
+  customer_arrival_pattern:
+    status: requires_calibration
+    description: "Same open question as baseline; may additionally need a volume-response-to-looser-policy assumption."
+  applications_per_customer:
+    status: requires_calibration
+    description: "Same open question as baseline."
+  segment_mix:
+    status: requires_calibration
+    description: "Same open question as baseline."
+
+origination:
+  policy_profile:
+    status: specified
+    value: two_policy_versions_looser_second
+    description: "policy_versions gains a second row with a later effective_from and (conceptually) a looser cutoff than the first."
+  approval_rate_target:
+    status: requires_calibration
+    description: "Both the before- and after-expansion approval rate are unset."
+
+performance:
+  payment_behavior_model:
+    status: pending
+    description: "Same open question as baseline."
+  default_rate_target:
+    status: requires_calibration
+    description: "Whether the looser policy's cohort shows a different default rate is exactly what this scenario is meant to let a later phase test - no target is set here."
+  cure_rate_target:
+    status: requires_calibration
+    description: "Same open question as baseline."
+
+temporal_dependence:
+  seasonality:
+    status: pending
+    description: "Same open question as baseline."
+  policy_change_events:
+    status: specified
+    value: single_expansion_event
+    description: "Exactly one policy-loosening event partway through the period."
+  macro_stress_events:
+    status: specified
+    value: none
+    description: "No macro stress in this scenario - isolates the policy-change effect."
+
+reproducibility:
+  seed_strategy:
+    status: specified
+    value: explicit_per_run
+    description: "Same as baseline."

@@ -1,0 +1,43 @@
+name: contracts
+version: 1
+description: >
+  One row per activated loan contract. An approval does not imply a
+  contract - a customer may be approved and never draw down. A rejected
+  application can never have a contract - see docs/business_rules.md and
+  docs/state_machines.md.
+owner: "Credit / Finance (conceptual)"
+classification: synthetic_operational
+grain: "one row per contract"
+status: draft
+evolution_policy: "Additive only until the generator exists."
+format: csv
+
+primary_key: [contract_id]
+
+foreign_keys:
+  - {column: application_id, references_contract: applications, references_column: application_id, severity: error}
+  - {column: customer_id, references_contract: customers, references_column: customer_id, severity: error}
+
+columns:
+  - {name: contract_id, type: string, nullable: false, domain: null, unit: null, temporality: null, sensitivity: synthetic_operational, available_for_modeling: false, description: "Synthetic contract identifier."}
+  - {name: application_id, type: string, nullable: false, domain: null, unit: null, temporality: null, sensitivity: synthetic_operational, available_for_modeling: false, description: "The application this contract was activated from - must have a final, approved decision, see business_rules."}
+  - {name: customer_id, type: string, nullable: false, domain: null, unit: null, temporality: null, sensitivity: synthetic_operational, available_for_modeling: false, description: "Contract holder."}
+  - {name: contract_date, type: timestamp, nullable: false, domain: null, unit: null, temporality: event_timestamp, sensitivity: synthetic_operational, available_for_modeling: false, description: "When the contract was activated - must not precede the approving decision's decision_timestamp."}
+  - {name: disbursement_date, type: timestamp, nullable: false, domain: null, unit: null, temporality: event_timestamp, sensitivity: synthetic_operational, available_for_modeling: false, description: "When funds were disbursed - must not precede contract_date."}
+  - {name: financed_amount, type: decimal, nullable: false, domain: {min: 0}, unit: "currency_unit", temporality: null, sensitivity: synthetic_operational, available_for_modeling: false, description: "Principal amount financed."}
+  - {name: term_months, type: integer, nullable: false, domain: {min: 1, max: 60}, unit: "months", temporality: null, sensitivity: synthetic_operational, available_for_modeling: false, description: "Contract term."}
+  - {name: contract_rate, type: decimal, nullable: false, domain: {min: 0, max: 2}, unit: "fraction per period - CredLens convention, not an APR/CDI-equivalent claim", temporality: null, sensitivity: synthetic_operational, available_for_modeling: false, description: "Contractual interest rate, per period (period defined by installments.due_date spacing)."}
+  - {name: num_installments, type: integer, nullable: false, domain: {min: 1}, unit: "count", temporality: null, sensitivity: synthetic_operational, available_for_modeling: false, description: "Number of scheduled installments - should equal term_months for a standard monthly schedule but is stored explicitly rather than assumed."}
+  - {name: first_due_date, type: date, nullable: false, domain: null, unit: null, temporality: due_date, sensitivity: synthetic_operational, available_for_modeling: false, description: "Due date of installment number 1."}
+  - {name: status, type: categorical, nullable: false, domain: {in_set: [pending_activation, active, delinquent, settled, closed, charged_off]}, unit: null, temporality: null, sensitivity: synthetic_operational, available_for_modeling: false, description: "Current contract status - see docs/state_machines.md."}
+  - {name: currency_unit, type: string, nullable: false, domain: {in_set: [credlens_synthetic_unit]}, unit: null, temporality: null, sensitivity: technical_metadata, available_for_modeling: false, description: "Fixed, explicitly fictional monetary unit - see docs/assumptions_and_limitations.md. Never a real currency code."}
+  - {name: closed_date, type: timestamp, nullable: true, domain: null, unit: null, temporality: event_timestamp, sensitivity: synthetic_operational, available_for_modeling: false, description: "When the contract reached a terminal status; null while active/delinquent."}
+
+uniqueness_rules: []
+
+business_rules:
+  - {code: contract_requires_approved_final_decision, description: "The referenced application must have a final decision with outcome=approved - a rejected or non-final-decided application can never have a contract.", severity: error}
+  - {code: contract_after_decision, description: "contract_date must be >= the approving decision's decision_timestamp.", severity: error}
+  - {code: disbursement_not_before_contract, description: "disbursement_date must be >= contract_date.", severity: error}
+
+strict_unexpected_columns: true

@@ -17,8 +17,9 @@ flowchart TB
         ING[credlens data fetch: downloader, bcb_client, manifest]
     end
 
-    subgraph Quality["Data quality (implemented: structural audit; planned: Pandera contracts)"]
+    subgraph Quality["Data quality (implemented: structural audit + data contracts)"]
         DQ[credlens data audit: profiler, schema comparison, findings]
+        CON[credlens contracts validate: audit/strict modes, 20 contracts]
     end
 
     subgraph Transform["Transformation (planned)"]
@@ -52,9 +53,11 @@ flowchart TB
     PUB --> ING
     MACRO --> ING
     KAG -.blocked.-> ING
-    SYN --> ING
+    SYN -.spec only, not generated.-> CON
     ING --> DQ
+    ING --> CON
     DQ --> DBT
+    CON --> DBT
     DBT --> DW
     DW --> KPI
     DW --> VIN
@@ -66,14 +69,14 @@ flowchart TB
     KPI --> APP
 ```
 
-The `Foundation` subgraph (CLI, config, logging, tests, CI) and the `Ingestion`/`Quality` subgraphs (acquisition, provenance, and structural audit - `credlens data fetch|verify|audit`, see `src/credlens/data/`) are implemented, as of Phase 2. `Transform` (dbt), `Warehouse` (DuckDB), `Analytics`, and `Presentation` remain planned, not implemented.
+The `Foundation` subgraph (CLI, config, logging, tests, CI) and the `Ingestion`/`Quality` subgraphs (acquisition, provenance, structural audit, and - as of Phase 3 - formal data contracts with two validation modes: `credlens data fetch|verify|audit` and `credlens contracts list|show|validate`, see `src/credlens/data/` and `src/credlens/contracts/`) are implemented. The synthetic operational layer itself (`SYN` above) is specified only - `docs/synthetic_generation_spec.md`, `config/synthetic/*.blueprint.yaml`, and `credlens synthetic plan|scenarios|validate-blueprints` exist, but `credlens synthetic generate` deliberately prints "Not implemented" and produces no data (see `docs/adr/0002-synthetic-operational-layer.md`). `Transform` (dbt), `Warehouse` (DuckDB), `Analytics`, and `Presentation` remain planned, not implemented.
 
 ## Layer responsibilities
 
 | Layer | Responsibility | Explicit non-responsibility |
 |---|---|---|
 | **Ingestion** *(implemented)* | Pull raw data (public download; synthetic generation still planned) into `data/raw`, unmodified, with provenance recorded (`data/metadata/file_manifest.csv`, SHA-256 checksums, retrieval timestamps). Implemented as `credlens.data.downloader` (HTTP, atomic writes, retries, path-traversal protection) and `credlens.data.bcb_client` (BCB SGS time series). | Does not clean, join, or interpret the data. Does not download anything on its own schedule - only on explicit `credlens data fetch`. |
-| **Data quality** *(implemented: structural audit; planned: enforced contracts)* | `credlens.data.profiler` and `credlens.data.audit` compute structural statistics and categorized findings (`confirmed_problem` / `candidate_anomaly` / `documented_characteristic` / `hypothesis_requiring_investigation` / `structural_limitation`) without modifying raw data - see `docs/data_quality_audit.md`. A future phase may add Pandera-style enforced contracts that block downstream transformation on violation; today's audit is diagnostic, not a gate. | Does not silently drop or "fix" bad rows without a documented rule - confirmed by the fact that every acquired raw file is byte-identical to what was downloaded (see `uv run credlens data verify`). |
+| **Data quality** *(implemented: structural audit + formal contracts)* | `credlens.data.profiler`/`credlens.data.audit` compute structural statistics and categorized findings (`confirmed_problem` / `candidate_anomaly` / `documented_characteristic` / `hypothesis_requiring_investigation` / `structural_limitation`) without modifying raw data - see `docs/data_quality_audit.md`. As of Phase 3, `credlens.contracts` adds 20 typed data contracts (4 raw, 16 operational) with vectorized pandas checks (PK/FK/domain/nullability, plus 22 named relational/temporal/financial business rules) and two explicit modes: `audit` (diagnostic, never fails the command) and `strict` (gates on any error finding) - see `docs/data_contracts.md`. | Does not silently drop or "fix" bad rows without a documented rule - confirmed by the fact that every acquired raw file is byte-identical to what was downloaded (see `uv run credlens data verify`). `strict` mode only exists for the not-yet-generated synthetic operational layer and its test fixtures - it has never been used to gate the (unmodifiable) public source files. |
 | **Transformation** | Convert validated raw data into clean, dimensionally modeled staging and mart tables (dbt). | Does not compute business KPIs directly in application code — that belongs to the analytics layer, reading from marts. |
 | **Warehouse** | Store the modeled tables in a queryable SQL engine (DuckDB locally; Postgres as an optional heavier alternative) so all downstream consumers share one source of truth. | Not a system of record for raw or synthetic source files — those live in `data/`. |
 | **Analytics** | Compute KPIs, vintage/roll-rate views, and risk model outputs from the warehouse; own the separation between description, diagnosis, forecast, and decision (see `docs/business_problem.md`). | Does not re-implement ingestion or transformation logic. |
@@ -81,8 +84,9 @@ The `Foundation` subgraph (CLI, config, logging, tests, CI) and the `Ingestion`/
 
 ## Data flow
 
-1. **(Implemented)** Ingestion pulls the selected public dataset(s) via `credlens data fetch`, writing immutable files to `data/raw/` (git-ignored) plus a versioned manifest entry. The synthetic generator is not built yet.
-2. **(Implemented, diagnostic only)** `credlens data audit` computes structural findings against `data/raw/` and writes `reports/data_audit/quality_metrics.json`. It does not yet gate whether transformation proceeds, because transformation doesn't exist yet either.
+1. **(Implemented)** Ingestion pulls the selected public dataset(s) via `credlens data fetch`, writing immutable files to `data/raw/` (git-ignored) plus a versioned manifest entry. The synthetic generator is not built yet - only its conceptual model, contracts, and blueprints exist (Phase 3).
+2. **(Implemented, diagnostic only)** `credlens data audit` computes structural findings against `data/raw/` and writes `reports/data_audit/quality_metrics.json`. `credlens contracts validate --mode audit` runs the same kind of diagnostic pass against any contract-declared table. Neither gates whether transformation proceeds, because transformation doesn't exist yet either.
+2a. **(Implemented, gating - not yet wired to real generated data)** `credlens contracts validate --mode strict` fails (exit 1) on any error-severity finding. Exercised today only against `tests/fixtures/contracts/` (1 valid + 11 purpose-built invalid scenarios) - there is no real synthetic operational data yet for it to gate.
 3. **(Planned)** dbt models transform validated raw data into staging and mart tables inside the DuckDB warehouse.
 4. **(Planned)** The analytics layer queries the warehouse to compute KPIs, vintage curves, roll rates, and (eventually) risk model features/outputs.
 5. **(Planned)** Power BI and the demo app read from the analytics layer's outputs — never directly from raw files.
@@ -95,11 +99,12 @@ Steps 3-5 remain planned interfaces, not built ones. When each phase in `docs/ro
 |---|---|---|
 | Python | Ingestion, orchestration, CLI, risk modeling | Already the foundation-phase language; strong ecosystem for data + ML work. |
 | `requests` *(implemented)* | HTTP downloads with retries/timeouts | Standard, well-justified dependency for `credlens.data.downloader` and `credlens.data.bcb_client` - see `docs/roadmap.md` phase 2 and the Phase 2 final report's dependency rationale. |
-| `pandas` *(implemented)* | Reading acquired tabular files; computing structural audit statistics | Standard dependency for `credlens.data.profiler`; avoided in Phase 1 because nothing needed it yet. |
+| `pandas` *(implemented)* | Reading acquired tabular files; computing structural audit statistics; vectorized data-contract row validation | Standard dependency for `credlens.data.profiler` and `credlens.contracts.domain_rules`/`*_rules`; avoided in Phase 1 because nothing needed it yet. |
+| `pydantic` *(implemented, Phase 3)* | Typed parsing/validation of contract and blueprint **metadata** YAML (not row data) | Chosen over hand-rolled dataclasses because ~20 contracts' worth of nested column/domain/FK/rule specs need real validation error messages; see `docs/adr/0006-audit-vs-strict-validation.md`. Deliberately never used per-row on table data - see that same ADR for why vectorized pandas does that job instead. |
 | DuckDB | Local analytical warehouse | Zero-infrastructure, fast columnar engine, excellent fit for a portfolio project that must run on a laptop without external services. |
 | PostgreSQL | Optional heavier warehouse alternative | Demonstrates SQL-on-a-real-RDBMS skills if a later phase benefits from it; not required for DuckDB to work. |
 | dbt | Transformation and dimensional modeling | Industry-standard way to demonstrate testable, documented SQL transformations with lineage. |
-| Pandera | Data quality validation | Schema/contract validation expressed in Python, close to the ingestion code it protects. |
+| Pandera | Enforced (not just diagnostic) contracts at the warehouse/transformation layer | Considered for the Phase 3 contracts system itself and explicitly not adopted there (see `docs/adr/0006-audit-vs-strict-validation.md`); remains a candidate for a later, dbt-adjacent enforcement layer. |
 | Pytest | Testing (already in use) | Already the foundation-phase test runner; will extend to data and model tests. |
 | Power BI | Executive/stakeholder dashboard | Directly relevant to the BI-hiring audience this project targets. |
 | Streamlit (or similar) | Lightweight demo app | Fast way to expose the policy simulator interactively without building a full frontend. |

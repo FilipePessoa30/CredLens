@@ -1,0 +1,36 @@
+name: payments
+version: 1
+description: >
+  One row per payment transaction. A payment is not automatically a full
+  payment of any specific installment - see payment_allocations.yaml and
+  docs/business_rules.md.
+owner: "Finance (conceptual)"
+classification: synthetic_operational
+grain: "one row per payment transaction"
+status: draft
+evolution_policy: "Additive only until the generator exists."
+format: csv
+
+primary_key: [payment_id]
+
+foreign_keys:
+  - {column: customer_id, references_contract: customers, references_column: customer_id, severity: error}
+  - {column: contract_id, references_contract: contracts, references_column: contract_id, severity: error}
+
+columns:
+  - {name: payment_id, type: string, nullable: false, domain: null, unit: null, temporality: null, sensitivity: synthetic_operational, available_for_modeling: false, description: "Synthetic payment identifier."}
+  - {name: customer_id, type: string, nullable: false, domain: null, unit: null, temporality: null, sensitivity: synthetic_operational, available_for_modeling: false, description: "Payer."}
+  - {name: contract_id, type: string, nullable: false, domain: null, unit: null, temporality: null, sensitivity: synthetic_operational, available_for_modeling: false, description: "Contract this payment applies toward."}
+  - {name: payment_timestamp, type: timestamp, nullable: false, domain: null, unit: null, temporality: payment_date, sensitivity: synthetic_operational, available_for_modeling: false, description: "When the payment was made."}
+  - {name: amount, type: decimal, nullable: false, domain: {min: 0.01}, unit: "currency_unit", temporality: null, sensitivity: synthetic_operational, available_for_modeling: false, description: "Payment amount - strictly positive; a reversal is its own row referencing this one via reversal_of_payment_id, not a negative amount."}
+  - {name: channel, type: categorical, nullable: false, domain: {in_set: [app, web, bank_slip, direct_debit, collections_agent]}, unit: null, temporality: null, sensitivity: synthetic_operational, available_for_modeling: false, description: "Payment channel."}
+  - {name: status, type: categorical, nullable: false, domain: {in_set: [pending, settled, reversed]}, unit: null, temporality: null, sensitivity: synthetic_operational, available_for_modeling: false, description: "Payment status."}
+  - {name: settlement_date, type: date, nullable: true, domain: null, unit: null, temporality: settlement_date, sensitivity: synthetic_operational, available_for_modeling: false, description: "When the payment actually settled; null while status=pending."}
+  - {name: reversal_of_payment_id, type: string, nullable: true, domain: null, unit: null, temporality: null, sensitivity: synthetic_operational, available_for_modeling: false, description: "If this row is a reversal, the payment_id it reverses; null otherwise."}
+
+uniqueness_rules: []
+
+business_rules:
+  - {code: reversal_references_earlier_payment, description: "reversal_of_payment_id, when present, must reference an existing payment with an earlier payment_timestamp.", severity: error}
+
+strict_unexpected_columns: true

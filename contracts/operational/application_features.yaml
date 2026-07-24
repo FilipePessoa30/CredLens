@@ -1,0 +1,37 @@
+name: application_features
+version: 1
+description: >
+  One row per application, freezing exactly the information that would
+  have been available at the decision instant. This table exists
+  specifically so that "what the applicant looked like at decision time"
+  can never be silently confused with "what the customer looks like now" -
+  see docs/adr/0004-feature-freeze-at-proposal.md. No column here may ever
+  be filled from information that postdates applications.submitted_at.
+owner: "Credit / Risk (conceptual)"
+classification: synthetic_operational
+grain: "one row per application"
+status: draft
+evolution_policy: "Additive only; a column may never be reinterpreted to include post-decision information without a new major version."
+format: csv
+
+primary_key: [application_id]
+
+foreign_keys:
+  - {column: application_id, references_contract: applications, references_column: application_id, severity: error}
+
+columns:
+  - {name: application_id, type: string, nullable: false, domain: null, unit: null, temporality: null, sensitivity: synthetic_operational, available_for_modeling: false, description: "Same application_id as applications - one-to-one by construction."}
+  - {name: declared_income, type: decimal, nullable: false, domain: {min: 0}, unit: "currency_unit", temporality: null, sensitivity: synthetic_operational, available_for_modeling: true, description: "Self-declared income at application time."}
+  - {name: debt_to_income, type: decimal, nullable: true, domain: {min: 0, max: 5}, unit: "ratio", temporality: null, sensitivity: synthetic_operational, available_for_modeling: true, description: "Declared/bureau-derived debt-to-income ratio known at decision time; nullable because it may be unavailable for a thin-file applicant."}
+  - {name: employment_months, type: integer, nullable: true, domain: {min: 0}, unit: "months", temporality: null, sensitivity: synthetic_operational, available_for_modeling: true, description: "Tenure at current employer, known at decision time."}
+  - {name: relationship_months, type: integer, nullable: true, domain: {min: 0}, unit: "months", temporality: null, sensitivity: synthetic_operational, available_for_modeling: true, description: "How long this customer has had any relationship with the lender, known at decision time (0/null for a genuinely new customer)."}
+  - {name: bureau_score_bucket, type: categorical, nullable: true, domain: {in_set: [thin_file, low, medium, high]}, unit: null, temporality: null, sensitivity: synthetic_operational, available_for_modeling: true, description: "Coarse bucket standing in for a bureau-style score known at decision time."}
+  - {name: requested_amount, type: decimal, nullable: false, domain: {min: 0}, unit: "currency_unit", temporality: null, sensitivity: synthetic_operational, available_for_modeling: true, description: "Duplicated from applications for modeling convenience - must match applications.requested_amount by construction."}
+  - {name: requested_term_months, type: integer, nullable: false, domain: {min: 1, max: 60}, unit: "months", temporality: null, sensitivity: synthetic_operational, available_for_modeling: true, description: "Duplicated from applications for modeling convenience - must match applications.requested_term_months by construction."}
+  - {name: feature_snapshot_at, type: timestamp, nullable: false, domain: null, unit: null, temporality: effective_from, sensitivity: synthetic_operational, available_for_modeling: false, description: "Must equal applications.submitted_at - the explicit freeze instant."}
+
+uniqueness_rules: []
+
+business_rules: []
+
+strict_unexpected_columns: true

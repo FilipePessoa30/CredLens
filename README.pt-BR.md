@@ -4,7 +4,7 @@
 
 **O CredLens transforma a carteira de crédito de uma credor digital em um produto de analytics reprodutível e testado — da pergunta de negócio ao KPI, do KPI à decisão.**
 
-**Status: fase de Fundação + Aquisição de Dados.** Este repositório contém a definição do negócio, a arquitetura, o esqueleto do projeto e, desde a Fase 2, bases públicas de referência adquiridas e auditadas de forma reprodutível. Nenhum modelo foi treinado, nenhum dashboard existe, nenhum valor de KPI foi calculado, e nenhum resultado de negócio é alegado em lugar algum deste repositório. Todo número de negócio que você esperaria ver aqui (tamanho de carteira, inadimplência, ROI, acurácia) está deliberadamente ausente — veja [Capacidades atuais](#capacidades-atuais) e [`docs/roadmap.md`](docs/roadmap.md) para os próximos passos.
+**Status: fase de Fundação + Aquisição de Dados + Modelagem Conceitual/Contratos de Dados.** Este repositório contém a definição do negócio, a arquitetura, o esqueleto do projeto, bases públicas de referência adquiridas e auditadas de forma reprodutível (Fase 2) e, desde a Fase 3, um modelo conceitual de dados, semântica temporal, contratos de dados formais e uma especificação (não uma implementação) para uma futura camada operacional sintética. Nenhum modelo foi treinado, nenhum dashboard existe, nenhum valor de KPI foi calculado, nenhum dado sintético foi gerado, e nenhum resultado de negócio é alegado em lugar algum deste repositório. Todo número de negócio que você esperaria ver aqui (tamanho de carteira, inadimplência, ROI, acurácia) está deliberadamente ausente — veja [Capacidades atuais](#capacidades-atuais) e [`docs/roadmap.md`](docs/roadmap.md) para os próximos passos.
 
 ## O cenário de negócio
 
@@ -64,15 +64,17 @@ O que existe no repositório agora:
 - Carregamento centralizado de configuração (`config/base.yaml`) com validação e mensagens de erro claras.
 - Configuração de logging estruturado.
 - **Aquisição e auditoria reprodutível de dados públicos** (Fase 2): um registro de fontes com licença/DOI/citação por fonte (`data/metadata/source_registry.yaml`), um downloader idempotente (retries, escrita atômica, proteção contra path traversal, verificado por checksum), um cliente para as séries temporais do SGS do Banco Central, e uma auditoria estrutural de qualidade que categoriza achados sem nunca modificar os dados brutos. Quatro fontes adquiridas e auditadas nesta fase: [Default of Credit Card Clients](https://archive.ics.uci.edu/dataset/350/default+of+credit+card+clients) (UCI, CC BY 4.0), [South German Credit](https://archive.ics.uci.edu/dataset/522/south+german+credit) (UCI, CC BY 4.0), e duas séries do SGS/BCB (saldo de carteira e inadimplência, ODbL). Uma quinta fonte (Home Credit Default Risk, Kaggle) está registrada mas bloqueada — `BLOCKED_REQUIRES_USER_ACCESS`, com evidências — veja [`docs/data_licensing.md`](docs/data_licensing.md).
-- Documentação de negócio: charter, definição do problema de negócio, mapa de stakeholders, dicionário de KPIs (apenas definições, sem valores calculados), estratégia de dados, arquitetura, premissas e limitações, glossário, roadmap — além, na Fase 2, da matriz de seleção de datasets, dicionário de dados, auditoria de qualidade, auditoria de alvo/vazamento e auditoria de atributos sensíveis (veja [Estrutura do repositório](#estrutura-do-repositório)).
+- **Modelo conceitual de dados e contratos de dados** (Fase 3): um modelo conceitual com 17 entidades (eventos/estado/snapshots, nunca uma única tabela indiferenciada) em 4 diagramas ER em Mermaid, semântica temporal formal, máquinas de estado revisadas, e 20 contratos de dados tipados (4 brutos + 16 operacionais) aplicados por `credlens contracts validate` em modo `audit` (diagnóstico) ou `strict` (bloqueante) — 22 regras de negócio nomeadas (relacionais/temporais/financeiras), todas vetorizadas em pandas, sem `eval()`. Automatizou dois itens de débito técnico da Fase 2 (detecção de domínio EDUCATION/MARRIAGE da UCI, unicidade/ordenação de datas do BCB) que antes eram manuais, cada um com teste de regressão permanente. Veja [`docs/data_contracts.md`](docs/data_contracts.md) e [`docs/conceptual_data_model.md`](docs/conceptual_data_model.md).
+- **Especificação da geração sintética, não a geração em si** (Fase 3): `docs/synthetic_generation_spec.md` e 6 blueprints de cenário (`config/synthetic/scenarios/*.blueprint.yaml`) descrevem o desenho de população, originação, desempenho e dependência temporal para um futuro gerador — todo parâmetro está honestamente marcado como `pending`/`requires_calibration`, nunca um valor fabricado. `credlens synthetic generate` deliberadamente não faz nada além de informar que a geração ainda não está implementada.
+- Documentação de negócio: charter, definição do problema de negócio, mapa de stakeholders, dicionário de KPIs (apenas definições, sem valores calculados), estratégia de dados, arquitetura, premissas e limitações, glossário, roadmap — além, na Fase 2, da matriz de seleção de datasets, dicionário de dados, auditoria de qualidade, auditoria de alvo/vazamento e auditoria de atributos sensíveis, e, na Fase 3, do modelo conceitual, semântica temporal, máquinas de estado, semântica de métricas, regras de negócio, contratos de dados, desenho de fairness e 7 ADRs (veja [Estrutura do repositório](#estrutura-do-repositório)).
 - CI (GitHub Actions): lint, checagem de formatação, checagem de tipos, testes com cobertura — a cada push.
 
 ## Capacidades planejadas (ainda não implementadas)
 
-- Uma camada operacional sintética reprodutível (necessária porque nenhuma das duas bases públicas adquiridas é um painel de carteira genuinamente longitudinal).
+- O gerador operacional sintético em si — a Fase 3 o especificou (desenho de população/originação/desempenho/dependência temporal, 6 cenários) mas não o construiu; `credlens synthetic generate` permanece deliberadamente um stub.
 - Modelagem dimensional e transformações em dbt.
 - Um warehouse SQL consultável (DuckDB, opcionalmente Postgres).
-- Contratos de qualidade de dados aplicados (Pandera ou equivalente) — a auditoria atual é diagnóstica, não um bloqueio automático.
+- Conectar a validação em modo `strict` a um pipeline de ingestão real como bloqueio de fato — hoje ela só bloqueia `tests/fixtures/contracts/`, já que ainda não existe dado sintético real para bloquear.
 - Análise de carteira, safras e roll rate.
 - Um modelo interpretável de probabilidade de inadimplência e cálculo de perda esperada.
 - Um simulador de ponto de corte / política de crédito.
@@ -102,6 +104,14 @@ uv run credlens data sources
 uv run credlens data fetch --source uci-default-credit
 uv run credlens data verify
 uv run credlens data audit
+
+# Contratos de dados e planejamento da geração sintética (Fase 3) - tudo offline
+uv run credlens contracts list
+uv run credlens contracts show applications
+uv run credlens contracts validate --contract applications --path tests/fixtures/contracts/valid_minimal_scenario --mode strict
+uv run credlens synthetic plan
+uv run credlens synthetic scenarios
+uv run credlens synthetic validate-blueprints
 ```
 
 Sem `uv`, use um ambiente virtual padrão:
@@ -143,7 +153,7 @@ Veja [`CONTRIBUTING.md`](CONTRIBUTING.md) para o fluxo completo de contribuiçã
 uv run pytest
 ```
 
-141 testes, 95% de cobertura em `src/credlens` na Fase 2. Cobertura é um sinal de qualidade de código, não um proxy de quanto do produto final está pronto. Os testes cobrem: importação do pacote e exposição da versão, todos os comandos da CLI (incluindo `data sources|fetch|verify|audit`), carregamento de configuração, e toda a camada de aquisição de dados — downloads HTTP e o cliente do BCB são testados com HTTP simulado (`responses`), nunca com chamadas de rede reais; todo teste de CLI de fetch/verify/audit roda em um diretório temporário isolado e nunca toca nos arquivos reais de `data/` deste repositório.
+369 testes, 95% de cobertura em `src/credlens` na Fase 3. Cobertura é um sinal de qualidade de código, não um proxy de quanto do produto final está pronto. Os testes cobrem: importação do pacote e exposição da versão, todos os comandos da CLI (incluindo `data sources|fetch|verify|audit`, `contracts list|show|validate`, `synthetic plan|scenarios|validate-blueprints|generate`), carregamento de configuração, toda a camada de aquisição de dados e toda a camada de contratos de dados — schema/loader/registry/validators, as 22 regras de negócio, a suíte de 12 fixtures ponta a ponta (1 cenário válido passando sem achados + 11 cenários inválidos falhando cada um com o código exato esperado), e regressões dedicadas para a automação EDUCATION/MARRIAGE, unicidade/chunking de datas do BCB, um bug de comparação de fuso horário encontrado nesta fase, e detecção de identificadores com formato de CPF. Downloads HTTP e o cliente do BCB são testados com HTTP simulado (`responses`), nunca com chamadas de rede reais; todo teste de CLI de fetch/verify/audit roda em um diretório temporário isolado e nunca toca nos arquivos reais de `data/` deste repositório.
 
 ## Estrutura do repositório
 
@@ -151,20 +161,23 @@ uv run pytest
 credlens-credit-analytics/
 ├── README.md / README.pt-BR.md   # Este arquivo e sua versão em português
 ├── pyproject.toml                # Metadados do pacote, dependências, configuração de ferramentas
-├── config/                       # base.yaml - configuração estrutural (sem segredos)
+├── config/                       # base.yaml (config estrutural) + synthetic/ (blueprints de cenário, Fase 3)
+├── contracts/                    # Arquivos YAML de contratos de dados raw/ + operational/ (Fase 3)
 ├── data/                         # raw/ (ignorado pelo git) + metadata/ (proveniência versionada) - ver data/README.md
-├── docs/                         # Documentação de negócio, arquitetura e aquisição de dados
-├── src/credlens/                 # Pacote da aplicação (CLI, config, logging, data/)
-├── tests/                        # Suíte de testes Pytest
+├── docs/                         # Documentação de negócio, arquitetura, aquisição de dados e contratos de dados
+├── src/credlens/                 # Pacote da aplicação (CLI, config, logging, data/, contracts/, synthetic.py)
+├── tests/                        # Suíte de testes Pytest, incluindo tests/fixtures/contracts/ (cenários válido/inválidos)
 ├── reports/data_audit/           # Relatórios de auditoria estrutural gerados (reproduzíveis via `credlens data audit`)
 └── .github/                      # Workflow de CI e templates de issue/PR
 ```
 
 Documentação da Fase 2, além dos documentos de negócio da Fase 1: [`docs/dataset_selection.md`](docs/dataset_selection.md) (matriz de decisão ponderada), [`docs/data_sources.md`](docs/data_sources.md) (como cada fonte é adquirida), [`docs/data_licensing.md`](docs/data_licensing.md), [`docs/data_dictionary.md`](docs/data_dictionary.md), [`docs/data_quality_audit.md`](docs/data_quality_audit.md), [`docs/target_and_leakage_audit.md`](docs/target_and_leakage_audit.md), [`docs/sensitive_attributes.md`](docs/sensitive_attributes.md).
 
+Documentação da Fase 3: [`docs/conceptual_data_model.md`](docs/conceptual_data_model.md), [`docs/temporal_semantics.md`](docs/temporal_semantics.md), [`docs/state_machines.md`](docs/state_machines.md), [`docs/metric_semantics.md`](docs/metric_semantics.md), [`docs/business_rules.md`](docs/business_rules.md), [`docs/data_contracts.md`](docs/data_contracts.md), [`docs/fairness_data_design.md`](docs/fairness_data_design.md), [`docs/synthetic_generation_spec.md`](docs/synthetic_generation_spec.md), e 7 registros de decisão arquitetural em [`docs/adr/`](docs/adr/).
+
 ## Estratégia de dados (resumo)
 
-A estratégia-alvo é **dados públicos + uma camada operacional sintética reprodutível**: bases públicas de crédito/macroeconômicas reais e licenciadas fornecem estrutura e distribuições realistas; uma camada sintética documentada e gerada por código (ainda não construída) preenche o detalhe operacional (por exemplo, transições diárias de inadimplência) que bases públicas não expõem, sem nunca apresentar valores sintéticos como resultados reais observados. Na Fase 2, quatro fontes foram adquiridas e licenciadas (duas bases individuais da UCI, duas séries macro do Banco Central); uma quinta (Kaggle) está bloqueada aguardando credenciais fornecidas pelo usuário, que este projeto não solicitará. Veja [`docs/data_strategy.md`](docs/data_strategy.md) e [`docs/dataset_selection.md`](docs/dataset_selection.md) para o quadro completo.
+A estratégia-alvo é **dados públicos + uma camada operacional sintética reprodutível**: bases públicas de crédito/macroeconômicas reais e licenciadas fornecem estrutura e distribuições realistas; uma camada sintética documentada e gerada por código preenche o detalhe operacional (por exemplo, transições diárias de inadimplência) que bases públicas não expõem, sem nunca apresentar valores sintéticos como resultados reais observados. Na Fase 2, quatro fontes foram adquiridas e licenciadas (duas bases individuais da UCI, duas séries macro do Banco Central); uma quinta (Kaggle) está bloqueada aguardando credenciais fornecidas pelo usuário, que este projeto não solicitará. Na Fase 3, o modelo conceitual, os contratos e a *especificação* de geração da camada sintética passaram a existir (veja [`docs/synthetic_generation_spec.md`](docs/synthetic_generation_spec.md)), mas o gerador em si ainda não foi construído — `credlens synthetic generate` é um stub deliberado. Veja [`docs/data_strategy.md`](docs/data_strategy.md) e [`docs/dataset_selection.md`](docs/dataset_selection.md) para o quadro completo.
 
 ## Limitações
 

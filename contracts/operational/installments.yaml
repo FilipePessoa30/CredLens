@@ -1,0 +1,34 @@
+name: installments
+version: 1
+description: "One row per scheduled installment of a contract."
+owner: "Finance (conceptual)"
+classification: synthetic_operational
+grain: "one row per contract per installment number"
+status: draft
+evolution_policy: "Additive only until the generator exists."
+format: csv
+
+primary_key: [installment_id]
+
+foreign_keys:
+  - {column: contract_id, references_contract: contracts, references_column: contract_id, severity: error}
+
+columns:
+  - {name: installment_id, type: string, nullable: false, domain: null, unit: null, temporality: null, sensitivity: synthetic_operational, available_for_modeling: false, description: "Synthetic installment identifier."}
+  - {name: contract_id, type: string, nullable: false, domain: null, unit: null, temporality: null, sensitivity: synthetic_operational, available_for_modeling: false, description: "Parent contract."}
+  - {name: installment_number, type: integer, nullable: false, domain: {min: 1}, unit: null, temporality: null, sensitivity: synthetic_operational, available_for_modeling: false, description: "1-based sequence within the contract - unique per contract, see uniqueness_rules."}
+  - {name: due_date, type: date, nullable: false, domain: null, unit: null, temporality: due_date, sensitivity: synthetic_operational, available_for_modeling: false, description: "Contractual due date."}
+  - {name: scheduled_principal, type: decimal, nullable: false, domain: {min: 0}, unit: "currency_unit", temporality: null, sensitivity: synthetic_operational, available_for_modeling: false, description: "Scheduled principal component."}
+  - {name: scheduled_interest, type: decimal, nullable: false, domain: {min: 0}, unit: "currency_unit", temporality: null, sensitivity: synthetic_operational, available_for_modeling: false, description: "Scheduled interest component."}
+  - {name: scheduled_fees, type: decimal, nullable: false, domain: {min: 0}, unit: "currency_unit", temporality: null, sensitivity: synthetic_operational, available_for_modeling: false, description: "Scheduled fee component."}
+  - {name: scheduled_total, type: decimal, nullable: false, domain: {min: 0}, unit: "currency_unit", temporality: null, sensitivity: synthetic_operational, available_for_modeling: false, description: "Must reconcile to principal+interest+fees, see business_rules."}
+  - {name: status, type: categorical, nullable: false, domain: {in_set: [scheduled, due, partially_paid, paid, overdue, written_off]}, unit: null, temporality: null, sensitivity: synthetic_operational, available_for_modeling: false, description: "See docs/state_machines.md - some values here are derivable from payment_allocations and should not silently diverge from them once the generator exists."}
+  - {name: outstanding_balance, type: decimal, nullable: false, domain: {min: 0}, unit: "currency_unit", temporality: null, sensitivity: synthetic_operational, available_for_modeling: false, description: "Remaining unpaid amount for this installment."}
+
+uniqueness_rules:
+  - {name: installment_number_unique_per_contract, columns: [contract_id, installment_number], severity: error}
+
+business_rules:
+  - {code: installment_total_reconciled, description: "scheduled_total must equal scheduled_principal + scheduled_interest + scheduled_fees (within a small documented tolerance).", severity: error}
+
+strict_unexpected_columns: true

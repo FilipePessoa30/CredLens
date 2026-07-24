@@ -1,9 +1,9 @@
 {
-  "generated_at_utc": "2026-07-24T01:50:03.290027+00:00",
+  "generated_at_utc": "2026-07-24T05:18:19.362638+00:00",
   "sources": {
     "bcb-sgs-20570": {
       "source_id": "bcb-sgs-20570",
-      "generated_at_utc": "2026-07-24T01:50:03.204486+00:00",
+      "generated_at_utc": "2026-07-24T05:18:19.262096+00:00",
       "profile": {
         "source_id": "bcb-sgs-20570",
         "num_rows": 137,
@@ -60,7 +60,7 @@
     },
     "bcb-sgs-21112": {
       "source_id": "bcb-sgs-21112",
-      "generated_at_utc": "2026-07-24T01:50:03.205484+00:00",
+      "generated_at_utc": "2026-07-24T05:18:19.263739+00:00",
       "profile": {
         "source_id": "bcb-sgs-21112",
         "num_rows": 137,
@@ -111,7 +111,7 @@
     },
     "south-german-credit": {
       "source_id": "south-german-credit",
-      "generated_at_utc": "2026-07-24T01:50:03.218497+00:00",
+      "generated_at_utc": "2026-07-24T05:18:19.279818+00:00",
       "profile": {
         "source_id": "south-german-credit",
         "num_rows": 1000,
@@ -512,7 +512,7 @@
     },
     "uci-default-credit": {
       "source_id": "uci-default-credit",
-      "generated_at_utc": "2026-07-24T01:50:03.288026+00:00",
+      "generated_at_utc": "2026-07-24T05:18:19.360645+00:00",
       "profile": {
         "source_id": "uci-default-credit",
         "num_rows": 30000,

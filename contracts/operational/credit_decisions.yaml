@@ -1,0 +1,41 @@
+name: credit_decisions
+version: 1
+description: >
+  One row per decision event on an application. An application may have
+  more than one decision event (e.g. an automated decision followed by a
+  manual review), but at most one row per application may have
+  is_final=true - see docs/state_machines.md and docs/business_rules.md.
+owner: "Credit (conceptual)"
+classification: synthetic_operational
+grain: "one row per decision event"
+status: draft
+evolution_policy: "Additive only until the generator exists."
+format: csv
+
+primary_key: [decision_id]
+
+foreign_keys:
+  - {column: application_id, references_contract: applications, references_column: application_id, severity: error}
+  - {column: policy_version_id, references_contract: policy_versions, references_column: policy_version_id, severity: error}
+
+columns:
+  - {name: decision_id, type: string, nullable: false, domain: null, unit: null, temporality: null, sensitivity: synthetic_operational, available_for_modeling: false, description: "Synthetic decision-event identifier."}
+  - {name: application_id, type: string, nullable: false, domain: null, unit: null, temporality: null, sensitivity: synthetic_operational, available_for_modeling: false, description: "Application being decided."}
+  - {name: policy_version_id, type: string, nullable: false, domain: null, unit: null, temporality: null, sensitivity: synthetic_operational, available_for_modeling: false, description: "Policy version applied - must be valid at decision_timestamp, see business_rules below."}
+  - {name: decision_timestamp, type: timestamp, nullable: false, domain: null, unit: null, temporality: event_timestamp, sensitivity: synthetic_operational, available_for_modeling: false, description: "When this decision event occurred."}
+  - {name: outcome, type: categorical, nullable: false, domain: {in_set: [approved, rejected]}, unit: null, temporality: null, sensitivity: synthetic_operational, available_for_modeling: false, description: "Decision outcome."}
+  - {name: reason_code, type: string, nullable: true, domain: null, unit: null, temporality: null, sensitivity: synthetic_operational, available_for_modeling: false, description: "Opaque reason/adverse-action code (illustrative; no real regulatory reason-code standard is claimed)."}
+  - {name: approved_amount, type: decimal, nullable: true, domain: {min: 0}, unit: "currency_unit", temporality: null, sensitivity: synthetic_operational, available_for_modeling: false, description: "Approved amount; null when outcome=rejected."}
+  - {name: approved_term_months, type: integer, nullable: true, domain: {min: 1, max: 60}, unit: "months", temporality: null, sensitivity: synthetic_operational, available_for_modeling: false, description: "Approved term; null when outcome=rejected."}
+  - {name: offered_rate, type: decimal, nullable: true, domain: {min: 0, max: 2}, unit: "fraction per period (documented alongside contracts.contract_rate)", temporality: null, sensitivity: synthetic_operational, available_for_modeling: false, description: "Offered rate; null when outcome=rejected."}
+  - {name: is_final, type: boolean, nullable: false, domain: null, unit: null, temporality: null, sensitivity: synthetic_operational, available_for_modeling: false, description: "Whether this is the application's final decision event - at most one true per application_id, see business_rules."}
+  - {name: logic_version, type: string, nullable: false, domain: null, unit: null, temporality: null, sensitivity: technical_metadata, available_for_modeling: false, description: "Version tag of the (future) decision logic implementation, distinct from policy_version_id's business-rule versioning."}
+
+uniqueness_rules: []
+
+business_rules:
+  - {code: single_final_decision, description: "At most one row per application_id may have is_final=true.", severity: error}
+  - {code: decision_not_before_submission, description: "decision_timestamp must be >= the application's submitted_at.", severity: error}
+  - {code: approval_requires_valid_policy, description: "The referenced policy_version_id must be valid (effective_from <= decision_timestamp < effective_to, or effective_to is null) at decision_timestamp.", severity: error}
+
+strict_unexpected_columns: true

@@ -8,6 +8,7 @@ This document exists so nobody reading this repository — a recruiter, a hiring
 - No real customer exists in this project, at any phase.
 - No real personal data, financial account data, or credit bureau data will be used at any phase. Public datasets used in later phases (see `docs/data_strategy.md`) are, by their own publishers' design, anonymized/de-identified research or competition data — not live customer records — and their licenses will be checked before use regardless.
 - **Phase 2 update**: two anonymized public research datasets have now been acquired - Taiwan credit card clients (2005) and German credit applicants (1973-1975). Neither describes a real CredLens customer, a Brazilian applicant, or any person a reader could identify - they are decades-old, published academic benchmark datasets. Their acquisition does not change any statement in this document; it is exactly the "public data" half of the strategy described above. See `docs/dataset_selection.md`, `docs/data_licensing.md`, and `docs/sensitive_attributes.md` for what was verified about them.
+- **Phase 3 update**: a conceptual model, temporal semantics, state machines, 20 data contracts, and a synthetic-generation *specification* (population/origination/performance/temporal dependence, 6 named scenarios) were designed and documented this phase - none of it produces or describes a real person, a real applicant, or a real Brazilian credit portfolio. All scenario blueprint parameters are explicitly marked `pending` or `requires_calibration` (never `specified` with an invented real-world number); no synthetic customer, application, or contract row has been generated. See `docs/synthetic_generation_spec.md` and `config/synthetic/README.md`.
 
 ## Not usable for real credit decisions
 
@@ -33,6 +34,8 @@ This document exists so nobody reading this repository — a recruiter, a hiring
 - Synthetic data (once generated, in a later phase) is only as realistic as the assumptions coded into its generator.
 - It cannot be used as evidence about real-world credit-risk relationships — only as a way to exercise the pipeline, the KPIs, and the code end-to-end when public data alone doesn't provide enough structure (e.g., time-series depth for vintage analysis).
 - Synthetic and public data will be kept distinguishable by construction (see `docs/data_strategy.md`) so that no report can accidentally present a synthetic number as an observed one.
+- As of Phase 3, no synthetic data exists yet: `credlens synthetic generate` deliberately does nothing but print that generation is not implemented (see `docs/adr/0002-synthetic-operational-layer.md`). The 12 CSV fixtures under `tests/fixtures/contracts/` are small, deliberately artificial test data for the contract-validation code itself, not a preview of what a future generator would produce, and must never be read as such.
+- The "synthetic truth" layer described in `docs/conceptual_data_model.md` section 4.17 (latent generator parameters used only to validate a future generator's own output) is specified but not built, and is designed to be physically separate, git-ignored, and never used as a model feature or dashboard input - see `docs/adr/0007-synthetic-truth-isolation.md`.
 
 ## No claim of real financial impact
 

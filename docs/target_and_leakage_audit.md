@@ -73,8 +73,8 @@ The Phase 2 brief requires distinguishing four model types. Based only on what t
 |---|---|---|
 | **Origination (concessão)** | Only pre-decision applicant information; no history with this specific credit relationship. | `south-german-credit` (structurally); **not** `uci-default-credit` (18/23 variables are post-origination). |
 | **Behavioral (comportamental)** | Ongoing account history to predict near-future risk on an existing relationship. | `uci-default-credit` (structurally); **not** `south-german-credit` (no behavioral columns exist). |
-| **Collections (cobrança)** | Delinquency-stage and collections-action/outcome data. | **Neither dataset.** This remains entirely in the future synthetic operational layer's scope - see `docs/data_strategy.md`. |
-| **Portfolio monitoring** | Aggregate, time-indexed views of the whole book. | Not directly - `bcb-sgs-20570`/`bcb-sgs-21112` provide market-level (not portfolio-level) monitoring *context* only; no portfolio-level monitoring dataset exists yet. |
+| **Collections (cobrança)** | Delinquency-stage and collections-action/outcome data. | **Neither dataset.** As of Phase 3, this is designed (not yet populated) in the synthetic operational layer's `collection_events`, `write_off_events`, and `recovery_events` contracts - see `docs/conceptual_data_model.md` and `contracts/operational/collection_events.yaml`. |
+| **Portfolio monitoring** | Aggregate, time-indexed views of the whole book. | Not directly - `bcb-sgs-20570`/`bcb-sgs-21112` provide market-level (not portfolio-level) monitoring *context* only; no portfolio-level monitoring dataset exists yet. Phase 3's `account_monthly_snapshots` contract designs the future portfolio-level monthly view - also not yet populated. |
 
 ## Future policy proposal (not implemented)
 
@@ -86,3 +86,7 @@ If a later phase builds a model on these datasets, this audit proposes (for that
 4. `rate` (south-german-credit) requires a documented decision on the circularity question above before being used as a model input.
 
 No variable has been removed from any raw file to implement this policy - the raw files in `data/raw/` are untouched, exactly as acquired.
+
+## Phase 3 note: this audit's core distinction is now enforced structurally, for the future synthetic layer
+
+The origination-vs-behavioral leakage distinction this document draws by hand for `uci-default-credit`/`south-german-credit` is, as of Phase 3, also enforced by design in the synthetic operational layer's schema: `application_features` is a separate table populated only with values as they stood at `feature_snapshot_at = applications.submitted_at`, never updated afterward - see `docs/adr/0004-feature-freeze-at-proposal.md`. That ADR protects against the exact failure mode this document found in `uci-default-credit` (X6-X23 being unusable for origination because they only exist after the fact) from being reintroduced once a generator populates real rows. It does not retroactively fix anything about the two acquired public datasets, which remain as analyzed above.

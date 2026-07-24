@@ -1,0 +1,35 @@
+name: customers
+version: 1
+description: >
+  One row per synthetic person. Deliberately excludes any field that could
+  resemble a real identity - see docs/adr/0002-synthetic-operational-layer.md
+  and SECURITY.md. No name, no document number, no contact information.
+owner: "Data & Technology (conceptual)"
+classification: synthetic_operational
+grain: "one row per synthetic customer"
+status: draft
+evolution_policy: "Additive only until the generator exists."
+format: csv
+
+primary_key: [customer_id]
+
+foreign_keys:
+  - {column: generation_run_id, references_contract: generation_runs, references_column: generation_run_id, severity: error}
+
+columns:
+  - {name: customer_id, type: string, nullable: false, domain: null, unit: null, temporality: null, sensitivity: synthetic_operational, available_for_modeling: false, description: "Synthetic customer identifier - never a document-number-shaped value; see docs/business_rules.md identity rules."}
+  - {name: generation_run_id, type: string, nullable: false, domain: null, unit: null, temporality: null, sensitivity: technical_metadata, available_for_modeling: false, description: "Which generation run created this customer."}
+  - {name: created_at, type: timestamp, nullable: false, domain: null, unit: null, temporality: event_timestamp, sensitivity: synthetic_operational, available_for_modeling: false, description: "When this synthetic customer entered the simulated population."}
+
+# Deliberately NOT included here: any latent generator parameter (true risk
+# segment, true payment propensity, etc.). Those belong to the physically
+# separate, git-ignored synthetic-truth layer described in
+# docs/conceptual_data_model.md section 4.17 - not built in this phase, and
+# never merged into an operational table like this one. See
+# docs/adr/0007-synthetic-truth-isolation.md.
+
+uniqueness_rules: []
+
+business_rules: []
+
+strict_unexpected_columns: true

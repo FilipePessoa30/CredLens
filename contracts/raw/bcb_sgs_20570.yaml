@@ -1,0 +1,31 @@
+name: bcb_sgs_20570
+version: 1
+description: >
+  Banco Central do Brasil SGS series 20570 (portfolio balance, freely-negotiated
+  credit, individuals). See docs/data_sources.md for acquisition detail,
+  including the real date-window chunking bug this contract's business
+  rule is designed to catch as a regression.
+owner: "Finance / Risk (conceptual)"
+classification: public_source
+grain: "one row per calendar month for this series"
+status: active
+evolution_policy: "Column set is fixed by BCB's own API response shape; only description/domain refinements bump the version."
+format: json
+
+primary_key: [data]
+
+foreign_keys: []
+
+columns:
+  - {name: data, type: string, nullable: false, domain: {regex: "^[0-3][0-9]/[0-1][0-9]/[0-9]{4}$"}, unit: null, temporality: event_timestamp, sensitivity: public_source, available_for_modeling: false, description: "Reference date, DD/MM/AAAA, as returned by BCB - the series' natural key."}
+  - {name: valor, type: string, nullable: false, domain: {regex: "^-?[0-9]+(\\.[0-9]+)?$"}, unit: "R$ millions", temporality: null, sensitivity: public_source, available_for_modeling: true, description: "Indicator value, kept as the original string exactly as BCB's JSON API returns it (period decimal separator, verified against the real acquired file - never coerced to numeric at acquisition time)."}
+
+uniqueness_rules: []
+# primary_key uniqueness above already enforces "no duplicate observation
+# dates" - this is the automated, regression-tested version of the Phase 2
+# chunking-boundary bug fix (see business_rules below for the ordering half).
+
+business_rules:
+  - {code: bcb_dates_strictly_increasing, description: "Observation dates must be strictly increasing when sorted - catches any residual chunk-boundary overlap or out-of-order merge.", severity: error}
+
+strict_unexpected_columns: true

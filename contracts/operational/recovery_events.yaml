@@ -1,0 +1,31 @@
+name: recovery_events
+version: 1
+description: "One row per recovery received after a write-off."
+owner: "Collections / Finance (conceptual)"
+classification: synthetic_operational
+grain: "one row per recovery event"
+status: draft
+evolution_policy: "Additive only until the generator exists."
+format: csv
+
+primary_key: [recovery_id]
+
+foreign_keys:
+  - {column: contract_id, references_contract: contracts, references_column: contract_id, severity: error}
+  - {column: write_off_id, references_contract: write_off_events, references_column: write_off_id, severity: error}
+
+columns:
+  - {name: recovery_id, type: string, nullable: false, domain: null, unit: null, temporality: null, sensitivity: synthetic_operational, available_for_modeling: false, description: "Synthetic recovery event identifier."}
+  - {name: contract_id, type: string, nullable: false, domain: null, unit: null, temporality: null, sensitivity: synthetic_operational, available_for_modeling: false, description: "Contract recovered against."}
+  - {name: write_off_id, type: string, nullable: false, domain: null, unit: null, temporality: null, sensitivity: synthetic_operational, available_for_modeling: false, description: "The write-off this recovery follows - must exist and predate this recovery, see business_rules."}
+  - {name: recovery_date, type: date, nullable: false, domain: null, unit: null, temporality: event_timestamp, sensitivity: synthetic_operational, available_for_modeling: false, description: "Date the recovery was received."}
+  - {name: amount, type: decimal, nullable: false, domain: {min: 0.01}, unit: "currency_unit", temporality: null, sensitivity: synthetic_operational, available_for_modeling: false, description: "Amount recovered."}
+  - {name: channel, type: categorical, nullable: false, domain: {in_set: [collections_agent, legal, debt_sale, voluntary]}, unit: null, temporality: null, sensitivity: synthetic_operational, available_for_modeling: false, description: "How the recovery occurred."}
+  - {name: source, type: string, nullable: true, domain: null, unit: null, temporality: null, sensitivity: synthetic_operational, available_for_modeling: false, description: "Free-text/opaque note on origin (e.g. which agency); optional."}
+
+uniqueness_rules: []
+
+business_rules:
+  - {code: recovery_after_write_off, description: "recovery_date must be >= the referenced write_off_events row's write_off_date.", severity: error}
+
+strict_unexpected_columns: true

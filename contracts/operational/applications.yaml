@@ -1,0 +1,36 @@
+name: applications
+version: 1
+description: >
+  One row per credit application event (a submission). See
+  docs/temporal_semantics.md for how submitted_at anchors everything else
+  causally downstream of this table.
+owner: "Credit (conceptual)"
+classification: synthetic_operational
+grain: "one row per application"
+status: draft
+evolution_policy: "Additive only until the generator exists."
+format: csv
+
+primary_key: [application_id]
+
+foreign_keys:
+  - {column: customer_id, references_contract: customers, references_column: customer_id, severity: error}
+  - {column: generation_run_id, references_contract: generation_runs, references_column: generation_run_id, severity: error}
+
+columns:
+  - {name: application_id, type: string, nullable: false, domain: null, unit: null, temporality: null, sensitivity: synthetic_operational, available_for_modeling: false, description: "Synthetic application identifier."}
+  - {name: customer_id, type: string, nullable: false, domain: null, unit: null, temporality: null, sensitivity: synthetic_operational, available_for_modeling: false, description: "Applicant."}
+  - {name: generation_run_id, type: string, nullable: false, domain: null, unit: null, temporality: null, sensitivity: technical_metadata, available_for_modeling: false, description: "Which generation run created this application."}
+  - {name: submitted_at, type: timestamp, nullable: false, domain: null, unit: null, temporality: event_timestamp, sensitivity: synthetic_operational, available_for_modeling: false, description: "The application-submission instant - the anchor for application_features' freeze and for every downstream causal-order check."}
+  - {name: product, type: categorical, nullable: false, domain: {in_set: [personal_loan]}, unit: null, temporality: null, sensitivity: synthetic_operational, available_for_modeling: true, description: "Product requested. Single value in this phase's scope (personal_loan) - see docs/project_charter.md."}
+  - {name: channel, type: categorical, nullable: false, domain: {in_set: [app, web, branch, partner]}, unit: null, temporality: null, sensitivity: synthetic_operational, available_for_modeling: true, description: "Origination channel."}
+  - {name: requested_amount, type: decimal, nullable: false, domain: {min: 0}, unit: "currency_unit (see contracts/operational/contracts.yaml)", temporality: null, sensitivity: synthetic_operational, available_for_modeling: true, description: "Amount requested by the applicant."}
+  - {name: requested_term_months, type: integer, nullable: false, domain: {min: 1, max: 60}, unit: "months", temporality: null, sensitivity: synthetic_operational, available_for_modeling: true, description: "Term requested by the applicant."}
+  - {name: status, type: categorical, nullable: false, domain: {in_set: [submitted, under_review, approved, rejected, cancelled]}, unit: null, temporality: null, sensitivity: synthetic_operational, available_for_modeling: false, description: "Current application status - see docs/state_machines.md for the allowed transition graph."}
+
+uniqueness_rules: []
+
+business_rules:
+  - {code: decision_not_before_submission, description: "Every credit_decisions row for this application must have decision_timestamp >= submitted_at.", severity: error}
+
+strict_unexpected_columns: true

@@ -1,0 +1,41 @@
+name: payment_allocations
+version: 1
+description: >
+  One row per allocation of (part of) a payment to (part of) an
+  installment's principal/interest/fees. A payment can be split across
+  many installments; an installment can be paid by many payments. See
+  docs/business_rules.md for the reconciliation rules this table must
+  satisfy.
+owner: "Finance (conceptual)"
+classification: synthetic_operational
+grain: "one row per payment-to-installment allocation"
+status: draft
+evolution_policy: "Additive only until the generator exists."
+format: csv
+
+primary_key: [allocation_id]
+
+foreign_keys:
+  - {column: payment_id, references_contract: payments, references_column: payment_id, severity: error}
+  - {column: installment_id, references_contract: installments, references_column: installment_id, severity: error}
+  - {column: contract_id, references_contract: contracts, references_column: contract_id, severity: error}
+
+columns:
+  - {name: allocation_id, type: string, nullable: false, domain: null, unit: null, temporality: null, sensitivity: synthetic_operational, available_for_modeling: false, description: "Synthetic allocation identifier."}
+  - {name: payment_id, type: string, nullable: false, domain: null, unit: null, temporality: null, sensitivity: synthetic_operational, available_for_modeling: false, description: "Payment being allocated."}
+  - {name: installment_id, type: string, nullable: false, domain: null, unit: null, temporality: null, sensitivity: synthetic_operational, available_for_modeling: false, description: "Installment receiving the allocation."}
+  - {name: contract_id, type: string, nullable: false, domain: null, unit: null, temporality: null, sensitivity: synthetic_operational, available_for_modeling: false, description: "Redundant with payments.contract_id and installments.contract_id on purpose - stored explicitly so the 'no cross-contract allocation' rule can be checked on this table alone, see business_rules."}
+  - {name: allocated_principal, type: decimal, nullable: false, domain: {min: 0}, unit: "currency_unit", temporality: null, sensitivity: synthetic_operational, available_for_modeling: false, description: "Portion of this allocation applied to principal."}
+  - {name: allocated_interest, type: decimal, nullable: false, domain: {min: 0}, unit: "currency_unit", temporality: null, sensitivity: synthetic_operational, available_for_modeling: false, description: "Portion of this allocation applied to interest."}
+  - {name: allocated_fees, type: decimal, nullable: false, domain: {min: 0}, unit: "currency_unit", temporality: null, sensitivity: synthetic_operational, available_for_modeling: false, description: "Portion of this allocation applied to fees."}
+  - {name: allocated_total, type: decimal, nullable: false, domain: {min: 0}, unit: "currency_unit", temporality: null, sensitivity: synthetic_operational, available_for_modeling: false, description: "Must equal allocated_principal + allocated_interest + allocated_fees."}
+
+uniqueness_rules: []
+
+business_rules:
+  - {code: allocation_total_reconciled, description: "allocated_total must equal allocated_principal + allocated_interest + allocated_fees.", severity: error}
+  - {code: allocation_same_contract, description: "This row's contract_id must match both the referenced payment's contract_id and the referenced installment's contract_id - an allocation may never cross contracts.", severity: error}
+  - {code: payment_allocation_not_exceed_payment, description: "For any payment_id, the sum of allocated_total across all its allocation rows must not exceed that payment's amount.", severity: error}
+  - {code: allocation_amount_not_negative, description: "No allocated_* column may be negative (redundant with the domain check above, declared explicitly as a financial rule too since it is a reconciliation precondition).", severity: error}
+
+strict_unexpected_columns: true
