@@ -42,3 +42,24 @@ Nothing in this document, `docs/sensitive_attributes.md`, or any fairness check 
 2. Run a proxy-correlation check between `application_features` and `fairness_attributes` before claiming a model is "unaware" of sensitive attributes just because they weren't direct inputs.
 3. Report cell sizes alongside any group-level rate.
 4. Never produce a group-level credit decision or recommendation from this table - only aggregate, retrospective audit statistics.
+
+## Phase 4B: a versioned allowlist enforcing this, not just convention
+
+Phase 4A's generator already never read `fairness_attributes` when computing a
+decision score - true by construction (the code simply never referenced it) but
+not enforced as an explicit interface. Phase 4B adds
+`credlens.generation.feature_allowlist.DECISION_FEATURE_ALLOWLIST` - a versioned,
+module-level constant listing exactly the `application_features` columns the
+decision score is allowed to read (`bureau_score_bucket`, `declared_income`,
+`debt_to_income`). `credlens.generation.decisions.compute_decision_score` now
+goes through `select_decision_features()`, the only sanctioned read path, which
+also runs `assert_allowlist_is_safe()` - a check that the allowlist itself never
+contains a column matching a forbidden pattern (`propensity`, `latent`, `truth`,
+`dpd`, `write_off`, `payment`, `gender`, `age_bracket`, `region`, `fairness`).
+This means a future column added to `application_features` (behavioral, or
+accidentally copied from `fairness_attributes`) cannot silently start
+influencing the score just by existing on the table - a change to
+`DECISION_FEATURE_ALLOWLIST` itself is required, which is a reviewable code
+change, not a data change. See `tests/test_generation_truth_isolation.py` for
+the allowlist tests and a metamorphic test proving decisions are unaffected by
+even an extreme perturbation of the (separately isolated) synthetic-truth layer.

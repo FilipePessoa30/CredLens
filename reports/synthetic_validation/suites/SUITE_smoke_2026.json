@@ -1,0 +1,168 @@
+{
+  "baseline_run_id": "RUN_baseline_smoke_2026_5d40b2fc",
+  "dgp_version": "0.5.0",
+  "scale": "smoke",
+  "scenario_run_ids": {
+    "policy_tightening": "RUN_policy_tightening_smoke_2026_b7b65b2d"
+  },
+  "scenarios": {
+    "policy_tightening": {
+      "baseline_metrics": {
+        "approval_rate": 0.567376,
+        "avg_latent_propensity_of_approved": 0.76023,
+        "booking_rate": 0.79375,
+        "cure_rate": 0.478261,
+        "dpd30_plus_rate": 0.141304,
+        "dpd60_plus_rate": 0.065217,
+        "dpd90_plus_rate": 0.021739,
+        "generation_run_id": "RUN_baseline_smoke_2026_5d40b2fc",
+        "n_applications": 307,
+        "n_approved": 160,
+        "n_collection_events": 34,
+        "n_contracts": 127,
+        "n_decided": 282,
+        "n_recoveries": 0,
+        "n_snapshots": 184,
+        "n_write_offs": 0,
+        "write_off_rate": 0.0
+      },
+      "config_diff": {
+        "policy": {
+          "baseline": {
+            "approval_score_cutoff": 0.5,
+            "approved_term_months_max": 24,
+            "offered_rate": 0.035
+          },
+          "scenario": {
+            "approval_score_cutoff": 0.65,
+            "approved_term_months_max": 24,
+            "offered_rate": 0.035
+          }
+        },
+        "scales": {
+          "baseline": {
+            "portfolio": {
+              "customers": 50000,
+              "description": "Demonstration scale - not executed automatically by tests or CI in Phase 4A; a manual, deliberate invocation only."
+            },
+            "sample": {
+              "customers": 5000,
+              "description": "Development/demo scale - enough longitudinal depth for vintage-style analysis without a long run."
+            },
+            "smoke": {
+              "customers": 200,
+              "description": "Fast, deterministic sanity-check scale - seconds, covers every state (approve/reject/pay/delinquent/cure/write-off/recover)."
+            }
+          },
+          "scenario": {
+            "portfolio": {
+              "customers": 50000,
+              "description": "Same population as baseline's portfolio, per CRN - not executed automatically."
+            },
+            "sample": {
+              "customers": 5000,
+              "description": "Same population as baseline's sample, per CRN."
+            },
+            "smoke": {
+              "customers": 200,
+              "description": "Fast, deterministic sanity-check scale - same population as baseline's smoke, per CRN."
+            }
+          }
+        },
+        "scenario": {
+          "baseline": "baseline",
+          "scenario": "policy_tightening"
+        }
+      },
+      "directional_checks": [
+        {
+          "detail": "baseline=160 approved, tightening=52 approved",
+          "name": "tightening_approved_subset_of_baseline_approved",
+          "passed": true,
+          "type": "invariant"
+        }
+      ],
+      "metric_comparisons": [
+        {
+          "baseline_value": 0.567376,
+          "candidate_value": 0.184397,
+          "delta": -0.382979,
+          "metric": "approval_rate"
+        },
+        {
+          "baseline_value": 0.79375,
+          "candidate_value": 0.769231,
+          "delta": -0.024519,
+          "metric": "booking_rate"
+        },
+        {
+          "baseline_value": 0.141304,
+          "candidate_value": 0.244898,
+          "delta": 0.103594,
+          "metric": "dpd30_plus_rate"
+        },
+        {
+          "baseline_value": 0.065217,
+          "candidate_value": 0.142857,
+          "delta": 0.07764,
+          "metric": "dpd60_plus_rate"
+        },
+        {
+          "baseline_value": 0.021739,
+          "candidate_value": 0.102041,
+          "delta": 0.080302,
+          "metric": "dpd90_plus_rate"
+        },
+        {
+          "baseline_value": 0.478261,
+          "candidate_value": 0.428571,
+          "delta": -0.049689,
+          "metric": "cure_rate"
+        },
+        {
+          "baseline_value": 0.0,
+          "candidate_value": 0.025,
+          "delta": 0.025,
+          "metric": "write_off_rate"
+        }
+      ],
+      "population_crn_preserved": true,
+      "population_hashes": {
+        "baseline": {
+          "application_features": "14e679216677da7d3806bac0865bce1cce61ef886824f97a2f44ba0920b4536d",
+          "applications": "4cf90622d08b9a063cade41a0152ef921d90937cb95ca729f412200147dc5a07",
+          "customers": "ad9fafb67c599915ff95dac5c1b921d1d27910266c5a0fbcec422d9ee4f0e282",
+          "fairness_attributes": "33abf58f4170f241f67b00d6f998fc289c06611c7dad77ba62e0b5d65479cd24"
+        },
+        "scenario": {
+          "application_features": "14e679216677da7d3806bac0865bce1cce61ef886824f97a2f44ba0920b4536d",
+          "applications": "4cf90622d08b9a063cade41a0152ef921d90937cb95ca729f412200147dc5a07",
+          "customers": "ad9fafb67c599915ff95dac5c1b921d1d27910266c5a0fbcec422d9ee4f0e282",
+          "fairness_attributes": "33abf58f4170f241f67b00d6f998fc289c06611c7dad77ba62e0b5d65479cd24"
+        }
+      },
+      "run_id": "RUN_policy_tightening_smoke_2026_b7b65b2d",
+      "scenario_metrics": {
+        "approval_rate": 0.184397,
+        "avg_latent_propensity_of_approved": 0.738003,
+        "booking_rate": 0.769231,
+        "cure_rate": 0.428571,
+        "dpd30_plus_rate": 0.244898,
+        "dpd60_plus_rate": 0.142857,
+        "dpd90_plus_rate": 0.102041,
+        "generation_run_id": "RUN_policy_tightening_smoke_2026_b7b65b2d",
+        "n_applications": 307,
+        "n_approved": 52,
+        "n_collection_events": 12,
+        "n_contracts": 40,
+        "n_decided": 282,
+        "n_recoveries": 0,
+        "n_snapshots": 49,
+        "n_write_offs": 1,
+        "write_off_rate": 0.025
+      }
+    }
+  },
+  "seed": 2026,
+  "suite_id": "SUITE_smoke_2026"
+}

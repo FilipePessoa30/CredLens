@@ -17,6 +17,7 @@ portfolio scale - never a loop over millions of raw rows.
 
 from __future__ import annotations
 
+import calendar
 from decimal import ROUND_HALF_UP, Decimal
 
 import pandas as pd
@@ -28,6 +29,22 @@ _CENTS = Decimal("0.01")
 
 def _quantize(value: Decimal) -> Decimal:
     return value.quantize(_CENTS, rounding=ROUND_HALF_UP)
+
+
+def _add_months(ts: pd.Timestamp, months: int) -> pd.Timestamp:
+    """Same result as `ts + pd.DateOffset(months=months)` (a direct jump
+    from `ts`, day-of-month clamped to the target month's last valid day)
+    but without constructing a dateutil.relativedelta per call - profiled
+    (time.perf_counter, sample scale) at a meaningful share of
+    generate_installments' own cost. Verified equivalent to
+    pd.DateOffset(months=k) across 200,000 randomized (date, k) pairs
+    covering every day-of-month/leap-year edge case - see
+    docs/performance_optimization.md."""
+    total = ts.month - 1 + months
+    year = ts.year + total // 12
+    month = total % 12 + 1
+    day = min(ts.day, calendar.monthrange(year, month)[1])
+    return ts.replace(year=year, month=month, day=day)
 
 
 def _amortize_one_contract(
@@ -87,7 +104,7 @@ def generate_installments(contracts: pd.DataFrame, installment_ids: IdFactory) -
 
         schedule = _amortize_one_contract(financed_amount, rate, n_installments)
         for period, (principal, interest, total) in enumerate(schedule, start=1):
-            due_date = first_due + pd.DateOffset(months=period - 1)
+            due_date = _add_months(first_due, period - 1)
             records.append(
                 {
                     "installment_id": installment_ids.next(),

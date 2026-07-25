@@ -1,0 +1,116 @@
+# CredLens - contract_coverage FIXTURE generation configuration.
+#
+# NOT a plausible population and NOT comparable to baseline/CRN scenarios
+# (deliberately excluded from
+# credlens.generation.config.CRN_SCENARIOS) - this is a small,
+# deterministic, deliberately-extreme-parameter fixture whose only goal
+# is to force every state this phase's test suite needs to see at least
+# once, in a run that finishes in well under a second. Never presented as
+# a business scenario, never read by any report/dashboard - see
+# docs/counterfactual_scenarios.md "contract_coverage is a test fixture,
+# not a scenario".
+#
+# States this configuration is tuned (and tested, see
+# tests/test_generation_contract_coverage.py) to produce within scale
+# 'smoke' at seed 2026: approval, rejection, approval-without-booking,
+# a performing (on-time) contract, delinquency, a partial payment, a
+# cure, a collection event, a write-off, a recovery, a prepayment, and a
+# payment reversal. KNOWN GAP: true delinquency "relapse" (cured, then
+# delinquent again on the SAME still-open contract) cannot occur under
+# ANY configuration of the current generator - see
+# docs/counterfactual_scenarios.md "contract_coverage known gap" for why
+# (credlens.generation.payments' cure branch always pays off the
+# contract's ENTIRE remaining balance, not just its overdue backlog, so a
+# cured contract is always terminal/settled the same month - there is no
+# remaining balance left for it to relapse on).
+
+version: 1
+scenario: contract_coverage
+default_seed: 2026
+currency_unit: credlens_synthetic_unit
+
+period:
+  start: 2024-01-01
+  end: 2024-12-31
+
+scales:
+  smoke:
+    customers: 90
+    description: "The only scale this fixture is meant to be run at - tuned to hit every covered state deterministically."
+  sample:
+    customers: 180
+    description: "Same tuning, larger population - not required by any test, kept only so the Scale enum's full set works uniformly."
+  portfolio:
+    customers: 360
+    description: "Same tuning, larger population - not executed automatically, not a realistic portfolio size for this fixture."
+
+population:
+  declared_income_min: 800
+  declared_income_max: 15000
+  employment_months_max: 240
+  existing_relationship_share: 0.3
+  bureau_score_bucket_weights:
+    thin_file: 0.15
+    low: 0.25
+    medium: 0.35
+    high: 0.25
+
+applications:
+  applications_per_customer_max: 2
+  channel_weights:
+    app: 0.40
+    web: 0.30
+    branch: 0.15
+    partner: 0.15
+  requested_amount_min: 300
+  requested_amount_max: 8000
+  requested_term_months_choices: [3, 6, 12, 18, 24]
+  cancellation_rate: 0.05
+
+policy:
+  approval_score_cutoff: 0.5
+  offered_rate: 0.035
+  approved_term_months_max: 24
+
+booking:
+  # Lower than baseline's 0.85 - deliberately produces "approved but
+  # never booked" applications within a small population.
+  booking_rate_given_approved: 0.70
+  max_days_approval_to_contract: 10
+
+contract:
+  max_days_contract_to_disbursement: 2
+
+payment_behavior:
+  # All of the following are deliberately pushed to extremes (relative to
+  # baseline) to force delinquency/cure/write-off/recovery/reversal
+  # within a 12-month window and a ~90-customer population - not a
+  # plausible payment-behavior assumption, see module docstring.
+  on_time_probability: 0.40
+  partial_payment_probability: 0.20
+  prepayment_probability: 0.12
+  cure_probability_per_month: 0.55
+  reversal_rate: 0.15
+  allocation_order: [fees, interest, principal]
+
+collections:
+  contact_dpd_thresholds: [5, 15, 30]
+  promise_to_pay_probability: 0.5
+
+write_off:
+  # Much lower than baseline's 150 - reachable within the 12-month period.
+  dpd_threshold: 40
+
+recovery:
+  recovery_probability: 0.7
+  recovery_fraction_min: 0.10
+  recovery_fraction_max: 0.60
+  max_months_after_write_off: 5
+
+tolerance:
+  monetary_tolerance: 0.01
+
+output:
+  format: parquet
+  operational_dir: data/synthetic
+  truth_dir: data/synthetic_truth

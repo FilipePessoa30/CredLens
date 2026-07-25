@@ -149,6 +149,26 @@ class OutputConfig(BaseModel):
     truth_dir: str
 
 
+class MacroShockConfig(BaseModel):
+    """A documented, dated, synthetic payment-behavior shock for the
+    macroeconomic_stress scenario (Phase 4B). Applied from `shock_date`
+    (inclusive) onward: origination and payment behavior before that date
+    are byte-identical to baseline - see
+    credlens.generation.payments._effective_payment_behavior and
+    docs/counterfactual_scenarios.md."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    shock_date: date
+    on_time_probability_multiplier: float
+    partial_payment_probability_multiplier: float
+    prepayment_probability_multiplier: float
+    cure_probability_multiplier: float
+    synthetic_source_id: str
+    synthetic_shock_value: float
+    synthetic_shock_description: str
+
+
 class GenerationConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -169,15 +189,89 @@ class GenerationConfig(BaseModel):
     recovery: RecoveryConfig
     tolerance: ToleranceConfig
     output: OutputConfig
+    macro_shock: MacroShockConfig | None = None
 
     @model_validator(mode="after")
-    def _scenario_must_be_baseline(self) -> GenerationConfig:
-        if self.scenario != "baseline":
+    def _scenario_must_be_executable(self) -> GenerationConfig:
+        if self.scenario not in EXECUTABLE_SCENARIOS:
             raise ValueError(
-                f"GenerationConfig only supports scenario='baseline' in Phase 4A, got "
-                f"'{self.scenario}'"
+                f"GenerationConfig only supports executable scenarios {EXECUTABLE_SCENARIOS}, "
+                f"got '{self.scenario}'. Every other scenario remains requires_calibration - see "
+                f"config/synthetic/scenarios/{self.scenario}.blueprint.yaml."
             )
         return self
+
+
+# Every scenario with a concrete, executable config/synthetic/<scenario>.generation.yaml
+# file (Phase 4B). Every OTHER scenario blueprint remains requires_calibration - no
+# generation config exists for it and generate_scenario() rejects it up front. Order
+# matches this phase's own presentation order, not any priority ranking.
+EXECUTABLE_SCENARIOS: tuple[str, ...] = (
+    "baseline",
+    "policy_expansion",
+    "policy_tightening",
+    "macroeconomic_stress",
+    "collections_change",
+    "contract_coverage",
+)
+
+# CRN (common random numbers, Phase 4B section 5): scenarios listed here MUST use a
+# population/applications/features/fairness/truth layer that is BYTE-IDENTICAL to
+# baseline's for the same seed - enforced by assert_crn_compatible() at generation
+# time. contract_coverage is deliberately excluded: it is its own small, extreme-value
+# fixture, never compared to baseline as a population (see its own generation.yaml).
+CRN_SCENARIOS: tuple[str, ...] = (
+    "policy_expansion",
+    "policy_tightening",
+    "macroeconomic_stress",
+    "collections_change",
+)
+
+# Fields that determine the customers/applications/application_features/
+# fairness_attributes/truth layer output for a given seed - a CRN scenario's config
+# must match baseline's exactly on every one of these fields (policy/payment_behavior/
+# collections/write_off/recovery/macro_shock are deliberately excluded: those are
+# exactly the fields a counterfactual scenario is allowed to vary). "scales" compares
+# only each preset's `customers` count, not its free-text `description` - the wording
+# is allowed to differ (e.g. explaining a scenario's own CRN relationship to baseline)
+# without that counting as a CRN-breaking difference.
+_CRN_FIELDS: tuple[str, ...] = ("period", "population", "applications", "default_seed")
+
+
+class CrnIncompatibleError(ConfigError):
+    """Raised when a CRN scenario's config differs from baseline's on a
+    population/applications-affecting field, which would break the common-random-
+    numbers guarantee section 5 requires."""
+
+
+def assert_crn_compatible(
+    baseline_config: GenerationConfig, scenario_config: GenerationConfig
+) -> None:
+    baseline_payload = baseline_config.model_dump(mode="json")
+    scenario_payload = scenario_config.model_dump(mode="json")
+    mismatches = [
+        field for field in _CRN_FIELDS if baseline_payload[field] != scenario_payload[field]
+    ]
+    baseline_customers = {
+        scale.value: preset.customers for scale, preset in baseline_config.scales.items()
+    }
+    scenario_customers = {
+        scale.value: preset.customers for scale, preset in scenario_config.scales.items()
+    }
+    if baseline_customers != scenario_customers:
+        mismatches.append("scales.customers")
+    if mismatches:
+        raise CrnIncompatibleError(
+            f"'{scenario_config.scenario}' config differs from baseline on "
+            f"CRN-relevant field(s) {mismatches} - common random numbers requires "
+            "identical population/applications config, see docs/common_random_numbers.md."
+        )
+
+
+def config_path_for_scenario(scenario: str) -> Path:
+    if scenario == "baseline":
+        return DEFAULT_CONFIG_PATH
+    return Path(f"config/synthetic/{scenario}.generation.yaml")
 
 
 def load_generation_config(path: Path = DEFAULT_CONFIG_PATH) -> GenerationConfig:

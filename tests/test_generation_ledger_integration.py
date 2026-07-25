@@ -121,6 +121,8 @@ def _build_full_portfolio(seed: int, n_customers: int) -> dict[str, pd.DataFrame
             "planned_applications": [len(applications)],
             "is_synthetic": [True],
             "scale": ["smoke"],
+            "suite_id": [None],
+            "parent_run_id": [None],
         }
     )
 

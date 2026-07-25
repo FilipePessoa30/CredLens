@@ -1,7 +1,7 @@
 [project]
 name = "credlens"
-version = "0.4.0"
-description = "CredLens - Credit Risk & Portfolio Analytics. Project scaffolding, business framing, a CLI, reproducible public-dataset acquisition/audit, conceptual data model, data contracts, and a deterministic baseline synthetic-portfolio generator."
+version = "0.5.0"
+description = "CredLens - Credit Risk & Portfolio Analytics. Project scaffolding, business framing, a CLI, reproducible public-dataset acquisition/audit, conceptual data model, data contracts, and a deterministic, performance-optimized synthetic-portfolio generator with counterfactual scenarios and common random numbers."
 readme = "README.md"
 license = { text = "MIT" }
 requires-python = ">=3.11"
@@ -34,7 +34,11 @@ classifiers = [
 # Parquet (the columnar, typed output format generated tables use) without
 # depending on a full analytical engine (DuckDB, etc.) this phase doesn't
 # need. Neither is used for modeling - no scikit-learn/XGBoost/LightGBM/SHAP
-# is added, per this phase's explicit scope.
+# is added, per this phase's explicit scope. Phase 4B (performance
+# optimization, counterfactual scenarios, common random numbers, Monte Carlo,
+# quarantine) adds NO new dependencies - everything is built on numpy/pandas/
+# pydantic/pyarrow already present, plus the Python standard library
+# (cProfile, tracemalloc, statistics, ast).
 dependencies = [
   "pyyaml>=6.0,<7",
   "requests>=2.31,<3",

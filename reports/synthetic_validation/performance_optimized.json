@@ -1,0 +1,46 @@
+{
+  "measured_at_phase": "4B, after optimization",
+  "scenario": "baseline",
+  "scale": "sample",
+  "seed": 2026,
+  "customers": 5000,
+  "total_rows": 101384,
+  "duration_seconds_in_process": 3.734,
+  "duration_seconds_range_observed": [3.734, 3.797, 3.969, 3.984],
+  "measurement_method": "time.perf_counter via manifest.duration_seconds, clean (non-profiled) run, repeated 4 times",
+  "config_hash": "5d40b2fc2b5174dd50d0fec77e69b9b08ba63f4b43e5c52a3782581c84191665",
+  "global_content_hash": "ac0a72827da3d50e5a239144f10cb9a450785d29696d06c4075bc89729035f02",
+  "hash_preserved_vs_baseline": true,
+  "speedup_vs_baseline": 2.27,
+  "meets_2x_target": true,
+  "optimizations_applied": [
+    {
+      "name": "bulk states construction",
+      "file": "src/credlens/generation/payments.py",
+      "description": "Replaced installments.groupby('contract_id') + one group.to_dict('records') call per contract (thousands of separate pandas-level calls) with a single installments.to_dict('records') pass plus plain-Python grouping.",
+      "profiled_cost_before": "~9.2s of a ~34s cProfile run (largest hotspot found)"
+    },
+    {
+      "name": "vectorized canonical table hashing",
+      "file": "src/credlens/generation/manifest.py",
+      "description": "Replaced DataFrame.apply(..., axis=1) (one pandas Series built per row) with a single whole-array .astype(str) plus a plain Python list comprehension. Required reproducing a numpy fixed-width-string quirk (trailing NUL byte stripped from the null sentinel) that the original per-row cast had, to preserve the exact same hash.",
+      "profiled_cost_before": "~6.7s of a ~34s cProfile run (second-largest hotspot found)"
+    },
+    {
+      "name": "manual month-arithmetic in installment scheduling",
+      "file": "src/credlens/generation/schedules.py",
+      "description": "Replaced pd.DateOffset(months=k) (constructs a dateutil.relativedelta per installment) with a verified-equivalent manual year/month/day-clamp calculation. Verified identical to pd.DateOffset across 200,000 randomized (date, months) pairs before adopting.",
+      "profiled_cost_before": "part of generate_installments' ~1.3s (coarse, non-cProfile timing)"
+    },
+    {
+      "name": "head-index installment pruning",
+      "file": "src/credlens/generation/payments.py",
+      "description": "Tracks a per-contract head_index pointer into the (already due-date-sorted) open_installments list, advanced once fully-paid installments are permanently exhausted, so month-by-month scans only touch genuinely open installments instead of the contract's full original schedule. Required one narrow fix: account_monthly_snapshots.next_due_date's own (pre-existing, deliberately preserved) inclusive same-day-payoff quirk still reads the FULL installment list, not the pruned one - found via full-content diffing at sample scale, not by reasoning alone."
+    }
+  ],
+  "identified_but_not_optimized": [
+    "Strict contract validation (~0.9s coarse) - a hard, non-negotiable gate, not touched.",
+    "Parquet write (~0.2s coarse) - small relative to other phases.",
+    "load_all_contracts() YAML parsing (~0.14s coarse) - one-time fixed cost, not part of the O(months x contracts) loop this phase targeted."
+  ]
+}

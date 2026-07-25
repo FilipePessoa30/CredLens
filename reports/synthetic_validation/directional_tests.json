@@ -1,0 +1,63 @@
+{
+  "note": "Per-scenario invariant checks (must always hold) and metric deltas (technical DGP sanity checks, not business findings) for a single-seed suite run. See monte_carlo_summary.json for multi-seed statistical robustness.",
+  "scale": "smoke",
+  "scenarios": {
+    "macroeconomic_stress": {
+      "directional_checks": [
+        {
+          "detail": "shock_date=2024-07-01, 6 baseline / 6 stress pre-shock payments",
+          "name": "pre_shock_payments_identical_to_baseline",
+          "passed": true,
+          "type": "invariant"
+        }
+      ],
+      "metric_comparisons": [
+        {
+          "baseline_value": 0.567376,
+          "candidate_value": 0.567376,
+          "delta": 0.0,
+          "metric": "approval_rate"
+        },
+        {
+          "baseline_value": 0.79375,
+          "candidate_value": 0.79375,
+          "delta": 0.0,
+          "metric": "booking_rate"
+        },
+        {
+          "baseline_value": 0.141304,
+          "candidate_value": 0.255435,
+          "delta": 0.11413,
+          "metric": "dpd30_plus_rate"
+        },
+        {
+          "baseline_value": 0.065217,
+          "candidate_value": 0.13587,
+          "delta": 0.070652,
+          "metric": "dpd60_plus_rate"
+        },
+        {
+          "baseline_value": 0.021739,
+          "candidate_value": 0.065217,
+          "delta": 0.043478,
+          "metric": "dpd90_plus_rate"
+        },
+        {
+          "baseline_value": 0.478261,
+          "candidate_value": 0.351351,
+          "delta": -0.12691,
+          "metric": "cure_rate"
+        },
+        {
+          "baseline_value": 0.0,
+          "candidate_value": 0.007874,
+          "delta": 0.007874,
+          "metric": "write_off_rate"
+        }
+      ],
+      "run_id": "RUN_macroeconomic_stress_smoke_2026_8e8658d5"
+    }
+  },
+  "seed": 2026,
+  "suite_id": "SUITE_smoke_2026"
+}

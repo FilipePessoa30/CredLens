@@ -108,8 +108,23 @@ Per `docs/adr/0007-synthetic-truth-isolation.md`: the latent payment propensity 
 | `sample` | 5,000 | Development/demo depth. | No - exercised manually once for this phase's validation (~57s, see the final report's performance table); not part of the automated test suite to keep `pytest` fast. |
 | `portfolio` | 50,000 | Demonstration scale. | No - not executed in this phase at all, per this phase's explicit scope. |
 
-## What is explicitly not built in Phase 4A
+## What was explicitly not built in Phase 4A (status as of Phase 4B)
 
-- Every scenario except `baseline` (`policy_expansion`, `policy_tightening`, `macroeconomic_stress`, `collections_change`, `data_quality_incident`) - `credlens synthetic generate --scenario <other>` raises `ScenarioNotCalibratedError` before any generation runs.
-- The `macroeconomic_stress` scenario's synthetic macro shocks - `macro.py` only ever produces `source_type=public_bcb_observation` rows in this phase; `synthetic_shock`/`derived_index` rows are schema-ready (`docs/adr/0008`) but never emitted.
-- A warehouse, SQL analytics, a risk model, or a dashboard - none of these read the generator's output in this phase.
+- Every scenario except `baseline` - **superseded**: `policy_expansion`, `policy_tightening`, `macroeconomic_stress`, `collections_change`, and the `contract_coverage` test fixture became executable in Phase 4B (`credlens.generation.config.EXECUTABLE_SCENARIOS`) - see `docs/counterfactual_scenarios.md`. `data_quality_incident` remains without an executable generation config (it is a post-hoc corruption of a valid run, not a distinct DGP - see `docs/data_quality_incident.md`).
+- The `macroeconomic_stress` scenario's synthetic macro shocks - **superseded**: `macro.generate_macro_context` now accepts an optional `MacroShockConfig` and emits `source_type=synthetic_shock` rows for the shock window when one is configured (still never emitted for `baseline` or any scenario that doesn't configure a shock).
+- A warehouse, SQL analytics, a risk model, or a dashboard - none of these read the generator's output as of Phase 4B either.
+
+## Phase 4B additions
+
+Phase 4B (performance, counterfactual scenarios, common random numbers,
+Monte Carlo, quarantine) is documented in four dedicated documents rather than
+folded into this one:
+
+- `docs/performance_optimization.md` - profiling method, the 4 optimizations applied, and the ~2.27x speedup achieved with the canonical content hash preserved exactly.
+- `docs/common_random_numbers.md` - how CRN is guaranteed across scenarios, and two real bugs fixed to make it actually hold.
+- `docs/counterfactual_scenarios.md` - what each of the 5 newly-executable scenarios does, its invariants, and `contract_coverage`'s one documented architectural gap.
+- `docs/synthetic_calibration.md` - classification (`synthetic_assumption` / `benchmark_informed` / `derived_from_public_aggregate` / `counterfactual_intervention`) of every Phase 4B scenario parameter.
+- `docs/data_quality_incident.md` - the quarantine flow for deliberately-invalid data.
+
+`GENERATOR_VERSION` (in `credlens.generation.orchestrator`) is `"0.5.0"` as of
+Phase 4B, matching the package version - it was `"0.4.0"` in Phase 4A.

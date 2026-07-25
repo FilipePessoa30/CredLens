@@ -42,9 +42,13 @@ def cleanup_runs() -> Iterator[list[str]]:
 
 
 class TestScenarioGating:
-    def test_non_baseline_scenario_is_rejected_before_any_generation(self) -> None:
-        with pytest.raises(ScenarioNotCalibratedError, match="not calibrated"):
-            generate_baseline(scenario="policy_tightening", scale_name="smoke", seed=1)
+    def test_non_calibrated_scenario_is_rejected_before_any_generation(self) -> None:
+        # data_quality_incident has no generation.yaml as of Phase 4B -
+        # unlike policy_expansion/policy_tightening/macroeconomic_stress/
+        # collections_change/contract_coverage, which all became
+        # executable this phase (see EXECUTABLE_SCENARIOS).
+        with pytest.raises(ScenarioNotCalibratedError, match="requires_calibration"):
+            generate_baseline(scenario="data_quality_incident", scale_name="smoke", seed=1)
 
     def test_unknown_scenario_is_also_rejected(self) -> None:
         with pytest.raises(ScenarioNotCalibratedError):

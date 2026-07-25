@@ -1,0 +1,95 @@
+# CredLens - policy_tightening scenario executable generation configuration.
+#
+# Phase 4B counterfactual: a synthetic policy TIGHTENING relative to
+# baseline.generation.yaml - the ONLY documented difference is
+# policy.approval_score_cutoff (raised, a stricter policy). Every other
+# field is BYTE-IDENTICAL to baseline.generation.yaml - see
+# policy_expansion.generation.yaml's comment and
+# docs/common_random_numbers.md for why this is required for the
+# section 7 "approved set is a subset of baseline's" invariant to hold.
+
+version: 1
+scenario: policy_tightening
+default_seed: 2026
+currency_unit: credlens_synthetic_unit
+
+period:
+  start: 2024-01-01
+  end: 2024-12-31
+
+scales:
+  smoke:
+    customers: 200
+    description: "Fast, deterministic sanity-check scale - same population as baseline's smoke, per CRN."
+  sample:
+    customers: 5000
+    description: "Same population as baseline's sample, per CRN."
+  portfolio:
+    customers: 50000
+    description: "Same population as baseline's portfolio, per CRN - not executed automatically."
+
+population:
+  declared_income_min: 800
+  declared_income_max: 15000
+  employment_months_max: 240
+  existing_relationship_share: 0.3
+  bureau_score_bucket_weights:
+    thin_file: 0.15
+    low: 0.25
+    medium: 0.35
+    high: 0.25
+
+applications:
+  applications_per_customer_max: 2
+  channel_weights:
+    app: 0.40
+    web: 0.30
+    branch: 0.15
+    partner: 0.15
+  requested_amount_min: 300
+  requested_amount_max: 8000
+  requested_term_months_choices: [3, 6, 12, 18, 24]
+  cancellation_rate: 0.05
+
+policy:
+  # The ONLY parameter this scenario changes relative to baseline (0.5) -
+  # a stricter cutoff, approving strictly fewer of the same scored population.
+  approval_score_cutoff: 0.65
+  offered_rate: 0.035
+  approved_term_months_max: 24
+
+booking:
+  booking_rate_given_approved: 0.85
+  max_days_approval_to_contract: 10
+
+contract:
+  max_days_contract_to_disbursement: 2
+
+payment_behavior:
+  on_time_probability: 0.70
+  partial_payment_probability: 0.12
+  prepayment_probability: 0.05
+  cure_probability_per_month: 0.20
+  reversal_rate: 0.01
+  allocation_order: [fees, interest, principal]
+
+collections:
+  contact_dpd_thresholds: [15, 45, 75]
+  promise_to_pay_probability: 0.35
+
+write_off:
+  dpd_threshold: 150
+
+recovery:
+  recovery_probability: 0.25
+  recovery_fraction_min: 0.05
+  recovery_fraction_max: 0.40
+  max_months_after_write_off: 6
+
+tolerance:
+  monetary_tolerance: 0.01
+
+output:
+  format: parquet
+  operational_dir: data/synthetic
+  truth_dir: data/synthetic_truth

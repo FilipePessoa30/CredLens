@@ -1,0 +1,59 @@
+{
+  "baseline_run_id": "RUN_baseline_smoke_2026_5d40b2fc",
+  "dgp_version": "0.5.0",
+  "scale": "smoke",
+  "scenario_run_ids": {
+    "macroeconomic_stress": "RUN_macroeconomic_stress_smoke_2026_8e8658d5"
+  },
+  "scenarios": {
+    "macroeconomic_stress": {
+      "baseline_metrics": {
+        "approval_rate": 0.567376,
+        "avg_latent_propensity_of_approved": 0.76023,
+        "booking_rate": 0.79375,
+        "cure_rate": 0.478261,
+        "dpd30_plus_rate": 0.141304,
+        "dpd60_plus_rate": 0.065217,
+        "dpd90_plus_rate": 0.021739,
+        "generation_run_id": "RUN_baseline_smoke_2026_5d40b2fc",
+        "n_applications": 307,
+        "n_approved": 160,
+        "n_collection_events": 34,
+        "n_contracts": 127,
+        "n_decided": 282,
+        "n_recoveries": 0,
+        "n_snapshots": 184,
+        "n_write_offs": 0,
+        "write_off_rate": 0.0
+      },
+      "config_diff_keys": [
+        "macro_shock",
+        "scales",
+        "scenario"
+      ],
+      "population_crn_preserved": true,
+      "run_id": "RUN_macroeconomic_stress_smoke_2026_8e8658d5",
+      "scenario_metrics": {
+        "approval_rate": 0.567376,
+        "avg_latent_propensity_of_approved": 0.76023,
+        "booking_rate": 0.79375,
+        "cure_rate": 0.351351,
+        "dpd30_plus_rate": 0.255435,
+        "dpd60_plus_rate": 0.13587,
+        "dpd90_plus_rate": 0.065217,
+        "generation_run_id": "RUN_macroeconomic_stress_smoke_2026_8e8658d5",
+        "n_applications": 307,
+        "n_approved": 160,
+        "n_collection_events": 62,
+        "n_contracts": 127,
+        "n_decided": 282,
+        "n_recoveries": 0,
+        "n_snapshots": 184,
+        "n_write_offs": 1,
+        "write_off_rate": 0.007874
+      }
+    }
+  },
+  "seed": 2026,
+  "suite_id": "SUITE_smoke_2026"
+}

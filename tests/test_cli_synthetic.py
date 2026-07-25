@@ -98,13 +98,17 @@ def test_synthetic_no_subcommand_prints_usage_and_fails(capsys: pytest.CaptureFi
 
 
 class TestSyntheticGenerate:
-    def test_non_baseline_scenario_is_rejected(self, capsys: pytest.CaptureFixture[str]) -> None:
+    def test_non_calibrated_scenario_is_rejected(self, capsys: pytest.CaptureFixture[str]) -> None:
+        # data_quality_incident has no generation.yaml as of Phase 4B -
+        # it remains requires_calibration, unlike policy_expansion/
+        # policy_tightening/macroeconomic_stress/collections_change/
+        # contract_coverage, which all became executable this phase.
         exit_code = main(
             [
                 "synthetic",
                 "generate",
                 "--scenario",
-                "policy_expansion",
+                "data_quality_incident",
                 "--scale",
                 "smoke",
                 "--seed",
@@ -114,7 +118,7 @@ class TestSyntheticGenerate:
         captured = capsys.readouterr()
 
         assert exit_code == 1
-        assert "not calibrated" in captured.out
+        assert "requires_calibration" in captured.out
 
     def test_baseline_smoke_generation_succeeds(
         self, capsys: pytest.CaptureFixture[str], cleanup_generated_run: list[Path]

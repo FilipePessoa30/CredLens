@@ -17,7 +17,15 @@ import pandas as pd
 
 from credlens.contracts.registry import load_all_contracts
 from credlens.generation.applications import apply_cancellations, generate_applications
-from credlens.generation.config import GenerationConfig, Scale, load_generation_config
+from credlens.generation.config import (
+    CRN_SCENARIOS,
+    EXECUTABLE_SCENARIOS,
+    GenerationConfig,
+    Scale,
+    assert_crn_compatible,
+    config_path_for_scenario,
+    load_generation_config,
+)
 from credlens.generation.contracts import generate_contracts
 from credlens.generation.decisions import generate_credit_decisions
 from credlens.generation.ids import IdFactory, run_short_hash
@@ -45,7 +53,7 @@ from credlens.generation.writers import (
     write_truth_tables,
 )
 
-GENERATOR_VERSION = "0.4.0"
+GENERATOR_VERSION = "0.5.0"
 
 
 class GenerationError(Exception):
@@ -53,7 +61,8 @@ class GenerationError(Exception):
 
 
 class ScenarioNotCalibratedError(GenerationError):
-    """Raised when a non-baseline scenario is requested - Phase 4A only implements baseline."""
+    """Raised when a scenario without an executable generation config is requested - see
+    credlens.generation.config.EXECUTABLE_SCENARIOS."""
 
 
 class RunAlreadyExistsError(GenerationError):
@@ -78,22 +87,41 @@ def _compute_generation_run_id(scenario: str, scale: str, seed: int, config_hash
     return f"RUN_{scenario}_{scale}_{seed}_{short}"
 
 
-def generate_baseline(
+def generate_scenario(
     *,
     scenario: str,
     scale_name: str,
     seed: int,
     config_path: Path | None = None,
     force: bool = False,
+    suite_id: str | None = None,
+    parent_run_id: str | None = None,
 ) -> GenerationOutcome:
-    if scenario != "baseline":
+    """Generate one run of `scenario` at `scale_name` for `seed`. Only
+    scenarios in credlens.generation.config.EXECUTABLE_SCENARIOS have a
+    concrete generation.yaml - every other scenario blueprint remains
+    requires_calibration and is rejected here. CRN scenarios
+    (policy_expansion/policy_tightening/macroeconomic_stress/
+    collections_change) are additionally checked against baseline's own
+    config on every population/applications-affecting field before
+    generating - see credlens.generation.config.assert_crn_compatible and
+    docs/common_random_numbers.md."""
+    if scenario not in EXECUTABLE_SCENARIOS:
         raise ScenarioNotCalibratedError(
-            f"Scenario '{scenario}' is not calibrated in Phase 4A - only 'baseline' has an "
-            f"executable configuration. See config/synthetic/scenarios/{scenario}.blueprint.yaml "
+            f"Scenario '{scenario}' has no executable generation config in Phase 4B - only "
+            f"{EXECUTABLE_SCENARIOS} do. See config/synthetic/scenarios/{scenario}.blueprint.yaml "
             "(status: requires_calibration)."
         )
 
-    config = load_generation_config(config_path) if config_path else load_generation_config()
+    config = (
+        load_generation_config(config_path)
+        if config_path
+        else load_generation_config(config_path_for_scenario(scenario))
+    )
+    baseline_config = None
+    if scenario in CRN_SCENARIOS:
+        baseline_config = load_generation_config()
+        assert_crn_compatible(baseline_config, config)
     try:
         scale = Scale(scale_name)
     except ValueError as exc:
@@ -109,6 +137,21 @@ def generate_baseline(
     config_hash = canonical_config_hash(config)
     generation_run_id = _compute_generation_run_id(scenario, scale.value, seed, config_hash)
     short_hash = run_short_hash(config_hash, length=8)
+    # CRN (common random numbers) requires the customer_id/application_id
+    # VALUES themselves to be identical to baseline's for the same seed,
+    # not just their underlying draws - otherwise two runs with the same
+    # population content couldn't be joined 1:1 by id. IdFactory prefixes
+    # ids with a short hash of the run's OWN config_hash, which differs
+    # across scenarios (different policy/payment_behavior/etc. values) -
+    # so a CRN scenario's population-affecting id factories (customer,
+    # application) reuse baseline's own short_hash instead of this run's.
+    # Every other id factory (decision/contract/installment/payment/...)
+    # keeps this run's own short_hash, since those entities are exactly
+    # what a scenario is allowed to make different from baseline. See
+    # docs/common_random_numbers.md.
+    population_short_hash = short_hash
+    if baseline_config is not None:
+        population_short_hash = run_short_hash(canonical_config_hash(baseline_config), length=8)
 
     operational_final_dir = resolve_within_directory(
         Path(config.output.operational_dir), generation_run_id
@@ -128,7 +171,7 @@ def generate_baseline(
         n_customers,
         config.period,
         generation_run_id,
-        IdFactory("customer", short_hash),
+        IdFactory("customer", population_short_hash),
         streams.stream("customers"),
     )
     applications, features, fairness = generate_applications(
@@ -137,7 +180,7 @@ def generate_baseline(
         config.applications,
         config.population,
         generation_run_id,
-        IdFactory("application", short_hash),
+        IdFactory("application", population_short_hash),
         streams.stream("applications"),
     )
     applications = apply_cancellations(
@@ -196,7 +239,7 @@ def generate_baseline(
     )
 
     macro_context = generate_macro_context(
-        pd.Timestamp(config.period.start), pd.Timestamp(config.period.end)
+        pd.Timestamp(config.period.start), pd.Timestamp(config.period.end), config.macro_shock
     )
 
     generation_runs = pd.DataFrame(
@@ -216,6 +259,8 @@ def generate_baseline(
             "planned_applications": [len(applications)],
             "is_synthetic": [True],
             "scale": [scale.value],
+            "suite_id": [suite_id],
+            "parent_run_id": [parent_run_id],
         }
     )
 
@@ -337,6 +382,25 @@ def generate_baseline(
         manifest=manifest,
         validation=validation,
         status=status,
+    )
+
+
+def generate_baseline(
+    *,
+    scenario: str,
+    scale_name: str,
+    seed: int,
+    config_path: Path | None = None,
+    force: bool = False,
+) -> GenerationOutcome:
+    """Phase 4A name, kept for backward compatibility (existing callers/tests) - a thin
+    wrapper over generate_scenario(), which is the general Phase 4B entry point."""
+    return generate_scenario(
+        scenario=scenario,
+        scale_name=scale_name,
+        seed=seed,
+        config_path=config_path,
+        force=force,
     )
 
 

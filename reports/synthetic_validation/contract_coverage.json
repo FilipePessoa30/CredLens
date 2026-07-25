@@ -1,0 +1,37 @@
+{
+  "counts": {
+    "applications_decided": 132,
+    "approved": 76,
+    "collection_events": 12,
+    "contracts_booked": 41,
+    "recoveries": 2,
+    "reversed_payments": 3,
+    "write_offs": 3
+  },
+  "generation_run_id": "RUN_contract_coverage_smoke_2026_c6c63c40",
+  "known_gap": {
+    "reason": "The current cure mechanism (credlens.generation.payments._decide_payment_amount's has_backlog branch) always pays off a contract's ENTIRE remaining balance, not just its overdue backlog - so a cured contract always becomes 'settled' (terminal) the same month, with no remaining balance left to ever become delinquent on again. This is architectural, not a contract_coverage tuning problem - no configuration of on_time/partial/cure/reversal probabilities can produce this state under the current generator. See docs/counterfactual_scenarios.md 'contract_coverage known gap' for the concrete, scoped fix (pay only the overdue backlog on cure) proposed for a future phase.",
+    "state": "relapse_into_delinquency"
+  },
+  "n_customers": 90,
+  "n_states_covered": 12,
+  "n_states_required": 13,
+  "scale": "smoke",
+  "scenario": "contract_coverage",
+  "seed": 2026,
+  "states_covered": {
+    "approval": true,
+    "approval_without_booking": true,
+    "collections_contact": true,
+    "cure": true,
+    "delinquency": true,
+    "partial_payment": true,
+    "performing_contract": true,
+    "prepayment": true,
+    "recovery": true,
+    "rejection": true,
+    "relapse_into_delinquency": false,
+    "reversal": true,
+    "write_off": true
+  }
+}

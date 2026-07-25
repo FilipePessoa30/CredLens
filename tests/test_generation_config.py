@@ -90,11 +90,28 @@ def test_invalid_yaml_raises(tmp_path: Path) -> None:
         load_generation_config(path)
 
 
-def test_non_baseline_scenario_rejected(tmp_path: Path) -> None:
+def test_non_executable_scenario_rejected(tmp_path: Path) -> None:
+    # data_quality_incident has no generation.yaml/executable config - it
+    # remains requires_calibration, unlike the other five scenarios
+    # (policy_expansion/policy_tightening/macroeconomic_stress/
+    # collections_change/contract_coverage), which all became executable
+    # in Phase 4B - see EXECUTABLE_SCENARIOS.
     path = tmp_path / "cfg.yaml"
-    path.write_text(yaml.safe_dump(_minimal_payload(scenario="policy_expansion")), encoding="utf-8")
+    path.write_text(
+        yaml.safe_dump(_minimal_payload(scenario="data_quality_incident")), encoding="utf-8"
+    )
     with pytest.raises(ConfigError, match="failed schema validation"):
         load_generation_config(path)
+
+
+def test_every_executable_scenario_is_accepted(tmp_path: Path) -> None:
+    from credlens.generation.config import EXECUTABLE_SCENARIOS
+
+    for scenario in EXECUTABLE_SCENARIOS:
+        path = tmp_path / f"{scenario}.yaml"
+        path.write_text(yaml.safe_dump(_minimal_payload(scenario=scenario)), encoding="utf-8")
+        config = load_generation_config(path)
+        assert config.scenario == scenario
 
 
 def test_period_end_before_start_rejected(tmp_path: Path) -> None:

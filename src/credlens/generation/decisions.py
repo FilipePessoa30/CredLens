@@ -14,6 +14,7 @@ import numpy as np
 import pandas as pd
 
 from credlens.generation.config import PolicyConfig
+from credlens.generation.feature_allowlist import select_decision_features
 from credlens.generation.ids import IdFactory
 
 _BUREAU_SCORE_MAP = {"thin_file": 0.40, "low": 0.30, "medium": 0.60, "high": 0.85}
@@ -29,16 +30,21 @@ def compute_decision_score(
     claimed real underwriting model. Combines bureau bucket, normalized
     declared income, and debt-to-income (missing DTI treated as neutral),
     plus a small noise term so the outcome isn't a pure deterministic
-    function of the visible features."""
-    bureau_score = application_features["bureau_score_bucket"].map(_BUREAU_SCORE_MAP)
+    function of the visible features.
+
+    Reads application_features ONLY through select_decision_features()
+    (credlens.generation.feature_allowlist) - a versioned allowlist, not a
+    convention - so a future column added to application_features can
+    never silently start influencing the score just by existing on the
+    table (Phase 4B section 4.3)."""
+    allowed = select_decision_features(application_features)
+    bureau_score = allowed["bureau_score_bucket"].map(_BUREAU_SCORE_MAP)
     income_range = max(income_max - income_min, 1e-9)
-    income_score = ((application_features["declared_income"] - income_min) / income_range).clip(
-        0, 1
-    )
-    dti = application_features["debt_to_income"]
+    income_score = ((allowed["declared_income"] - income_min) / income_range).clip(0, 1)
+    dti = allowed["debt_to_income"]
     dti_score = (1 - (dti.fillna(0.5) / 1.5).clip(0, 1)).clip(0, 1)
 
-    noise = rng.normal(0, 0.05, size=len(application_features))
+    noise = rng.normal(0, 0.05, size=len(allowed))
     score = 0.45 * bureau_score + 0.30 * income_score + 0.25 * dti_score + noise
     return score.clip(0, 1)
 

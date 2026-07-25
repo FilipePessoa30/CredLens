@@ -1,16 +1,17 @@
 name: generation_runs
-version: 2
+version: 3
 description: >
-  One row per future execution of the synthetic operational-data generator
-  (not built in this phase - see docs/synthetic_generation_spec.md). Every
-  other operational table's synthetic rows trace back to exactly one
-  generation_run_id, which is how synthetic provenance is enforced
-  mechanically rather than by convention alone.
+  One row per execution of the synthetic operational-data generator - see
+  docs/synthetic_generation_implementation.md (Phase 4A) and
+  docs/counterfactual_scenarios.md (Phase 4B). Every other operational
+  table's synthetic rows trace back to exactly one generation_run_id,
+  which is how synthetic provenance is enforced mechanically rather than
+  by convention alone.
 owner: "Data & Technology (conceptual)"
 classification: technical_metadata
 grain: "one row per generator execution"
 status: draft
-evolution_policy: "Additive only until the generator itself exists; see docs/roadmap.md phase 4."
+evolution_policy: "Additive only; see docs/roadmap.md phase 4."
 format: csv
 
 primary_key: [generation_run_id]
@@ -22,17 +23,19 @@ columns:
   - {name: generator_version, type: string, nullable: false, domain: null, unit: null, temporality: null, sensitivity: technical_metadata, available_for_modeling: false, description: "Version of the (future) generator code that produced this run."}
   - {name: config_version, type: string, nullable: false, domain: null, unit: null, temporality: null, sensitivity: technical_metadata, available_for_modeling: false, description: "Version of the scenario blueprint (config/synthetic/scenarios/*.yaml) used."}
   - {name: seed, type: integer, nullable: false, domain: {min: 0}, unit: null, temporality: null, sensitivity: technical_metadata, available_for_modeling: false, description: "Random seed - required for determinism, per docs/synthetic_generation_spec.md."}
-  - {name: scenario, type: categorical, nullable: false, domain: {in_set: [baseline, policy_expansion, policy_tightening, macroeconomic_stress, collections_change, data_quality_incident]}, unit: null, temporality: null, sensitivity: technical_metadata, available_for_modeling: false, description: "Which blueprint in config/synthetic/scenarios/ this run used."}
+  - {name: scenario, type: categorical, nullable: false, domain: {in_set: [baseline, policy_expansion, policy_tightening, macroeconomic_stress, collections_change, data_quality_incident, contract_coverage]}, unit: null, temporality: null, sensitivity: technical_metadata, available_for_modeling: false, description: "Which scenario config produced this run. contract_coverage (Phase 4B) is a coverage test fixture, not a scenario blueprint under config/synthetic/scenarios/ - see docs/counterfactual_scenarios.md."}
   - {name: period_start, type: date, nullable: false, domain: null, unit: null, temporality: effective_from, sensitivity: technical_metadata, available_for_modeling: false, description: "First simulated calendar date."}
   - {name: period_end, type: date, nullable: false, domain: null, unit: null, temporality: effective_to, sensitivity: technical_metadata, available_for_modeling: false, description: "Last simulated calendar date."}
   - {name: generated_at, type: timestamp, nullable: false, domain: null, unit: null, temporality: generated_at, sensitivity: technical_metadata, available_for_modeling: false, description: "Wall-clock UTC timestamp the run actually executed."}
   - {name: config_hash, type: string, nullable: false, domain: {regex: "^[0-9a-f]{8,64}$"}, unit: null, temporality: null, sensitivity: technical_metadata, available_for_modeling: false, description: "Hash of the resolved blueprint configuration, for exact reproducibility checks."}
   - {name: contract_version_set, type: string, nullable: false, domain: null, unit: null, temporality: null, sensitivity: technical_metadata, available_for_modeling: false, description: "Identifier for the combined set of operational contract versions this run was validated against."}
-  - {name: status, type: categorical, nullable: false, domain: {in_set: [planned, running, completed, failed]}, unit: null, temporality: null, sensitivity: technical_metadata, available_for_modeling: false, description: "Run lifecycle status."}
+  - {name: status, type: categorical, nullable: false, domain: {in_set: [planned, running, completed, failed, quarantined_expected_failure]}, unit: null, temporality: null, sensitivity: technical_metadata, available_for_modeling: false, description: "Run lifecycle status. quarantined_expected_failure (Phase 4B) marks a data_quality_incident run that deliberately fails strict contract validation and was moved to data/quarantine/ - never 'completed', never read by any downstream consumer, see docs/data_quality_incident.md."}
   - {name: planned_customers, type: integer, nullable: false, domain: {min: 0}, unit: "count", temporality: null, sensitivity: technical_metadata, available_for_modeling: false, description: "Target synthetic customer count for this run."}
   - {name: planned_applications, type: integer, nullable: false, domain: {min: 0}, unit: "count", temporality: null, sensitivity: technical_metadata, available_for_modeling: false, description: "Target synthetic application count for this run."}
   - {name: is_synthetic, type: boolean, nullable: false, domain: {in_set: [true]}, unit: null, temporality: null, sensitivity: technical_metadata, available_for_modeling: false, description: "Always true - explicit, redundant marker so no downstream query can silently drop the synthetic/public distinction."}
   - {name: scale, type: categorical, nullable: false, domain: {in_set: [smoke, sample, portfolio]}, unit: null, temporality: null, sensitivity: technical_metadata, available_for_modeling: false, description: "Phase 4A addition: which generation scale preset this run used - see docs/synthetic_generation_implementation.md. Determines planned_customers/planned_applications' order of magnitude, not an independent free parameter."}
+  - {name: suite_id, type: string, nullable: true, domain: null, unit: null, temporality: null, sensitivity: technical_metadata, available_for_modeling: false, description: "Phase 4B addition: identifies the counterfactual suite (baseline + its scenario runs, common random numbers) this run belongs to, if any - see docs/common_random_numbers.md. Null for a standalone run generated outside a suite."}
+  - {name: parent_run_id, type: string, nullable: true, domain: null, unit: null, temporality: null, sensitivity: technical_metadata, available_for_modeling: false, description: "Phase 4B addition: the suite's baseline generation_run_id, if this row is itself a non-baseline scenario run within a suite. Null for a baseline run or a standalone run."}
 
 uniqueness_rules: []
 

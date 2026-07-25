@@ -237,6 +237,51 @@ def _build_parser() -> argparse.ArgumentParser:
         "--run-id", required=True, help="generation_run_id whose manifest to print."
     )
 
+    suite_parser = synthetic_subparsers.add_parser(
+        "generate-suite",
+        help="Generate a baseline run plus every CRN scenario run for the same seed (Phase 4B).",
+    )
+    suite_parser.add_argument(
+        "--scale", required=True, choices=["smoke", "sample", "portfolio"], help="Scale preset."
+    )
+    suite_parser.add_argument("--seed", required=True, type=int, help="Random seed.")
+    suite_parser.add_argument(
+        "--force", action="store_true", help="Overwrite existing runs with the same id."
+    )
+
+    compare_parser = synthetic_subparsers.add_parser(
+        "compare", help="Compare two already-generated runs' aggregate technical metrics."
+    )
+    compare_parser.add_argument("--baseline", required=True, help="Baseline generation_run_id.")
+    compare_parser.add_argument("--candidate", required=True, help="Candidate generation_run_id.")
+
+    validate_suite_parser = synthetic_subparsers.add_parser(
+        "validate-suite", help="Re-validate every run in a suite in strict mode."
+    )
+    validate_suite_parser.add_argument("--suite-id", required=True, help="suite_id to validate.")
+
+    monte_carlo_parser = synthetic_subparsers.add_parser(
+        "monte-carlo", help="Compare baseline vs. a scenario across multiple seeds (Phase 4B)."
+    )
+    monte_carlo_parser.add_argument("--scenario", required=True, help="Scenario name.")
+    monte_carlo_parser.add_argument(
+        "--scale", required=True, choices=["smoke", "sample", "portfolio"], help="Scale preset."
+    )
+    monte_carlo_parser.add_argument(
+        "--seeds", required=True, type=int, help="Number of seeds to run (2026, 2027, ...)."
+    )
+
+    profile_parser = synthetic_subparsers.add_parser(
+        "profile", help="Run the generator once cleanly (timing/memory) and once under cProfile."
+    )
+    profile_parser.add_argument(
+        "--scale", required=True, choices=["smoke", "sample", "portfolio"], help="Scale preset."
+    )
+    profile_parser.add_argument("--seed", required=True, type=int, help="Random seed.")
+    profile_parser.add_argument(
+        "--scenario", default="baseline", help="Scenario name (default: baseline)."
+    )
+
     return parser
 
 
@@ -1048,6 +1093,176 @@ def _cmd_synthetic_manifest(run_id: str) -> int:
     return 0
 
 
+def _cmd_synthetic_generate_suite(scale: str, seed: int, force: bool) -> int:
+    from credlens.generation.config import ConfigError, CrnIncompatibleError
+    from credlens.generation.orchestrator import GenerationError
+    from credlens.generation.suite import generate_suite
+
+    try:
+        outcome = generate_suite(scale_name=scale, seed=seed, force=force)
+    except (GenerationError, ConfigError, CrnIncompatibleError) as exc:
+        print(f"Error: {exc}")
+        return 1
+    except Exception as exc:
+        logger.exception("Unhandled error during suite generation")
+        print(f"Error: suite generation failed unexpectedly ({type(exc).__name__}). See logs.")
+        return 1
+
+    print(f"suite_id:         {outcome.suite_id}")
+    print(f"baseline_run_id:  {outcome.baseline_run_id}")
+    print("scenario_run_ids:")
+    for scenario, run_id in outcome.scenario_run_ids.items():
+        print(f"  {scenario:<24} {run_id}")
+    any_failed = any(o.status != "completed" for o in outcome.outcomes.values())
+    print(f"manifest:         {outcome.manifest_path}")
+    if any_failed:
+        print("One or more runs in this suite did not complete successfully.")
+        return 1
+    return 0
+
+
+def _cmd_synthetic_compare(baseline_run_id: str, candidate_run_id: str) -> int:
+    from credlens.generation.comparison import compare_metrics, compute_metrics
+    from credlens.generation.config import load_generation_config
+
+    try:
+        config = load_generation_config()
+    except Exception as exc:
+        print(f"Error: could not load generation config: {exc}")
+        return 1
+
+    baseline_dir = _resolve_run_dir(config.output.operational_dir, baseline_run_id)
+    candidate_dir = _resolve_run_dir(config.output.operational_dir, candidate_run_id)
+    if baseline_dir is None or candidate_dir is None:
+        print("Error: invalid run id.")
+        return 1
+    baseline_op = baseline_dir / "operational"
+    candidate_op = candidate_dir / "operational"
+    if not baseline_op.is_dir() or not candidate_op.is_dir():
+        print("Error: one or both runs were not found.")
+        return 1
+
+    baseline_metrics = compute_metrics(baseline_run_id, baseline_op)
+    candidate_metrics = compute_metrics(candidate_run_id, candidate_op)
+    comparisons = compare_metrics(baseline_metrics, candidate_metrics)
+
+    print(f"Comparing {baseline_run_id} (baseline) vs {candidate_run_id} (candidate)")
+    print("=" * 70)
+    print(f"{'metric':<20} {'baseline':>12} {'candidate':>12} {'delta':>12}")
+    for c in comparisons:
+        print(
+            f"{c.metric:<20} {c.baseline_value:>12.4f} {c.candidate_value:>12.4f} {c.delta:>12.4f}"
+        )
+    return 0
+
+
+def _cmd_synthetic_validate_suite(suite_id: str) -> int:
+    from credlens.generation.suite import SuiteError, load_suite_manifest
+
+    try:
+        manifest = load_suite_manifest(suite_id)
+    except SuiteError as exc:
+        print(f"Error: {exc}")
+        return 1
+
+    run_ids = [str(manifest["baseline_run_id"])]
+    scenario_run_ids = manifest.get("scenario_run_ids", {})
+    if isinstance(scenario_run_ids, dict):
+        run_ids.extend(str(v) for v in scenario_run_ids.values())
+
+    print(f"CredLens suite validation: {suite_id}")
+    print("=" * (28 + len(suite_id)))
+    any_errors = False
+    for run_id in run_ids:
+        exit_code = _cmd_synthetic_validate_run(run_id)
+        if exit_code != 0:
+            any_errors = True
+
+    scenarios = manifest.get("scenarios", {})
+    if isinstance(scenarios, dict):
+        for scenario, report in scenarios.items():
+            if not isinstance(report, dict):
+                continue
+            crn_ok = report.get("population_crn_preserved")
+            print(f"\n{scenario}: population_crn_preserved={crn_ok}")
+            if not crn_ok:
+                any_errors = True
+            for check in report.get("directional_checks", []):
+                status = "OK" if check["passed"] else "FAIL"
+                print(f"  [{status}] {check['name']}: {check['detail']}")
+                if not check["passed"]:
+                    any_errors = True
+
+    print()
+    print(f"Result: {'FAIL' if any_errors else 'OK'}")
+    return 1 if any_errors else 0
+
+
+def _cmd_synthetic_monte_carlo(scenario: str, scale: str, n_seeds: int) -> int:
+    from credlens.generation.config import ConfigError, CrnIncompatibleError
+    from credlens.generation.montecarlo import run_monte_carlo, write_monte_carlo_report
+    from credlens.generation.orchestrator import GenerationError
+
+    seeds = [2026 + i for i in range(n_seeds)]
+    try:
+        result = run_monte_carlo(scenario=scenario, scale_name=scale, seeds=seeds)
+    except (GenerationError, ConfigError, CrnIncompatibleError, ValueError) as exc:
+        print(f"Error: {exc}")
+        return 1
+    except Exception as exc:
+        logger.exception("Unhandled error during Monte Carlo run")
+        print(f"Error: Monte Carlo failed unexpectedly ({type(exc).__name__}). See logs.")
+        return 1
+
+    report_path = Path("reports/synthetic_validation/monte_carlo_summary.json")
+    write_monte_carlo_report(report_path, result)
+
+    print(f"Monte Carlo: {scenario} @ {scale}, {len(seeds)} seed(s) {seeds}")
+    print("=" * 60)
+    print(f"{'metric':<20} {'mean_delta':>12} {'stdev':>10} {'expected':>10} {'frac_ok':>8}")
+    for name, summary in result.metric_summaries.items():
+        frac = (
+            f"{summary.fraction_in_expected_direction:.2f}"
+            if summary.fraction_in_expected_direction is not None
+            else "n/a"
+        )
+        print(
+            f"{name:<20} {summary.mean_delta:>12.4f} {summary.stdev_delta:>10.4f} "
+            f"{summary.expected_direction or '-':>10} {frac:>8}"
+        )
+    print(f"\ncontract_failures: {result.contract_failures}")
+    print(f"Report: {report_path}")
+    return 1 if result.contract_failures else 0
+
+
+def _cmd_synthetic_profile(scenario: str, scale: str, seed: int) -> int:
+    from credlens.generation.config import ConfigError
+    from credlens.generation.orchestrator import GenerationError
+    from credlens.generation.profiling import profile_generation
+
+    try:
+        result = profile_generation(scenario=scenario, scale_name=scale, seed=seed)
+    except (GenerationError, ConfigError) as exc:
+        print(f"Error: {exc}")
+        return 1
+    except Exception as exc:
+        logger.exception("Unhandled error during profiling")
+        print(f"Error: profiling failed unexpectedly ({type(exc).__name__}). See logs.")
+        return 1
+
+    print(f"CredLens synthetic profile: {scenario} @ {scale}, seed={seed}")
+    print("=" * 60)
+    print(f"duration_seconds (clean run):  {result.duration_seconds:.3f}")
+    print(f"peak_memory_mb (tracemalloc):  {result.peak_memory_mb:.2f}")
+    print(f"global_content_hash:           {result.global_content_hash}")
+    print("table_row_counts:")
+    for name, count in sorted(result.table_row_counts.items()):
+        print(f"  {name:<28} {count:>8}")
+    print("\nTop functions by cumulative time (separate cProfile run, has overhead):")
+    print(result.top_functions_by_cumulative_time)
+    return 0
+
+
 # --- main --------------------------------------------------------------------
 
 
@@ -1104,10 +1319,20 @@ def _dispatch_synthetic_command(args: argparse.Namespace) -> int:
         return _cmd_synthetic_inspect(args.run_id)
     if args.synthetic_command == "manifest":
         return _cmd_synthetic_manifest(args.run_id)
+    if args.synthetic_command == "generate-suite":
+        return _cmd_synthetic_generate_suite(args.scale, args.seed, args.force)
+    if args.synthetic_command == "compare":
+        return _cmd_synthetic_compare(args.baseline, args.candidate)
+    if args.synthetic_command == "validate-suite":
+        return _cmd_synthetic_validate_suite(args.suite_id)
+    if args.synthetic_command == "monte-carlo":
+        return _cmd_synthetic_monte_carlo(args.scenario, args.scale, args.seeds)
+    if args.synthetic_command == "profile":
+        return _cmd_synthetic_profile(args.scenario, args.scale, args.seed)
 
     print(
-        "usage: credlens synthetic "
-        "{plan,scenarios,validate-blueprints,generate,validate,inspect,manifest} ..."
+        "usage: credlens synthetic {plan,scenarios,validate-blueprints,generate,validate,"
+        "inspect,manifest,generate-suite,compare,validate-suite,monte-carlo,profile} ..."
     )
     print("Run 'credlens synthetic <command> --help' for details.")
     return 1

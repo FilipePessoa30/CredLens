@@ -1,0 +1,13 @@
+{
+  "measured_at_phase": "4B, before optimization (Phase 4A code)",
+  "scenario": "baseline",
+  "scale": "sample",
+  "seed": 2026,
+  "customers": 5000,
+  "total_rows": 101384,
+  "duration_seconds_in_process": 8.484,
+  "measurement_method": "time.perf_counter via manifest.duration_seconds, clean (non-profiled) run",
+  "config_hash": "5d40b2fc2b5174dd50d0fec77e69b9b08ba63f4b43e5c52a3782581c84191665",
+  "global_content_hash": "ac0a72827da3d50e5a239144f10cb9a450785d29696d06c4075bc89729035f02",
+  "note": "Phase 4A's own report cited ~57.3s for this same run - that figure was measured under different (noisier) machine conditions and is NOT directly comparable. This 8.484s figure was re-measured on this machine, in this session, with the pre-optimization code (verified via git stash), specifically to give a fair apples-to-apples baseline for the Phase 4B optimization work."
+}

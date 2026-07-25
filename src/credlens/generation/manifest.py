@@ -32,10 +32,13 @@ _NULL_SENTINEL = "\x00NULL\x00"
 
 
 def _canonical_cell(value: Any) -> str:
-    if value is None or (isinstance(value, float) and pd.isna(value)):
-        return _NULL_SENTINEL
+    # float first (the hot path: almost every cell in a wide numeric table
+    # is a float) - value != value is the standard fast NaN test, avoiding
+    # a pd.isna() call per cell.
     if isinstance(value, float):
-        return repr(value)
+        return _NULL_SENTINEL if value != value else repr(value)
+    if value is None:
+        return _NULL_SENTINEL
     return str(value)
 
 
@@ -46,16 +49,38 @@ def canonical_table_hash(df: pd.DataFrame) -> str:
 
     ordered_columns = sorted(df.columns.astype(str))
     ordered = df[ordered_columns].astype(object)
-    canonical_rows = ordered.map(_canonical_cell)
-    row_strings = canonical_rows.apply(lambda row: "\x1f".join(row.to_numpy(dtype=str)), axis=1)
-    sorted_rows = sorted(row_strings.tolist())
+    canonical_cells = ordered.map(_canonical_cell)
+    # A plain Python loop over a single whole-array .astype(str), NOT
+    # DataFrame.apply(..., axis=1) calling row.to_numpy(dtype=str) once per
+    # row: apply(axis=1) builds one pandas Series per row, which profiled
+    # (cProfile, sample scale) at ~6.7s of a ~34s run - the second-largest
+    # hotspot found. IMPORTANT: the per-row .to_numpy(dtype=str) in the
+    # original code has a real side effect this rewrite must reproduce -
+    # numpy's fixed-width unicode cast silently strips a trailing NUL byte
+    # from _NULL_SENTINEL ("\x00NULL\x00" -> "\x00NULL" once cast). Since
+    # that stripping is applied uniformly by the ORIGINAL code too, it must
+    # be preserved here as well (a single .astype(str) over the whole
+    # array has the identical effect, just computed once instead of once
+    # per row) - otherwise this "pure performance" rewrite would silently
+    # change every hash containing a null value. Caught by re-running the
+    # baseline smoke seed and comparing manifests before trusting this.
+    row_strings = ["\x1f".join(row) for row in canonical_cells.to_numpy().astype(str).tolist()]
+    sorted_rows = sorted(row_strings)
     blob = "\x1e".join(sorted_rows)
     header = ",".join(ordered_columns)
     return hashlib.sha256(f"{header}\x1d{blob}".encode()).hexdigest()
 
 
 def canonical_config_hash(config: GenerationConfig) -> str:
-    payload = config.model_dump(mode="json")
+    # exclude_none=True: an optional field a scenario doesn't set (e.g.
+    # baseline never sets macro_shock) must not affect the config's own
+    # hash just because the SCHEMA later grew a new optional field for a
+    # different scenario's use - otherwise every existing scenario's
+    # generation_run_id (and, through it, every id prefix) would silently
+    # churn each time Phase 4B added a new, unrelated, unset config
+    # section. A field a scenario DOES set (e.g. macroeconomic_stress's
+    # macro_shock) still participates in the hash normally.
+    payload = config.model_dump(mode="json", exclude_none=True)
     canonical_json = json.dumps(payload, sort_keys=True, separators=(",", ":"))
     return hashlib.sha256(canonical_json.encode()).hexdigest()
 

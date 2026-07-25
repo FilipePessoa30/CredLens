@@ -1,0 +1,169 @@
+{
+  "baseline_run_id": "RUN_baseline_smoke_2033_5d40b2fc",
+  "dgp_version": "0.5.0",
+  "scale": "smoke",
+  "scenario_run_ids": {
+    "macroeconomic_stress": "RUN_macroeconomic_stress_smoke_2033_8e8658d5"
+  },
+  "scenarios": {
+    "macroeconomic_stress": {
+      "baseline_metrics": {
+        "approval_rate": 0.570934,
+        "avg_latent_propensity_of_approved": 0.754694,
+        "booking_rate": 0.890909,
+        "cure_rate": 0.53125,
+        "dpd30_plus_rate": 0.174377,
+        "dpd60_plus_rate": 0.099644,
+        "dpd90_plus_rate": 0.053381,
+        "generation_run_id": "RUN_baseline_smoke_2033_5d40b2fc",
+        "n_applications": 309,
+        "n_approved": 165,
+        "n_collection_events": 61,
+        "n_contracts": 147,
+        "n_decided": 289,
+        "n_recoveries": 0,
+        "n_snapshots": 281,
+        "n_write_offs": 2,
+        "write_off_rate": 0.013605
+      },
+      "config_diff": {
+        "macro_shock": {
+          "baseline": null,
+          "scenario": {
+            "cure_probability_multiplier": 0.5,
+            "on_time_probability_multiplier": 0.65,
+            "partial_payment_probability_multiplier": 1.3,
+            "prepayment_probability_multiplier": 0.4,
+            "shock_date": "2024-07-01",
+            "synthetic_shock_description": "Illustrative synthetic stress index (arbitrary unit, not a real BCB series or macroeconomic indicator) recorded on macro_context_monthly rows with source_type=synthetic_shock for every month from shock_date through the end of the simulated period. Marks the same window used to shock payment_behavior probabilities - not itself read back by the payment simulation (the shock_date field is what the ledger simulation actually branches on).\n",
+            "synthetic_shock_value": 1.0,
+            "synthetic_source_id": "synthetic-stress-shock-v1"
+          }
+        },
+        "scales": {
+          "baseline": {
+            "portfolio": {
+              "customers": 50000,
+              "description": "Demonstration scale - not executed automatically by tests or CI in Phase 4A; a manual, deliberate invocation only."
+            },
+            "sample": {
+              "customers": 5000,
+              "description": "Development/demo scale - enough longitudinal depth for vintage-style analysis without a long run."
+            },
+            "smoke": {
+              "customers": 200,
+              "description": "Fast, deterministic sanity-check scale - seconds, covers every state (approve/reject/pay/delinquent/cure/write-off/recover)."
+            }
+          },
+          "scenario": {
+            "portfolio": {
+              "customers": 50000,
+              "description": "Same population as baseline's portfolio, per CRN - not executed automatically."
+            },
+            "sample": {
+              "customers": 5000,
+              "description": "Same population as baseline's sample, per CRN."
+            },
+            "smoke": {
+              "customers": 200,
+              "description": "Fast, deterministic sanity-check scale - same population as baseline's smoke, per CRN."
+            }
+          }
+        },
+        "scenario": {
+          "baseline": "baseline",
+          "scenario": "macroeconomic_stress"
+        }
+      },
+      "directional_checks": [
+        {
+          "detail": "shock_date=2024-07-01, 23 baseline / 23 stress pre-shock payments",
+          "name": "pre_shock_payments_identical_to_baseline",
+          "passed": true,
+          "type": "invariant"
+        }
+      ],
+      "metric_comparisons": [
+        {
+          "baseline_value": 0.570934,
+          "candidate_value": 0.570934,
+          "delta": 0.0,
+          "metric": "approval_rate"
+        },
+        {
+          "baseline_value": 0.890909,
+          "candidate_value": 0.890909,
+          "delta": 0.0,
+          "metric": "booking_rate"
+        },
+        {
+          "baseline_value": 0.174377,
+          "candidate_value": 0.335593,
+          "delta": 0.161216,
+          "metric": "dpd30_plus_rate"
+        },
+        {
+          "baseline_value": 0.099644,
+          "candidate_value": 0.216949,
+          "delta": 0.117305,
+          "metric": "dpd60_plus_rate"
+        },
+        {
+          "baseline_value": 0.053381,
+          "candidate_value": 0.125424,
+          "delta": 0.072043,
+          "metric": "dpd90_plus_rate"
+        },
+        {
+          "baseline_value": 0.53125,
+          "candidate_value": 0.288889,
+          "delta": -0.242361,
+          "metric": "cure_rate"
+        },
+        {
+          "baseline_value": 0.013605,
+          "candidate_value": 0.047619,
+          "delta": 0.034014,
+          "metric": "write_off_rate"
+        }
+      ],
+      "population_crn_preserved": true,
+      "population_hashes": {
+        "baseline": {
+          "application_features": "4758d097f148ac1d43b55ac718ad3c89fad8771fc2a7229d67122f4a2017c26c",
+          "applications": "063cb4e903ae0edff8b558061117d4c3c6bef4a92f8c9e8ef743c4aa2d754a14",
+          "customers": "94acd9b24c98c71dc2ebefc47ebbaf1c730d797adee343c9b18a011438ea1314",
+          "fairness_attributes": "3d15e77b44d0fde38f036d0c1e9273491629d4fc89b295dc217fd6721164ea28"
+        },
+        "scenario": {
+          "application_features": "4758d097f148ac1d43b55ac718ad3c89fad8771fc2a7229d67122f4a2017c26c",
+          "applications": "063cb4e903ae0edff8b558061117d4c3c6bef4a92f8c9e8ef743c4aa2d754a14",
+          "customers": "94acd9b24c98c71dc2ebefc47ebbaf1c730d797adee343c9b18a011438ea1314",
+          "fairness_attributes": "3d15e77b44d0fde38f036d0c1e9273491629d4fc89b295dc217fd6721164ea28"
+        }
+      },
+      "run_id": "RUN_macroeconomic_stress_smoke_2033_8e8658d5",
+      "scenario_metrics": {
+        "approval_rate": 0.570934,
+        "avg_latent_propensity_of_approved": 0.754694,
+        "booking_rate": 0.890909,
+        "cure_rate": 0.288889,
+        "dpd30_plus_rate": 0.335593,
+        "dpd60_plus_rate": 0.216949,
+        "dpd90_plus_rate": 0.125424,
+        "generation_run_id": "RUN_macroeconomic_stress_smoke_2033_8e8658d5",
+        "n_applications": 309,
+        "n_approved": 165,
+        "n_collection_events": 114,
+        "n_contracts": 147,
+        "n_decided": 289,
+        "n_recoveries": 0,
+        "n_snapshots": 295,
+        "n_write_offs": 7,
+        "write_off_rate": 0.047619
+      }
+    }
+  },
+  "seed": 2033,
+  "suite_id": "SUITE_smoke_2033"
+}

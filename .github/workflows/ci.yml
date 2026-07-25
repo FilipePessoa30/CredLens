@@ -42,6 +42,10 @@ jobs:
       - name: Type check (mypy)
         run: uv run mypy src tests
 
+      # Every generation-related test in this suite runs at 'smoke' scale
+      # (a few hundred customers, well under a second) or, for Monte Carlo
+      # tests, 2 seeds at 'smoke' scale - 'sample'/'portfolio' scale and any
+      # wide Monte Carlo sweep are never run in CI (Phase 4B section 19).
       - name: Test with coverage (pytest)
         run: uv run pytest --cov=credlens --cov-report=term-missing
 
