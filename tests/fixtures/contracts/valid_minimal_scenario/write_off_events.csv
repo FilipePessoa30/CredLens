@@ -1,0 +1,2 @@
+write_off_id,contract_id,write_off_date,amount,principal,interest,fees,reason,policy_reference
+wo-001,ctr-002,2024-06-15,176,166,10,0,uncollectible,180+ DPD policy

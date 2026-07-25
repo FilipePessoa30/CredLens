@@ -1,5 +1,5 @@
 name: generation_runs
-version: 1
+version: 2
 description: >
   One row per future execution of the synthetic operational-data generator
   (not built in this phase - see docs/synthetic_generation_spec.md). Every
@@ -32,6 +32,7 @@ columns:
   - {name: planned_customers, type: integer, nullable: false, domain: {min: 0}, unit: "count", temporality: null, sensitivity: technical_metadata, available_for_modeling: false, description: "Target synthetic customer count for this run."}
   - {name: planned_applications, type: integer, nullable: false, domain: {min: 0}, unit: "count", temporality: null, sensitivity: technical_metadata, available_for_modeling: false, description: "Target synthetic application count for this run."}
   - {name: is_synthetic, type: boolean, nullable: false, domain: {in_set: [true]}, unit: null, temporality: null, sensitivity: technical_metadata, available_for_modeling: false, description: "Always true - explicit, redundant marker so no downstream query can silently drop the synthetic/public distinction."}
+  - {name: scale, type: categorical, nullable: false, domain: {in_set: [smoke, sample, portfolio]}, unit: null, temporality: null, sensitivity: technical_metadata, available_for_modeling: false, description: "Phase 4A addition: which generation scale preset this run used - see docs/synthetic_generation_implementation.md. Determines planned_customers/planned_applications' order of magnitude, not an independent free parameter."}
 
 uniqueness_rules: []
 

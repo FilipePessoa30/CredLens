@@ -96,7 +96,11 @@ class TestLoadBlueprint:
         blueprint = load_blueprint(REAL_SCENARIOS_DIR / "baseline.blueprint.yaml")
 
         assert blueprint.scenario_id == "baseline"
-        assert blueprint.status == BlueprintStatus.REQUIRES_CALIBRATION
+        # Phase 4A: baseline has a concrete executable configuration
+        # (config/synthetic/baseline.generation.yaml) - "synthetic
+        # assumptions specified", never "calibrated from a real
+        # institution." Every other scenario stays requires_calibration.
+        assert blueprint.status == BlueprintStatus.SYNTHETIC_ASSUMPTIONS_SPECIFIED
 
     def test_every_real_scenario_blueprint_loads_individually(self) -> None:
         for path in sorted(REAL_SCENARIOS_DIR.glob("*.blueprint.yaml")):
@@ -169,9 +173,14 @@ class TestLoadAllBlueprints:
             "data_quality_incident",
         }
 
-    def test_every_real_scenario_status_is_requires_calibration(self) -> None:
-        """No scenario claims to be ready-to-run; all are honestly marked
-        as needing calibration before generation could occur."""
+    def test_only_baseline_has_synthetic_assumptions_specified(self) -> None:
+        """As of Phase 4A, only 'baseline' is executable
+        (SYNTHETIC_ASSUMPTIONS_SPECIFIED) - every other scenario is
+        honestly still REQUIRES_CALIBRATION, matching that
+        `credlens synthetic generate` rejects them (ScenarioNotCalibratedError)."""
         blueprints = load_all_blueprints(REAL_SCENARIOS_DIR)
-        for blueprint in blueprints.values():
-            assert blueprint.status == BlueprintStatus.REQUIRES_CALIBRATION
+        for scenario_id, blueprint in blueprints.items():
+            if scenario_id == "baseline":
+                assert blueprint.status == BlueprintStatus.SYNTHETIC_ASSUMPTIONS_SPECIFIED
+            else:
+                assert blueprint.status == BlueprintStatus.REQUIRES_CALIBRATION

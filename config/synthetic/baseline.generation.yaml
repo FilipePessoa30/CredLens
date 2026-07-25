@@ -1,0 +1,101 @@
+# CredLens - baseline scenario executable generation configuration.
+#
+# Every value below is a SYNTHETIC ASSUMPTION chosen to produce an
+# internally coherent, contract-valid, longitudinal toy portfolio - none
+# of it is calibrated from, or claimed to represent, any real lender, any
+# real Brazilian credit market statistic, or any real applicant
+# population. See docs/synthetic_generation_implementation.md and
+# docs/assumptions_and_limitations.md.
+#
+# This file is the EXECUTABLE counterpart to the narrative design
+# document config/synthetic/scenarios/baseline.blueprint.yaml - see that
+# file (and docs/synthetic_generation_implementation.md) for why the two
+# are kept separate. Loaded/validated by src/credlens/generation/config.py.
+
+version: 1
+scenario: baseline
+default_seed: 2026
+currency_unit: credlens_synthetic_unit
+
+period:
+  start: 2024-01-01
+  end: 2024-12-31 # baseline covers exactly the fictional company's first simulated year
+
+scales:
+  smoke:
+    customers: 200
+    description: "Fast, deterministic sanity-check scale - seconds, covers every state (approve/reject/pay/delinquent/cure/write-off/recover)."
+  sample:
+    customers: 5000
+    description: "Development/demo scale - enough longitudinal depth for vintage-style analysis without a long run."
+  portfolio:
+    customers: 50000
+    description: "Demonstration scale - not executed automatically by tests or CI in Phase 4A; a manual, deliberate invocation only."
+
+population:
+  declared_income_min: 800 # currency_unit/month - a low-income synthetic floor, not a real minimum wage claim
+  declared_income_max: 15000
+  employment_months_max: 240 # 20 years, an arbitrary synthetic ceiling
+  existing_relationship_share: 0.3 # fraction of synthetic customers modeled as having a prior (synthetic) relationship
+  bureau_score_bucket_weights:
+    thin_file: 0.15
+    low: 0.25
+    medium: 0.35
+    high: 0.25
+
+applications:
+  applications_per_customer_max: 2
+  channel_weights:
+    app: 0.40
+    web: 0.30
+    branch: 0.15
+    partner: 0.15
+  requested_amount_min: 300
+  requested_amount_max: 8000
+  requested_term_months_choices: [3, 6, 12, 18, 24]
+  cancellation_rate: 0.05 # fraction of submitted applications that never reach a final decision (left "submitted"/"under_review")
+
+policy:
+  # A synthetic decision score is computed from application_features alone
+  # (never from the truth layer) - see src/credlens/generation/policies.py.
+  # This cutoff is a chosen synthetic threshold, not a validated business
+  # approval rate.
+  approval_score_cutoff: 0.5
+  offered_rate: 0.035 # fraction per installment period - CredLens convention, not an APR/CDI-equivalent claim
+  approved_term_months_max: 24
+
+booking:
+  booking_rate_given_approved: 0.85 # fraction of approved applications that actually become a contract
+  max_days_approval_to_contract: 10
+
+contract:
+  max_days_contract_to_disbursement: 2
+
+payment_behavior:
+  on_time_probability: 0.70
+  partial_payment_probability: 0.12
+  prepayment_probability: 0.05
+  cure_probability_per_month: 0.20 # chance a delinquent contract fully catches up in a given month
+  reversal_rate: 0.01 # fraction of settled payments later reversed
+  allocation_order: [fees, interest, principal] # CredLens convention (oldest-due-first within each component) - not a claimed universal accounting rule
+
+collections:
+  contact_dpd_thresholds: [15, 45, 75]
+  promise_to_pay_probability: 0.35
+
+write_off:
+  dpd_threshold: 150 # a contract is written off once its DPD reaches this threshold - a synthetic policy choice, not a regulatory one
+
+recovery:
+  recovery_probability: 0.25 # fraction of written-off contracts that see any recovery at all
+  recovery_fraction_min: 0.05
+  recovery_fraction_max: 0.40
+  max_months_after_write_off: 6
+
+tolerance:
+  monetary_tolerance: 0.01 # matches src/credlens/contracts/financial_rules._RECONCILIATION_TOLERANCE
+
+output:
+  format: parquet
+  operational_dir: data/synthetic
+  truth_dir: data/synthetic_truth

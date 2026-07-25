@@ -10,7 +10,7 @@ flowchart TB
         PUB[Public credit datasets - acquired]
         MACRO[BCB SGS macro indicators - acquired]
         KAG[Home Credit - blocked]
-        SYN[Synthetic operational generator - planned]
+        SYN[Synthetic operational generator - baseline scenario implemented]
     end
 
     subgraph Ingestion["Ingestion (implemented: acquisition + provenance)"]
@@ -53,7 +53,7 @@ flowchart TB
     PUB --> ING
     MACRO --> ING
     KAG -.blocked.-> ING
-    SYN -.spec only, not generated.-> CON
+    SYN -.baseline only, via credlens synthetic generate.-> CON
     ING --> DQ
     ING --> CON
     DQ --> DBT
@@ -69,7 +69,7 @@ flowchart TB
     KPI --> APP
 ```
 
-The `Foundation` subgraph (CLI, config, logging, tests, CI) and the `Ingestion`/`Quality` subgraphs (acquisition, provenance, structural audit, and - as of Phase 3 - formal data contracts with two validation modes: `credlens data fetch|verify|audit` and `credlens contracts list|show|validate`, see `src/credlens/data/` and `src/credlens/contracts/`) are implemented. The synthetic operational layer itself (`SYN` above) is specified only - `docs/synthetic_generation_spec.md`, `config/synthetic/*.blueprint.yaml`, and `credlens synthetic plan|scenarios|validate-blueprints` exist, but `credlens synthetic generate` deliberately prints "Not implemented" and produces no data (see `docs/adr/0002-synthetic-operational-layer.md`). `Transform` (dbt), `Warehouse` (DuckDB), `Analytics`, and `Presentation` remain planned, not implemented.
+The `Foundation` subgraph (CLI, config, logging, tests, CI) and the `Ingestion`/`Quality` subgraphs (acquisition, provenance, structural audit, and - as of Phase 3 - formal data contracts with two validation modes: `credlens data fetch|verify|audit` and `credlens contracts list|show|validate`, see `src/credlens/data/` and `src/credlens/contracts/`) are implemented. The synthetic operational layer itself (`SYN` above) is implemented **for the `baseline` scenario only**, as of Phase 4A: `credlens synthetic generate --scenario baseline --scale {smoke,sample,portfolio} --seed N` (`src/credlens/generation/`) produces a real, deterministic, contract-valid portfolio, written to `data/synthetic/<run_id>/` - see `docs/synthetic_generation_implementation.md`. Every other scenario (`policy_expansion`, `policy_tightening`, `macroeconomic_stress`, `collections_change`, `data_quality_incident`) remains specification-only - `credlens synthetic generate --scenario <other>` is rejected before any generation runs. `Transform` (dbt), `Warehouse` (DuckDB), `Analytics`, and `Presentation` remain planned, not implemented - the generator's output is not yet consumed by anything downstream of `data/synthetic/`.
 
 ## Layer responsibilities
 
@@ -101,6 +101,8 @@ Steps 3-5 remain planned interfaces, not built ones. When each phase in `docs/ro
 | `requests` *(implemented)* | HTTP downloads with retries/timeouts | Standard, well-justified dependency for `credlens.data.downloader` and `credlens.data.bcb_client` - see `docs/roadmap.md` phase 2 and the Phase 2 final report's dependency rationale. |
 | `pandas` *(implemented)* | Reading acquired tabular files; computing structural audit statistics; vectorized data-contract row validation | Standard dependency for `credlens.data.profiler` and `credlens.contracts.domain_rules`/`*_rules`; avoided in Phase 1 because nothing needed it yet. |
 | `pydantic` *(implemented, Phase 3)* | Typed parsing/validation of contract and blueprint **metadata** YAML (not row data) | Chosen over hand-rolled dataclasses because ~20 contracts' worth of nested column/domain/FK/rule specs need real validation error messages; see `docs/adr/0006-audit-vs-strict-validation.md`. Deliberately never used per-row on table data - see that same ADR for why vectorized pandas does that job instead. |
+| `numpy` *(implemented, Phase 4A)* | Reproducible RNG substreams for the synthetic generator | `SeedSequence`/`Generator` give independently-derived, per-step random streams from one seed - see `docs/synthetic_generation_implementation.md` "Reproducibility". |
+| `pyarrow` *(implemented, Phase 4A)* | Parquet read/write for generated synthetic tables | Lets pandas write/read the columnar, typed output format the generator uses, without depending on a full analytical engine this phase doesn't otherwise need. |
 | DuckDB | Local analytical warehouse | Zero-infrastructure, fast columnar engine, excellent fit for a portfolio project that must run on a laptop without external services. |
 | PostgreSQL | Optional heavier warehouse alternative | Demonstrates SQL-on-a-real-RDBMS skills if a later phase benefits from it; not required for DuckDB to work. |
 | dbt | Transformation and dimensional modeling | Industry-standard way to demonstrate testable, documented SQL transformations with lineage. |

@@ -1,0 +1,4 @@
+decision_id,application_id,policy_version_id,decision_timestamp,outcome,reason_code,approved_amount,approved_term_months,offered_rate,is_final,logic_version
+dec-001,app-001,pol-001,2024-01-02T12:00:00Z,approved,,1000,12,0.05,True,logic-v1
+dec-002,app-002,pol-001,2024-01-06T12:00:00Z,rejected,low_score,,,,True,logic-v1
+dec-003,app-003,pol-001,2024-01-11T12:00:00Z,approved,,2000,12,0.06,True,logic-v1

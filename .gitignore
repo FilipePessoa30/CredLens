@@ -59,6 +59,13 @@ data/metadata/licenses/*
 !data/metadata/licenses/*.txt
 *.csv
 !data/metadata/file_manifest.csv
+# Small, deliberately artificial contract-validation fixtures (never real
+# or acquired data - see tests/fixtures/contracts/ and docs/data_contracts.md)
+# must stay versioned; the blanket *.csv rule above exists to keep real/
+# acquired data out of git, not to hide test fixtures from it. Discovered
+# as a real, previously-silent gap during Phase 4A - see this phase's
+# final report.
+!tests/fixtures/**/*.csv
 *.tsv
 *.parquet
 *.feather

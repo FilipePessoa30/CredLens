@@ -1,0 +1,2 @@
+generation_run_id,generator_version,config_version,seed,scenario,period_start,period_end,generated_at,config_hash,contract_version_set,status,planned_customers,planned_applications,is_synthetic,scale
+run-001,0.1.0,1,42,baseline,2024-01-01,2024-12-31,2024-01-01T00:00:00Z,abcdef12,v1,completed,3,3,True,smoke

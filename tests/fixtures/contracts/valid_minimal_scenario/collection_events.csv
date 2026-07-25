@@ -1,0 +1,3 @@
+collection_event_id,contract_id,event_timestamp,channel,strategy,outcome,promise_to_pay,promised_amount,promised_date,status
+coll-001,ctr-001,2024-03-10T10:00:00Z,call,early_stage_soft,promise_to_pay,True,84,2024-03-15,open
+coll-002,ctr-002,2024-04-01T09:00:00Z,call,late_stage_hard,contacted_no_commitment,False,,,open

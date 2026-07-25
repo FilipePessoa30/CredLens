@@ -271,4 +271,5 @@ def test_rules_registry_contains_every_function() -> None:
         "approval_requires_valid_policy",
         "allocation_same_contract",
         "payment_allocation_not_exceed_payment",
+        "macro_context_provenance_consistent",
     }

@@ -1,0 +1,7 @@
+contract_id,snapshot_date,outstanding_principal,outstanding_interest,outstanding_fees,total_balance,past_due_amount,next_due_date,dpd,delinquency_bucket,status,exposure,cumulative_paid,cumulative_write_off
+ctr-001,2024-02-29,80,4,0,84,0,2024-03-03,0,current,active,84,85,0
+ctr-002,2024-02-29,166,10,0,176,176,,17,1-29,delinquent,176,0,0
+ctr-002,2024-03-31,166,10,0,176,176,,48,30-59,delinquent,176,0,0
+ctr-002,2024-04-30,166,10,0,176,176,,78,60-89,delinquent,176,0,0
+ctr-002,2024-05-31,166,10,0,176,176,,109,90+,delinquent,176,0,0
+ctr-002,2024-06-30,0,0,0,0,0,,139,90+,charged_off,0,0,176

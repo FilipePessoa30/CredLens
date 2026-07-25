@@ -1,6 +1,6 @@
 # Synthetic Generation Specification
 
-This document specifies the future synthetic operational-data generator. **No generation code exists in this phase** - `credlens synthetic generate` returns `Not implemented: scheduled for the synthetic generation phase.` and exits non-zero, on purpose (see `docs/roadmap.md` phase 4). What exists today: the target schema (`contracts/operational/*.yaml`), this specification, and six structurally-validated-but-uncalibrated scenario blueprints (`config/synthetic/scenarios/*.blueprint.yaml`).
+This document specifies the synthetic operational-data generator design across all 6 scenarios. **As of Phase 4A, one of those six - `baseline` - is actually implemented**: `credlens synthetic generate --scenario baseline --scale {smoke,sample,portfolio} --seed N` runs a real, deterministic generator - see `docs/synthetic_generation_implementation.md` for the as-built design, and `docs/adr/0002-synthetic-operational-layer.md`. Every other scenario (`policy_expansion`, `policy_tightening`, `macroeconomic_stress`, `collections_change`, `data_quality_incident`) remains unimplemented - `credlens synthetic generate --scenario <other>` is rejected before any generation runs, exactly as this document originally specified for all six.
 
 ## Population
 
@@ -53,23 +53,23 @@ None of these behaviors has a calibrated rate in this phase - every blueprint ma
 
 ## Reproducibility
 
-- **Seed**: `generation_runs.seed`, one explicit integer per run - not a global process-level seed, so multiple runs (e.g. different scenarios) don't interfere with each other's randomness.
-- **Determinism**: the same `(seed, config_hash)` pair must produce byte-identical output - not yet implementable (no generator exists) but stated as a hard requirement for whichever phase builds one.
-- **Versioning**: `generation_runs.generator_version` and `config_version` record which generator code and which blueprint version produced a run - both required fields already, in the contract, before any generator exists.
-- **Config hash**: `generation_runs.config_hash` should be a hash of the fully-resolved blueprint (after any defaults are applied), so two runs claiming the same `config_version` can still be verified to have used identical resolved parameters.
-- **Manifest**: a future generator run should produce a manifest analogous to `data/metadata/file_manifest.csv` (Phase 2) for its own output files, with the same checksum/size/row-count discipline - not built in this phase, but the precedent exists and should be reused rather than reinvented.
-- **Post-generation validation**: every table a generator produces must pass `credlens contracts validate --mode strict` before being considered a valid run - this phase's contracts and rules are exactly the gate a future generator would need to pass, which is why they were built now rather than alongside the generator itself.
+- **Seed**: `generation_runs.seed`, one explicit integer per run - not a global process-level seed, so multiple runs (e.g. different scenarios) don't interfere with each other's randomness. **Implemented for `baseline`** as of Phase 4A via `credlens.generation.rng.RunRandomStreams` - see `docs/synthetic_generation_implementation.md`.
+- **Determinism**: the same `(seed, config_hash)` pair must produce byte-identical output - **implemented and verified for `baseline`** as of Phase 4A, via canonical (order-independent) per-table and global content hashing rather than a literal byte-for-byte Parquet comparison; see `docs/synthetic_generation_implementation.md` "Reproducibility" for why, and `tests/test_generation_orchestrator.py` for the proof (same seed → identical hash, different seed → different hash).
+- **Versioning**: `generation_runs.generator_version` and `config_version` record which generator code and which blueprint version produced a run - populated for real by `baseline` runs as of Phase 4A.
+- **Config hash**: `generation_runs.config_hash` is a hash of the fully-resolved `GenerationConfig` (`credlens.generation.manifest.canonical_config_hash`) - implemented for `baseline`.
+- **Manifest**: implemented for `baseline` - every run writes `manifest.json` (seed, config hash, per-table and global canonical hashes, row counts, timing) into its own run directory; see `docs/synthetic_generation_implementation.md` "Output layout".
+- **Post-generation validation**: implemented for `baseline` - every run validates its own output against `credlens.contracts` in strict mode before being promoted from staging to its final location; a failing run is marked `failed` and never presented as valid. See `docs/synthetic_generation_implementation.md` "Validation and atomicity".
 
 ## Known truth (synthetic-truth layer)
 
-A future generator would need to record, for its own later validation (calibration checking, drift analysis, model-performance benchmarking against ground truth), parameters no real operational system would ever have:
+A generator needs to record, for its own later validation (calibration checking, drift analysis, model-performance benchmarking against ground truth), parameters no real operational system would ever have. **As of Phase 4A, `baseline` records one such parameter for real**: a per-customer/contract latent payment propensity (`credlens.generation.truth`), written only to `data/synthetic_truth/<run_id>/` - see `docs/synthetic_generation_implementation.md` "Synthetic-truth isolation". The fuller set below remains specified but not all implemented:
 
-- The latent segment actually assigned to each customer.
-- The true default/payment propensity used to simulate each contract's outcome.
-- The true response-to-collections propensity used to simulate `collection_events` outcomes.
-- The exact random draws or probabilities used at each simulated decision point.
+- The latent segment actually assigned to each customer. *(Baseline implements a single scalar propensity, not a full discrete segment label - a simplification, not the full design.)*
+- The true default/payment propensity used to simulate each contract's outcome. **(Implemented for baseline.)**
+- The true response-to-collections propensity used to simulate `collection_events` outcomes. *(Not implemented - baseline's collection events are decided from DPD thresholds alone, not from a separate latent responsiveness parameter.)*
+- The exact random draws or probabilities used at each simulated decision point. *(Not recorded individually - the run's seed plus its recorded config make the sequence of draws reproducible without needing to store each one.)*
 
-This layer is specified here and in `docs/conceptual_data_model.md` section 4.17 - **it is not built in this phase**, has no contract file, and per its design must be: never used as a model feature, never exposed to an operational dashboard, git-ignored exactly like `data/raw/`, and physically separate from every table in `contracts/operational/`. See `docs/adr/0007-synthetic-truth-isolation.md`.
+This layer is specified here and in `docs/conceptual_data_model.md` section 4.17. It has no contract file (deliberately - see `docs/adr/0007-synthetic-truth-isolation.md`) and, per its design, is: never used as a model feature (`decisions.compute_decision_score` only ever reads `application_features`), never exposed to an operational dashboard, git-ignored exactly like `data/raw/`, and physically separate from every table in `contracts/operational/`.
 
 ## What this specification deliberately leaves open
 

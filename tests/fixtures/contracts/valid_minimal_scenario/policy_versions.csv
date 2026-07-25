@@ -1,0 +1,2 @@
+policy_version_id,name,version,effective_from,effective_to,status,rules_reference,change_reason,scenario
+pol-001,standard,1,2023-01-01T00:00:00Z,,active,rules-v1,initial version,baseline

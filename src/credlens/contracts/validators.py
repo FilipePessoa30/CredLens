@@ -28,31 +28,49 @@ class ValidationRunError(Exception):
     """Raised when the table(s) needed for validation cannot be located/read."""
 
 
+_KNOWN_EXTENSIONS = ("csv", "json", "asc", "parquet")
+
+
 def read_table(path: Path, contract: DataContract) -> pd.DataFrame:
-    """Read `path` into a DataFrame according to `contract.format`.
+    """Read `path` into a DataFrame, dispatching on `path`'s own file
+    extension (not blindly on `contract.format`) - this lets the same
+    contract validate either hand-authored fixtures (CSV, easy to read
+    and diff by hand - see tests/fixtures/contracts/) or real generated
+    output (Parquet - see src/credlens/generation/writers.py) without a
+    schema change per format in use. `contract.format` still states the
+    contract's own canonical/expected format (used by
+    `_contract_file_in`'s search order below).
 
     Raises:
         ValidationRunError: unreadable file or unsupported format.
     """
+    suffix = path.suffix.lstrip(".")
     try:
-        if contract.format == "csv":
+        if suffix == "csv":
             return pd.read_csv(path)
-        if contract.format == "json":
+        if suffix == "json":
             raw = json.loads(path.read_text(encoding="utf-8"))
             return pd.DataFrame(raw)
-        if contract.format == "asc":
+        if suffix == "asc":
             return pd.read_csv(path, sep=r"\s+")
+        if suffix == "parquet":
+            return pd.read_parquet(path)
     except (OSError, ValueError) as exc:
-        raise ValidationRunError(f"Could not read '{path}' as {contract.format}: {exc}") from exc
+        raise ValidationRunError(f"Could not read '{path}' as {suffix}: {exc}") from exc
 
-    raise ValidationRunError(
-        f"Unsupported contract format '{contract.format}' declared by contract '{contract.name}'."
-    )
+    raise ValidationRunError(f"Unsupported file format '.{suffix}' for '{path}'.")
 
 
 def _contract_file_in(directory: Path, contract: DataContract) -> Path | None:
-    candidate = directory / f"{contract.name}.{contract.format}"
-    return candidate if candidate.is_file() else None
+    # Contract's own declared format first, then every other known
+    # tabular extension - so a directory holding Parquet output still
+    # resolves for a contract whose `format:` field says csv (Phase 3's
+    # declared "expected" format, unchanged by Phase 4A's real output).
+    for extension in (contract.format, *_KNOWN_EXTENSIONS):
+        candidate = directory / f"{contract.name}.{extension}"
+        if candidate.is_file():
+            return candidate
+    return None
 
 
 def load_scenario_tables(

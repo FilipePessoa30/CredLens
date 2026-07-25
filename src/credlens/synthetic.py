@@ -30,6 +30,12 @@ class ParameterStatus(StrEnum):
 class BlueprintStatus(StrEnum):
     DRAFT = "draft"
     REQUIRES_CALIBRATION = "requires_calibration"
+    # Phase 4A: has concrete, documented SYNTHETIC parameter values (see
+    # config/synthetic/baseline.generation.yaml) sufficient to actually run
+    # the generator - never claims those values are calibrated from a real
+    # institution or market. Only 'baseline' reaches this status in Phase
+    # 4A; every other scenario stays requires_calibration.
+    SYNTHETIC_ASSUMPTIONS_SPECIFIED = "synthetic_assumptions_specified"
 
 
 class BlueprintParameter(BaseModel):
@@ -38,6 +44,8 @@ class BlueprintParameter(BaseModel):
     status: ParameterStatus
     description: str
     value: str | float | int | bool | None = None
+    unit: str | None = None
+    justification: str | None = None
 
 
 class ScenarioBlueprint(BaseModel):

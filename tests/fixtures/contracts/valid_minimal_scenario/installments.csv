@@ -1,0 +1,4 @@
+installment_id,contract_id,installment_number,due_date,scheduled_principal,scheduled_interest,scheduled_fees,scheduled_total,status,outstanding_balance
+inst-001,ctr-001,1,2024-02-03,80,5,0,85,paid,0
+inst-002,ctr-001,2,2024-03-03,80,4,0,84,scheduled,84
+inst-003,ctr-002,1,2024-02-12,166,10,0,176,written_off,176

@@ -1,0 +1,4 @@
+application_id,age_bracket,synthetic_gender,region
+app-001,26-35,a,region_1
+app-002,18-25,b,region_2
+app-003,36-50,unspecified,region_3

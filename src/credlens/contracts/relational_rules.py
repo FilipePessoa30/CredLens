@@ -14,6 +14,15 @@ import pandas as pd
 
 from credlens.contracts.reporting import Finding, missing_tables_finding
 
+# Matches financial_rules._RECONCILIATION_TOLERANCE - float64 sums of
+# several allocated_* components (each itself already a rounded currency
+# value) can differ from the "true" total by a fraction of a cent purely
+# from binary floating-point representation; a real generator run
+# surfaced this (see docs/synthetic_generation_implementation.md) as a
+# false ALLOCATION_EXCEEDS_PAYMENT on an allocation that was, to the
+# cent, exactly equal to its payment.
+_ALLOCATION_TOLERANCE = 0.01
+
 # Every rule function below has the signature
 # `(tables: dict[str, pd.DataFrame], contract_name: str) -> list[Finding]`.
 
@@ -190,7 +199,7 @@ def payment_allocation_not_exceed_payment(
     comparison = totals_by_payment.to_frame("allocated").join(
         payment_amounts.to_frame("amount"), how="left"
     )
-    exceeded = comparison["allocated"] > comparison["amount"]
+    exceeded = (comparison["allocated"] - comparison["amount"]) > _ALLOCATION_TOLERANCE
     count = int(exceeded.sum())
     if not count:
         return []
@@ -208,10 +217,55 @@ def payment_allocation_not_exceed_payment(
     ]
 
 
+def macro_context_provenance_consistent(
+    tables: dict[str, pd.DataFrame], contract_name: str
+) -> list[Finding]:
+    """Phase 4A fix: a macro_context_monthly row's is_synthetic flag must
+    agree with its own source_type - the mechanism that keeps real BCB
+    observations and (future) synthetic shocks from being silently mixed
+    (docs/adr/0008-macro-context-provenance.md)."""
+    df = tables.get(contract_name)
+    if df is None:
+        return [missing_tables_finding(contract_name, "macro_context_provenance_consistent", [])]
+
+    is_synthetic = df["is_synthetic"].astype(str).str.lower() == "true"
+    is_public = df["source_type"] == "public_bcb_observation"
+    series_missing = df["series_code"].isna()
+
+    violation = (is_public & (is_synthetic | series_missing)) | (~is_public & ~is_synthetic)
+    count = int(violation.sum())
+    if not count:
+        return []
+    return [
+        Finding(
+            code="MACRO_CONTEXT_PROVENANCE_INCONSISTENT",
+            severity="error",
+            contract=contract_name,
+            column="source_type",
+            message=(
+                "is_synthetic/series_code do not agree with source_type - a "
+                "public_bcb_observation row must have is_synthetic=false and a "
+                "non-null series_code; any other source_type must have "
+                "is_synthetic=true."
+            ),
+            count=count,
+            total=len(df),
+            examples=tuple(
+                df.loc[violation, ["source_type", "source_id", "reference_date"]]
+                .astype(str)
+                .agg("@".join, axis=1)
+                .head(5)
+                .tolist()
+            ),
+        )
+    ]
+
+
 RULES: dict[str, object] = {
     "single_final_decision": single_final_decision,
     "contract_requires_approved_final_decision": contract_requires_approved_final_decision,
     "approval_requires_valid_policy": approval_requires_valid_policy,
     "allocation_same_contract": allocation_same_contract,
     "payment_allocation_not_exceed_payment": payment_allocation_not_exceed_payment,
+    "macro_context_provenance_consistent": macro_context_provenance_consistent,
 }

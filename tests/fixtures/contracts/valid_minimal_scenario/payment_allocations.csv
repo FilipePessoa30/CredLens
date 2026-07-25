@@ -1,0 +1,2 @@
+allocation_id,payment_id,installment_id,contract_id,allocated_principal,allocated_interest,allocated_fees,allocated_total
+alloc-001,pay-001,inst-001,ctr-001,80,5,0,85

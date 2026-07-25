@@ -1,9 +1,19 @@
 name: account_monthly_snapshots
-version: 1
+version: 2
 description: >
   One row per contract per monthly reference date - a point-in-time
   snapshot, not an event. See docs/temporal_semantics.md for why this
   table must never be used as a substitute for the event tables above.
+  Phase 4A fix: a written-off/settled/closed contract's LAST snapshot is
+  the month it reached that terminal status - no further monthly rows
+  follow (see business_rules' no_snapshot_after_terminal_status), so
+  there is never a need for a sentinel DPD value (the Phase 3 fixture's
+  DPD=999 is now rejected - see docs/adr/0009-dpd-sentinel-removal.md).
+  dpd/cumulative_paid/cumulative_write_off/total_balance are also now
+  reconciled against the installments/payments/payment_allocations/
+  write_off_events ledger (see business_rules' four snapshot_* rules) -
+  closing the Phase 3 gap where these fields could silently diverge from
+  the events that should determine them.
 owner: "Risk / Finance (conceptual)"
 classification: synthetic_operational
 grain: "one row per contract per snapshot_date (monthly)"
@@ -25,7 +35,7 @@ columns:
   - {name: total_balance, type: decimal, nullable: false, domain: {min: 0}, unit: "currency_unit", temporality: null, sensitivity: synthetic_operational, available_for_modeling: false, description: "Must equal outstanding_principal + outstanding_interest + outstanding_fees."}
   - {name: past_due_amount, type: decimal, nullable: false, domain: {min: 0}, unit: "currency_unit", temporality: null, sensitivity: synthetic_operational, available_for_modeling: false, description: "Portion of total_balance that is past its due date."}
   - {name: next_due_date, type: date, nullable: true, domain: null, unit: null, temporality: due_date, sensitivity: synthetic_operational, available_for_modeling: false, description: "Next installment due date after snapshot_date; null if no installment remains (e.g. settled/closed/charged_off)."}
-  - {name: dpd, type: integer, nullable: false, domain: {min: 0}, unit: "days", temporality: null, sensitivity: synthetic_operational, available_for_modeling: false, description: "Days past due per the CredLens DPD convention - see docs/metric_semantics.md. Must be consistent with delinquency_bucket, see business_rules."}
+  - {name: dpd, type: integer, nullable: false, domain: {min: 0}, unit: "days", temporality: null, sensitivity: synthetic_operational, available_for_modeling: false, description: "Days past due per the CredLens DPD convention - see docs/metric_semantics.md. Must be consistent with delinquency_bucket AND with the installments/payments ledger, see business_rules. Never a sentinel/placeholder value (e.g. 999, -1) - always the real elapsed days derived from the oldest unpaid overdue installment, per docs/adr/0009-dpd-sentinel-removal.md. A written-off contract's terminal snapshot still reports the real dpd observed at that date - write-off does not reset or freeze it to a magic number."}
   - {name: delinquency_bucket, type: categorical, nullable: false, domain: {in_set: [current, "1-29", "30-59", "60-89", "90+"]}, unit: null, temporality: null, sensitivity: synthetic_operational, available_for_modeling: false, description: "Bucketed version of dpd per the CredLens convention in docs/metric_semantics.md - not a claimed regulatory standard."}
   - {name: status, type: categorical, nullable: false, domain: {in_set: [active, delinquent, settled, closed, charged_off]}, unit: null, temporality: null, sensitivity: synthetic_operational, available_for_modeling: false, description: "Contract status as of this snapshot - see docs/state_machines.md."}
   - {name: exposure, type: decimal, nullable: false, domain: {min: 0}, unit: "currency_unit", temporality: null, sensitivity: synthetic_operational, available_for_modeling: false, description: "Amount at risk as of this snapshot - conceptually related to a future EAD calculation (docs/kpi_dictionary.md), not computed as EAD in this phase."}
@@ -40,5 +50,10 @@ business_rules:
   - {code: dpd_matches_bucket, description: "delinquency_bucket must match dpd under the CredLens bucket convention in docs/metric_semantics.md (e.g. dpd=45 must map to bucket '30-59', never 'current').", severity: error}
   - {code: cumulative_paid_non_decreasing, description: "For a given contract_id, cumulative_paid must not decrease from one snapshot_date to the next later one, absent a documented reversal.", severity: warning}
   - {code: cumulative_write_off_non_decreasing, description: "For a given contract_id, cumulative_write_off must not decrease from one snapshot_date to the next later one.", severity: error}
+  - {code: no_snapshot_after_terminal_status, description: "No snapshot_date may exist for a contract after an earlier snapshot already observed that contract in a terminal status (settled/closed/charged_off) - Phase 4A fix, replaces the Phase 3 DPD=999 sentinel with a retention rule instead.", severity: error}
+  - {code: snapshot_cumulative_paid_reconciled, description: "cumulative_paid must equal the amount actually settled and allocated toward this contract's installments (net of reversals), reconstructed from payments/payment_allocations.", severity: error}
+  - {code: snapshot_balance_reconciled_with_ledger, description: "total_balance must equal the remaining scheduled amount implied by installments/payments/allocations, net of any write-off.", severity: error}
+  - {code: snapshot_write_off_reconciled, description: "cumulative_write_off must equal the sum of write_off_events amounts for this contract with write_off_date <= snapshot_date.", severity: error}
+  - {code: snapshot_dpd_reconciled_with_installments, description: "dpd must equal the largest (snapshot_date - due_date) among installments still carrying a positive outstanding balance as of snapshot_date - never a sentinel or otherwise fabricated value.", severity: error}
 
 strict_unexpected_columns: true

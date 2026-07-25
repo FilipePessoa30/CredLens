@@ -1,0 +1,2 @@
+contract_id,application_id,customer_id,contract_date,disbursement_date,financed_amount,term_months,contract_rate,num_installments,first_due_date,status,currency_unit,closed_date
+ctr-001,app-001,cust-001,2024-01-03T00:00:00Z,2024-01-03T00:00:00Z,1000,12,0.05,12,2024-02-03,active,credlens_synthetic_unit,

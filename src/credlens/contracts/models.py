@@ -23,6 +23,15 @@ class Classification(StrEnum):
     EVALUATION_ONLY = "evaluation_only"
     SYNTHETIC_TRUTH_ONLY = "synthetic_truth_only"
     TECHNICAL_METADATA = "technical_metadata"
+    # Phase 4A additions (see docs/adr/0008-macro-context-provenance.md): a
+    # macro/market-context table can legitimately hold real public
+    # observations, synthetic shocks, or values derived from either - never
+    # the same thing as an individually-generated synthetic customer/
+    # contract row (SYNTHETIC_OPERATIONAL) or an unmodified public dataset
+    # (PUBLIC_SOURCE, which implies the whole file is exactly as acquired).
+    PUBLIC_MARKET_CONTEXT = "public_market_context"
+    SYNTHETIC_MARKET_CONTEXT = "synthetic_market_context"
+    DERIVED_CONTEXT = "derived_context"
 
 
 class ContractStatus(StrEnum):

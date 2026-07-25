@@ -4,7 +4,7 @@
 
 **CredLens turns a digital lender's credit portfolio into a reproducible, tested analytics product — from business question to KPI to decision.**
 
-**Status: Foundation + Data Acquisition + Conceptual Modeling/Data Contracts phase.** This repository contains business framing, architecture, project scaffolding, reproducibly acquired and audited public benchmark datasets (Phase 2), and — as of Phase 3 — a conceptual data model, temporal semantics, formal data contracts, and a specification (not an implementation) for a future synthetic operational layer. No model has been trained, no dashboard exists, no KPI value has been computed, no synthetic data has been generated, and no business result is claimed anywhere in this repository. Every business number you might expect to see here (portfolio size, delinquency, ROI, accuracy) is deliberately absent — see [Current capabilities](#current-capabilities) and [`docs/roadmap.md`](docs/roadmap.md) for what happens next.
+**Status: Foundation + Data Acquisition + Data Contracts + Baseline Synthetic Generator phase.** This repository contains business framing, architecture, project scaffolding, reproducibly acquired and audited public benchmark datasets (Phase 2), a conceptual data model/temporal semantics/formal data contracts (Phase 3), and — as of Phase 4A — a real, deterministic synthetic-portfolio generator for the `baseline` scenario. No model has been trained, no dashboard exists, no KPI value has been computed, and no business result is claimed anywhere in this repository. Every business number you might expect to see here (portfolio size, delinquency, ROI, accuracy) is deliberately absent, and every generated value is explicitly synthetic — see [Current capabilities](#current-capabilities) and [`docs/roadmap.md`](docs/roadmap.md) for what happens next.
 
 ## The business scenario
 
@@ -65,16 +65,16 @@ What exists in the repository right now:
 - Structured logging setup.
 - **Reproducible public-dataset acquisition and audit** (Phase 2): a source registry with license/DOI/citation per source (`data/metadata/source_registry.yaml`), an idempotent downloader (retries, atomic writes, path-traversal protection, checksum-verified), a Banco Central do Brasil SGS time-series client, and a structural data-quality audit that categorizes findings without ever modifying raw data. Four sources acquired and audited this phase: [Default of Credit Card Clients](https://archive.ics.uci.edu/dataset/350/default+of+credit+card+clients) (UCI, CC BY 4.0), [South German Credit](https://archive.ics.uci.edu/dataset/522/south+german+credit) (UCI, CC BY 4.0), and two BCB SGS series (portfolio balance and delinquency, ODbL). A fifth (Home Credit Default Risk, Kaggle) is registered but blocked — `BLOCKED_REQUIRES_USER_ACCESS`, with evidence — see [`docs/data_licensing.md`](docs/data_licensing.md).
 - **Conceptual data model and data contracts** (Phase 3): a 17-entity conceptual model (events/state/snapshots, never one undifferentiated table) across 4 Mermaid ER diagrams, formal temporal semantics, reviewed state machines, and 20 typed data contracts (4 raw + 16 operational) enforced by `credlens contracts validate` in either `audit` (diagnostic) or `strict` (gating) mode — 22 named relational/temporal/financial business rules, all vectorized pandas, no `eval()`. Automated two pieces of Phase 2 technical debt (UCI EDUCATION/MARRIAGE domain detection, BCB date uniqueness/ordering) that were previously manual, each with a permanent regression test. See [`docs/data_contracts.md`](docs/data_contracts.md) and [`docs/conceptual_data_model.md`](docs/conceptual_data_model.md).
-- **Synthetic-generation specification, not generation** (Phase 3): `docs/synthetic_generation_spec.md` and 6 scenario blueprints (`config/synthetic/scenarios/*.blueprint.yaml`) describe population, origination, performance, and temporal-dependence design for a future generator - every parameter is honestly marked `pending`/`requires_calibration`, never a fabricated value. `credlens synthetic generate` deliberately does nothing but report that generation isn't implemented yet.
-- Business documentation: charter, business problem framing, stakeholder map, KPI dictionary (definitions only, no computed values), data strategy, architecture, assumptions & limitations, glossary, roadmap — plus Phase 2's dataset selection matrix, data dictionary, data-quality audit, target/leakage audit, sensitive-attributes audit, and Phase 3's conceptual model, temporal semantics, state machines, metric semantics, business rules, data contracts, fairness-data design, and 7 ADRs (see [Repository structure](#repository-structure)).
+- **A real, deterministic synthetic-portfolio generator for the `baseline` scenario** (Phase 4A): `credlens synthetic generate --scenario baseline --scale {smoke,sample,portfolio} --seed N` produces customers, applications, contracts, payments, snapshots, collections, write-offs, recoveries, and real-BCB-context tables, all validated in strict mode before being written to `data/synthetic/<run_id>/`. Reproducible (same seed → identical canonical content hash, proven in `tests/test_generation_orchestrator.py` and this phase's own final report), with a physically isolated synthetic-truth layer (`data/synthetic_truth/`, never used as a model feature). Every parameter is an explicit synthetic assumption — see [`docs/synthetic_generation_implementation.md`](docs/synthetic_generation_implementation.md). The other 5 scenarios remain specification-only; `credlens synthetic generate --scenario <other>` is rejected before any generation runs.
+- Business documentation: charter, business problem framing, stakeholder map, KPI dictionary (definitions only, no computed values), data strategy, architecture, assumptions & limitations, glossary, roadmap — plus Phase 2's dataset selection matrix, data dictionary, data-quality audit, target/leakage audit, sensitive-attributes audit, Phase 3's conceptual model, temporal semantics, state machines, metric semantics, business rules, data contracts, fairness-data design, and Phase 4A's implementation record, for 9 ADRs total (see [Repository structure](#repository-structure)).
 - CI (GitHub Actions): lint, format check, type check, tests with coverage — on every push.
 
 ## Planned capabilities (not yet implemented)
 
-- The actual synthetic operational data generator - Phase 3 specified it (population/origination/performance/temporal-dependence design, 6 scenarios) but did not build it; `credlens synthetic generate` remains a stub by design.
+- The other 5 synthetic scenarios (`policy_expansion`, `policy_tightening`, `macroeconomic_stress`, `collections_change`, `data_quality_incident`) - specified but not calibrated or implemented.
 - Dimensional data modeling and dbt transformations.
 - A queryable SQL warehouse (DuckDB, optionally Postgres).
-- Wiring `strict`-mode contract validation into a real ingestion pipeline as an enforcement gate — today it only gates `tests/fixtures/contracts/`, since there is no real synthetic data yet to gate.
+- Wiring `strict`-mode contract validation into a real ingestion/warehouse pipeline as an enforcement gate — today `credlens synthetic generate` gates its own output before promoting it, but nothing downstream reads from `data/synthetic/` yet.
 - Portfolio, vintage, and roll-rate analysis.
 - An interpretable probability-of-default model and expected-loss calculation.
 - A cutoff/policy simulator.
@@ -105,13 +105,19 @@ uv run credlens data fetch --source uci-default-credit
 uv run credlens data verify
 uv run credlens data audit
 
-# Data contracts and synthetic-generation planning (Phase 3) - all offline
+# Data contracts (Phase 3) - all offline
 uv run credlens contracts list
 uv run credlens contracts show applications
 uv run credlens contracts validate --contract applications --path tests/fixtures/contracts/valid_minimal_scenario --mode strict
 uv run credlens synthetic plan
 uv run credlens synthetic scenarios
 uv run credlens synthetic validate-blueprints
+
+# Synthetic portfolio generation (Phase 4A, baseline scenario) - offline, deterministic
+uv run credlens synthetic generate --scenario baseline --scale smoke --seed 2026
+uv run credlens synthetic validate --run-id RUN_baseline_smoke_2026_<config-hash-prefix>
+uv run credlens synthetic inspect --run-id RUN_baseline_smoke_2026_<config-hash-prefix>
+uv run credlens synthetic manifest --run-id RUN_baseline_smoke_2026_<config-hash-prefix>
 ```
 
 Without `uv`, use a standard virtual environment instead:
@@ -153,7 +159,7 @@ See [`CONTRIBUTING.md`](CONTRIBUTING.md) for the full contributor workflow.
 uv run pytest
 ```
 
-369 tests, 95% coverage on `src/credlens` as of Phase 3. Coverage is a code-quality signal, not a proxy for how much of the eventual product is finished. Tests cover: package import/version, all CLI commands (including `data sources|fetch|verify|audit`, `contracts list|show|validate`, `synthetic plan|scenarios|validate-blueprints|generate`), configuration loading, the full data-acquisition layer, and the full data-contracts layer — schema/loader/registry/validators, all 22 business rules, the 12-fixture end-to-end suite (1 valid scenario passing cleanly + 11 invalid scenarios each failing with its exact intended code), and dedicated regressions for the EDUCATION/MARRIAGE automation, BCB date uniqueness/chunking, a timezone-comparison bug found this phase, and CPF-shaped-identifier detection. HTTP downloads and the BCB client are tested with mocked HTTP (`responses`), never real network calls; every fetch/verify/audit CLI test is sandboxed to a temp directory and never touches this repository's real `data/` files.
+524 tests, 95% coverage on `src/credlens` as of Phase 4A. Coverage is a code-quality signal, not a proxy for how much of the eventual product is finished. Tests cover: package import/version, all CLI commands (including `data sources|fetch|verify|audit`, `contracts list|show|validate`, `synthetic plan|scenarios|validate-blueprints|generate|validate|inspect|manifest`), configuration loading, the full data-acquisition layer, the full data-contracts layer (schema/loader/registry/validators, all 28 business rules, the 12-fixture end-to-end suite), dedicated regressions for the EDUCATION/MARRIAGE automation, BCB date uniqueness/chunking, a timezone-comparison bug, and CPF-shaped-identifier detection, and — new in Phase 4A — the full synthetic-generation package (RNG substreams, id determinism, feature-freeze/fairness separation, amortization rounding, ledger reconciliation, the retention rule that replaced the old DPD=999 sentinel, canonical hashing, atomic staging/promotion, path-traversal protection, and real end-to-end generation runs validated against the actual `credlens.contracts` strict-mode code path). HTTP downloads and the BCB client are tested with mocked HTTP (`responses`), never real network calls; generation tests run the real (fast, offline) generator at `smoke` scale and clean up whatever they write under `data/synthetic(_truth)/` afterward.
 
 ## Repository structure
 
@@ -161,11 +167,11 @@ uv run pytest
 credlens-credit-analytics/
 ├── README.md / README.pt-BR.md   # This file, and its Portuguese counterpart
 ├── pyproject.toml                # Package metadata, dependencies, tool config
-├── config/                       # base.yaml (structural config) + synthetic/ (scenario blueprints, Phase 3)
-├── contracts/                    # raw/ + operational/ data contract YAML files (Phase 3)
-├── data/                         # raw/ (git-ignored) + metadata/ (versioned provenance) - see data/README.md
-├── docs/                         # Business, architecture, data-acquisition, and data-contracts documentation
-├── src/credlens/                 # Application package (CLI, config, logging, data/, contracts/, synthetic.py)
+├── config/                       # base.yaml (structural config) + synthetic/ (blueprints + baseline.generation.yaml)
+├── contracts/                    # raw/ + operational/ data contract YAML files (Phase 3, extended Phase 4A)
+├── data/                         # raw/ + synthetic/ + synthetic_truth/ (all git-ignored) + metadata/ (versioned) - see data/README.md
+├── docs/                         # Business, architecture, data-acquisition, data-contracts, and generator documentation
+├── src/credlens/                 # Application package (CLI, config, logging, data/, contracts/, generation/, synthetic.py)
 ├── tests/                        # Pytest suite, including tests/fixtures/contracts/ (valid + invalid scenarios)
 ├── reports/data_audit/           # Generated structural audit reports (reproducible via `credlens data audit`)
 └── .github/                      # CI workflow and issue/PR templates
@@ -173,11 +179,13 @@ credlens-credit-analytics/
 
 Phase 2 documentation, in addition to Phase 1's business docs: [`docs/dataset_selection.md`](docs/dataset_selection.md) (weighted decision matrix), [`docs/data_sources.md`](docs/data_sources.md) (how each source is acquired), [`docs/data_licensing.md`](docs/data_licensing.md), [`docs/data_dictionary.md`](docs/data_dictionary.md), [`docs/data_quality_audit.md`](docs/data_quality_audit.md), [`docs/target_and_leakage_audit.md`](docs/target_and_leakage_audit.md), [`docs/sensitive_attributes.md`](docs/sensitive_attributes.md).
 
-Phase 3 documentation: [`docs/conceptual_data_model.md`](docs/conceptual_data_model.md), [`docs/temporal_semantics.md`](docs/temporal_semantics.md), [`docs/state_machines.md`](docs/state_machines.md), [`docs/metric_semantics.md`](docs/metric_semantics.md), [`docs/business_rules.md`](docs/business_rules.md), [`docs/data_contracts.md`](docs/data_contracts.md), [`docs/fairness_data_design.md`](docs/fairness_data_design.md), [`docs/synthetic_generation_spec.md`](docs/synthetic_generation_spec.md), and 7 architecture decision records in [`docs/adr/`](docs/adr/).
+Phase 3 documentation: [`docs/conceptual_data_model.md`](docs/conceptual_data_model.md), [`docs/temporal_semantics.md`](docs/temporal_semantics.md), [`docs/state_machines.md`](docs/state_machines.md), [`docs/metric_semantics.md`](docs/metric_semantics.md), [`docs/business_rules.md`](docs/business_rules.md), [`docs/data_contracts.md`](docs/data_contracts.md), [`docs/fairness_data_design.md`](docs/fairness_data_design.md), [`docs/synthetic_generation_spec.md`](docs/synthetic_generation_spec.md).
+
+Phase 4A documentation: [`docs/synthetic_generation_implementation.md`](docs/synthetic_generation_implementation.md) (the as-built generator design), and 9 architecture decision records in total in [`docs/adr/`](docs/adr/) (7 from Phase 3, plus [`0008`](docs/adr/0008-macro-context-provenance.md) and [`0009`](docs/adr/0009-dpd-sentinel-removal.md) from Phase 4A).
 
 ## Data strategy (summary)
 
-The target strategy is **public data + a reproducible synthetic operational layer**: real, licensed public credit/macroeconomic datasets provide realistic structure and distributions; a documented, code-generated synthetic layer fills in the operational detail (e.g., day-to-day delinquency transitions) that public datasets don't expose, without ever presenting synthetic values as real observed outcomes. As of Phase 2, four sources are acquired and licensed (two UCI individual-level benchmarks, two Banco Central do Brasil macro series); a fifth (Kaggle) is blocked pending user-provided credentials this project will not request. As of Phase 3, the synthetic layer's conceptual model, contracts, and generation *specification* exist (see [`docs/synthetic_generation_spec.md`](docs/synthetic_generation_spec.md)) but the generator itself is not built - `credlens synthetic generate` is a deliberate stub. See [`docs/data_strategy.md`](docs/data_strategy.md) and [`docs/dataset_selection.md`](docs/dataset_selection.md) for the full picture.
+The target strategy is **public data + a reproducible synthetic operational layer**: real, licensed public credit/macroeconomic datasets provide realistic structure and distributions; a documented, code-generated synthetic layer fills in the operational detail (e.g., day-to-day delinquency transitions) that public datasets don't expose, without ever presenting synthetic values as real observed outcomes. As of Phase 2, four sources are acquired and licensed (two UCI individual-level benchmarks, two Banco Central do Brasil macro series); a fifth (Kaggle) is blocked pending user-provided credentials this project will not request. As of Phase 3, the synthetic layer's conceptual model, contracts, and generation *specification* existed but no generator was built. **As of Phase 4A, the generator itself is real for the `baseline` scenario** - `credlens synthetic generate --scenario baseline` produces a full, contract-valid, deterministic synthetic portfolio; every other scenario remains specification-only. See [`docs/data_strategy.md`](docs/data_strategy.md), [`docs/synthetic_generation_spec.md`](docs/synthetic_generation_spec.md), and [`docs/synthetic_generation_implementation.md`](docs/synthetic_generation_implementation.md) for the full picture.
 
 ## Limitations
 

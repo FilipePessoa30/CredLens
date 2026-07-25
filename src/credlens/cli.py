@@ -186,7 +186,7 @@ def _build_parser() -> argparse.ArgumentParser:
 
     synthetic_parser = subparsers.add_parser(
         "synthetic",
-        help="Synthetic-generation planning commands (Phase 3: design only, no generation).",
+        help="Synthetic-generation commands (Phase 4A: baseline scenario only).",
     )
     synthetic_subparsers = synthetic_parser.add_subparsers(dest="synthetic_command")
     synthetic_subparsers.add_parser(
@@ -198,8 +198,43 @@ def _build_parser() -> argparse.ArgumentParser:
     synthetic_subparsers.add_parser(
         "validate-blueprints", help="Structurally validate every scenario blueprint. Works offline."
     )
-    synthetic_subparsers.add_parser(
-        "generate", help="Not implemented in this phase - reports that clearly and exits."
+
+    generate_parser = synthetic_subparsers.add_parser(
+        "generate", help="Run the deterministic generator (baseline scenario only in Phase 4A)."
+    )
+    generate_parser.add_argument(
+        "--scenario", required=True, help="Scenario name, e.g. 'baseline'."
+    )
+    generate_parser.add_argument(
+        "--scale",
+        required=True,
+        choices=["smoke", "sample", "portfolio"],
+        help="Generation scale preset.",
+    )
+    generate_parser.add_argument(
+        "--seed", required=True, type=int, help="Random seed (required for determinism)."
+    )
+    generate_parser.add_argument(
+        "--force", action="store_true", help="Overwrite an existing run with the same id."
+    )
+
+    validate_run_parser = synthetic_subparsers.add_parser(
+        "validate", help="Re-validate an already-generated run's operational tables in strict mode."
+    )
+    validate_run_parser.add_argument(
+        "--run-id", required=True, help="generation_run_id to validate."
+    )
+
+    inspect_parser = synthetic_subparsers.add_parser(
+        "inspect", help="Summarize an already-generated run: tables, row counts, key statistics."
+    )
+    inspect_parser.add_argument("--run-id", required=True, help="generation_run_id to inspect.")
+
+    manifest_parser = synthetic_subparsers.add_parser(
+        "manifest", help="Print the manifest.json of an already-generated run."
+    )
+    manifest_parser.add_argument(
+        "--run-id", required=True, help="generation_run_id whose manifest to print."
     )
 
     return parser
@@ -815,8 +850,10 @@ def _cmd_synthetic_plan() -> int:
     print(f"Scenario blueprints defined:                 {len(blueprints)}")
     print(f"Blueprints still requiring calibration:      {calibration_pending}/{len(blueprints)}")
     print()
-    print("credlens synthetic generate: Not implemented: scheduled for the synthetic")
-    print("generation phase. See docs/synthetic_generation_spec.md and docs/roadmap.md.")
+    print(
+        "credlens synthetic generate --scenario baseline --scale {smoke,sample,portfolio} --seed N"
+    )
+    print("is implemented as of Phase 4A. Every other scenario remains requires_calibration.")
     return 0
 
 
@@ -853,9 +890,162 @@ def _cmd_synthetic_validate_blueprints() -> int:
     return 1 if any_failed else 0
 
 
-def _cmd_synthetic_generate() -> int:
-    print("Not implemented: scheduled for the synthetic generation phase.")
-    return 1
+def _cmd_synthetic_generate(scenario: str, scale: str, seed: int, force: bool) -> int:
+    from credlens.generation.orchestrator import (
+        GenerationError,
+        RunAlreadyExistsError,
+        ScenarioNotCalibratedError,
+        generate_baseline,
+    )
+
+    try:
+        outcome = generate_baseline(scenario=scenario, scale_name=scale, seed=seed, force=force)
+    except ScenarioNotCalibratedError as exc:
+        print(f"Error: {exc}")
+        return 1
+    except RunAlreadyExistsError as exc:
+        print(f"Error: {exc}")
+        return 1
+    except GenerationError as exc:
+        print(f"Error: {exc}")
+        return 1
+    except Exception as exc:
+        logger.exception("Unhandled error during synthetic generation")
+        print(f"Error: generation failed unexpectedly ({type(exc).__name__}). See logs for detail.")
+        return 1
+
+    print(f"generation_run_id: {outcome.generation_run_id}")
+    print(f"status:            {outcome.status}")
+    print(f"operational dir:   {outcome.operational_dir}")
+    print(f"truth dir:         {outcome.truth_dir}")
+    print(f"contracts passed:  {outcome.validation.contracts_passed}")
+    print(f"pii safe:          {outcome.validation.pii_safe}")
+    print(f"statistical checks passed: {outcome.validation.statistical_passed}")
+    if outcome.status != "completed":
+        print(
+            "Run FAILED validation - not promoted. See contract_validation.json in the "
+            "run's staging directory."
+        )
+        return 1
+    return 0
+
+
+def _resolve_run_dir(config_output_dir: str, run_id: str) -> Path | None:
+    """Path-traversal-safe resolution of a user-supplied --run-id, shared
+    by validate/inspect/manifest - mirrors the same protection
+    generate's own writers.resolve_within_directory applies."""
+    from credlens.generation.writers import PathSafetyError, resolve_within_directory
+
+    try:
+        return resolve_within_directory(Path(config_output_dir), run_id)
+    except PathSafetyError:
+        return None
+
+
+def _cmd_synthetic_validate_run(run_id: str) -> int:
+    from credlens.generation.config import load_generation_config
+
+    try:
+        config = load_generation_config()
+    except Exception as exc:
+        print(f"Error: could not load generation config: {exc}")
+        return 1
+
+    run_base = _resolve_run_dir(config.output.operational_dir, run_id)
+    if run_base is None:
+        print(f"Error: invalid run id '{run_id}'.")
+        return 1
+    run_dir = run_base / "operational"
+    if not run_dir.is_dir():
+        print(f"Error: no run found at '{run_dir}'.")
+        return 1
+
+    try:
+        contracts = load_all_contracts(CONTRACTS_RAW_DIR, CONTRACTS_OPERATIONAL_DIR)
+    except ContractsRegistryError as exc:
+        print(f"Error: {exc}")
+        return 1
+
+    # Every contract defined under contracts/operational/ is something
+    # the generator can legitimately produce - not just the ones
+    # classified synthetic_operational (fairness_attributes is
+    # evaluation_only, macro_context_monthly is public_market_context,
+    # generation_runs is technical_metadata - all three are real files
+    # in every run and must be validated too).
+    operational_names = {path.stem for path in CONTRACTS_OPERATIONAL_DIR.glob("*.yaml")}
+
+    any_errors = False
+    for name, contract in sorted(contracts.items()):
+        if name not in operational_names:
+            continue
+        try:
+            report = validate_contract(contract, run_dir, mode="strict", all_contracts=contracts)
+        except ValidationRunError:
+            continue  # this contract's file isn't part of this run - not an error
+        print(format_report(report))
+        if report.has_errors:
+            any_errors = True
+
+    print()
+    print(f"Result: {'FAIL' if any_errors else 'OK'}")
+    return 1 if any_errors else 0
+
+
+def _cmd_synthetic_inspect(run_id: str) -> int:
+    from credlens.generation.config import load_generation_config
+
+    try:
+        config = load_generation_config()
+    except Exception as exc:
+        print(f"Error: could not load generation config: {exc}")
+        return 1
+
+    run_dir = _resolve_run_dir(config.output.operational_dir, run_id)
+    if run_dir is None:
+        print(f"Error: invalid run id '{run_id}'.")
+        return 1
+    operational_dir = run_dir / "operational"
+    if not operational_dir.is_dir():
+        print(f"Error: no run found at '{operational_dir}'.")
+        return 1
+
+    print(f"CredLens synthetic run: {run_id}")
+    print("=" * (24 + len(run_id)))
+    for path in sorted(operational_dir.glob("*.parquet")):
+        df = pd.read_parquet(path)
+        print(f"{path.stem:<28} {len(df):>8} rows")
+
+    summary_path = run_dir / "generation_summary.json"
+    if summary_path.is_file():
+        summary = json.loads(summary_path.read_text(encoding="utf-8"))
+        print()
+        print(f"status:                     {summary.get('status')}")
+        print(f"contracts_passed:           {summary.get('contracts_passed')}")
+        print(f"statistical_checks_passed:  {summary.get('statistical_checks_passed')}")
+        print(f"pii_safe:                   {summary.get('pii_safe')}")
+    return 0
+
+
+def _cmd_synthetic_manifest(run_id: str) -> int:
+    from credlens.generation.config import load_generation_config
+
+    try:
+        config = load_generation_config()
+    except Exception as exc:
+        print(f"Error: could not load generation config: {exc}")
+        return 1
+
+    run_dir = _resolve_run_dir(config.output.operational_dir, run_id)
+    if run_dir is None:
+        print(f"Error: invalid run id '{run_id}'.")
+        return 1
+    manifest_path = run_dir / "manifest.json"
+    if not manifest_path.is_file():
+        print(f"Error: no manifest found at '{manifest_path}'.")
+        return 1
+
+    print(manifest_path.read_text(encoding="utf-8"))
+    return 0
 
 
 # --- main --------------------------------------------------------------------
@@ -907,9 +1097,18 @@ def _dispatch_synthetic_command(args: argparse.Namespace) -> int:
     if args.synthetic_command == "validate-blueprints":
         return _cmd_synthetic_validate_blueprints()
     if args.synthetic_command == "generate":
-        return _cmd_synthetic_generate()
+        return _cmd_synthetic_generate(args.scenario, args.scale, args.seed, args.force)
+    if args.synthetic_command == "validate":
+        return _cmd_synthetic_validate_run(args.run_id)
+    if args.synthetic_command == "inspect":
+        return _cmd_synthetic_inspect(args.run_id)
+    if args.synthetic_command == "manifest":
+        return _cmd_synthetic_manifest(args.run_id)
 
-    print("usage: credlens synthetic {plan,scenarios,validate-blueprints,generate} ...")
+    print(
+        "usage: credlens synthetic "
+        "{plan,scenarios,validate-blueprints,generate,validate,inspect,manifest} ..."
+    )
     print("Run 'credlens synthetic <command> --help' for details.")
     return 1
 

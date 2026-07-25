@@ -287,6 +287,62 @@ def bcb_dates_strictly_increasing(
     ]
 
 
+_TERMINAL_CONTRACT_STATUSES = ("settled", "closed", "charged_off")
+
+
+def no_snapshot_after_terminal_status(
+    tables: dict[str, pd.DataFrame], contract_name: str
+) -> list[Finding]:
+    """Phase 4A fix: once a contract's status is first observed as terminal
+    (settled/closed/charged_off) in a snapshot, no later snapshot_date may
+    exist for that contract.
+
+    This is the retention rule that replaces the Phase 3 fixture's
+    DPD=999 sentinel: rather than needing a magic "frozen/undefined DPD"
+    value for months after write-off, generation simply stops producing
+    snapshot rows once a contract reaches a terminal state - the terminal
+    month's own snapshot (with a real, ledger-derived DPD) is the last
+    one. See docs/temporal_semantics.md and docs/metric_semantics.md.
+    """
+    df = tables.get(contract_name)
+    if df is None:
+        return [missing_tables_finding(contract_name, "no_snapshot_after_terminal_status", [])]
+
+    snapshot_dates = pd.to_datetime(df["snapshot_date"], errors="coerce", utc=True)
+    is_terminal = df["status"].isin(_TERMINAL_CONTRACT_STATUSES)
+
+    terminal_dates = snapshot_dates.where(is_terminal)
+    first_terminal_by_contract = terminal_dates.groupby(df["contract_id"]).transform("min")
+    violation = first_terminal_by_contract.notna() & (snapshot_dates > first_terminal_by_contract)
+
+    count = int(violation.sum())
+    if not count:
+        return []
+    return [
+        Finding(
+            code="SNAPSHOT_AFTER_TERMINAL_STATUS",
+            severity="error",
+            contract=contract_name,
+            column="snapshot_date",
+            message=(
+                "A snapshot exists for this contract after its status was already "
+                "observed as terminal (settled/closed/charged_off) in an earlier "
+                "snapshot - no further monthly snapshots should be generated once "
+                "a contract reaches a terminal state."
+            ),
+            count=count,
+            total=len(df),
+            examples=tuple(
+                df.loc[violation, ["contract_id", "snapshot_date"]]
+                .astype(str)
+                .agg("@".join, axis=1)
+                .head(5)
+                .tolist()
+            ),
+        )
+    ]
+
+
 RULES: dict[str, object] = {
     "decision_not_before_submission": decision_not_before_submission,
     "contract_after_decision": contract_after_decision,
@@ -296,4 +352,5 @@ RULES: dict[str, object] = {
     "reversal_references_earlier_payment": reversal_references_earlier_payment,
     "policy_validity_window_not_inverted": policy_validity_window_not_inverted,
     "bcb_dates_strictly_increasing": bcb_dates_strictly_increasing,
+    "no_snapshot_after_terminal_status": no_snapshot_after_terminal_status,
 }

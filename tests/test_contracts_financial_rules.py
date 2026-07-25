@@ -339,4 +339,8 @@ def test_rules_registry_contains_every_function() -> None:
         "cumulative_paid_non_decreasing",
         "cumulative_write_off_non_decreasing",
         "promise_fields_require_promise_flag",
+        "snapshot_cumulative_paid_reconciled",
+        "snapshot_balance_reconciled_with_ledger",
+        "snapshot_write_off_reconciled",
+        "snapshot_dpd_reconciled_with_installments",
     }

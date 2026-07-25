@@ -1,34 +1,47 @@
 name: macro_context_monthly
-version: 1
+version: 2
 description: >
-  One row per macro indicator per month - designed to hold BCB SGS series
-  (see contracts/raw/bcb_sgs_20570.yaml, bcb_sgs_21112.yaml) re-expressed
-  at operational grain for future joins to synthetic monthly snapshots.
-  This does NOT mean UCI/South-German individual records get joined to
-  this context - see docs/business_rules.md and
-  docs/assumptions_and_limitations.md: macro context stays macro, and is
-  never used to imply individual-level foreign customers are Brazilian.
+  One row per macro/market-context observation per month. Phase 4A fix
+  (docs/adr/0008-macro-context-provenance.md): this table can legitimately
+  hold real BCB SGS observations, synthetic macro shocks (a future
+  scenario, not built in Phase 4A), or values derived from either - never
+  silently merged as if they were the same kind of fact. Every row
+  self-declares its own provenance via source_type/is_synthetic/source_id,
+  rather than relying on the contract's own top-level classification
+  alone (which cannot vary row by row). In Phase 4A's baseline scenario,
+  every row is real BCB data (source_type=public_bcb_observation,
+  is_synthetic=false) - see contracts/raw/bcb_sgs_20570.yaml,
+  bcb_sgs_21112.yaml for the underlying acquisition. This does NOT mean
+  UCI/South-German individual records get joined to this context - see
+  docs/business_rules.md and docs/assumptions_and_limitations.md: macro
+  context stays macro, and is never used to imply individual-level
+  foreign customers are Brazilian, nor that BCB aggregate series predict
+  any individual synthetic customer's behavior.
 owner: "Finance (conceptual)"
-classification: synthetic_operational
-grain: "one row per series code per reference month"
+classification: public_market_context
+grain: "one row per (source_type, source_id, reference_date)"
 status: draft
-evolution_policy: "Additive only; a new series is a new row set, not a schema change."
+evolution_policy: "Additive only; a new series or shock definition is a new row set, not a schema change."
 format: csv
 
-primary_key: [series_code, reference_date]
+primary_key: [source_type, source_id, reference_date]
 
 foreign_keys: []
 
 columns:
-  - {name: series_code, type: integer, nullable: false, domain: {in_set: [20570, 21112]}, unit: null, temporality: null, sensitivity: public_source, available_for_modeling: false, description: "BCB SGS series code - see data/metadata/source_registry.yaml for what each means. Stored as an integer here (unlike the raw BCB contracts' string-typed columns) because this operational re-expression is read with pandas' default numeric inference, per docs/data_contracts.md."}
+  - {name: source_type, type: categorical, nullable: false, domain: {in_set: [public_bcb_observation, synthetic_shock, derived_index]}, unit: null, temporality: null, sensitivity: technical_metadata, available_for_modeling: false, description: "Row-level provenance marker - the mechanism that keeps real and synthetic context from being silently mixed. 'public_bcb_observation' = unmodified BCB SGS value; 'synthetic_shock' = an injected macro shock for a stress scenario (not produced in Phase 4A); 'derived_index' = a value computed from either, with its own documented formula."}
+  - {name: source_id, type: string, nullable: false, domain: null, unit: null, temporality: null, sensitivity: technical_metadata, available_for_modeling: false, description: "Which concrete source this row came from - a BCB source id (e.g. 'bcb-sgs-20570', matching data/metadata/source_registry.yaml) when source_type=public_bcb_observation, or an opaque synthetic-scenario/derivation identifier otherwise."}
+  - {name: series_code, type: integer, nullable: true, domain: {in_set: [20570, 21112]}, unit: null, temporality: null, sensitivity: public_source, available_for_modeling: false, description: "BCB SGS series code - see data/metadata/source_registry.yaml. Null when source_type is not public_bcb_observation (a synthetic shock or derived index need not map to a real BCB series)."}
   - {name: reference_date, type: date, nullable: false, domain: null, unit: null, temporality: snapshot_date, sensitivity: public_source, available_for_modeling: false, description: "Calendar month this observation refers to."}
-  - {name: value, type: decimal, nullable: false, domain: null, unit: "series-specific - see data/metadata/source_registry.yaml", temporality: null, sensitivity: public_source, available_for_modeling: true, description: "Numeric value for this series and month. Unlike the raw BCB contracts, this operational re-expression may store a parsed numeric value once a transformation phase exists - not done in this phase."}
-  - {name: source, type: string, nullable: false, domain: {in_set: [bcb_sgs]}, unit: null, temporality: null, sensitivity: technical_metadata, available_for_modeling: false, description: "Provenance tag - always 'bcb_sgs' in this phase's scope."}
-  - {name: retrieved_at, type: timestamp, nullable: false, domain: null, unit: null, temporality: ingested_at, sensitivity: technical_metadata, available_for_modeling: false, description: "When the underlying BCB observation was retrieved - traceable back to data/metadata/file_manifest.csv."}
+  - {name: value, type: decimal, nullable: false, domain: null, unit: null, temporality: null, sensitivity: public_source, available_for_modeling: true, description: "Numeric value for this series/shock/index and month, parsed to a real number at this operational grain (unlike the raw BCB contracts, which keep the original string)."}
+  - {name: unit, type: string, nullable: false, domain: null, unit: null, temporality: null, sensitivity: technical_metadata, available_for_modeling: false, description: "Unit of `value` for this row (e.g. 'currency_unit millions', 'percent', 'index_points') - explicit per row rather than assumed constant for the whole table."}
+  - {name: is_synthetic, type: boolean, nullable: false, domain: null, unit: null, temporality: null, sensitivity: technical_metadata, available_for_modeling: false, description: "Redundant, explicit marker (matches the pattern in generation_runs.is_synthetic) so no downstream query can silently drop the real/synthetic distinction even if it ignores source_type. Must be false when source_type=public_bcb_observation and true otherwise, see business_rules."}
+  - {name: retrieved_at, type: timestamp, nullable: true, domain: null, unit: null, temporality: ingested_at, sensitivity: technical_metadata, available_for_modeling: false, description: "For a real observation: when the underlying BCB value was retrieved, traceable back to data/metadata/file_manifest.csv. For a synthetic/derived row: null here: use generation_runs.generated_at via the run that produced it instead (not yet linked by FK in Phase 4A - macro rows are not tagged with generation_run_id because the same real BCB context is shared read-only context across runs, not a per-run artifact)."}
 
 uniqueness_rules:
-  - {name: series_month_unique, columns: [series_code, reference_date], severity: error}
+  - {name: source_reference_unique, columns: [source_type, source_id, reference_date], severity: error}
 
-business_rules: []
+business_rules:
+  - {code: macro_context_provenance_consistent, description: "is_synthetic must be false and series_code non-null when source_type=public_bcb_observation; is_synthetic must be true when source_type is synthetic_shock or derived_index.", severity: error}
 
 strict_unexpected_columns: true

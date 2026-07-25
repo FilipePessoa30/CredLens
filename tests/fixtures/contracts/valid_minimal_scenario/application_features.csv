@@ -1,0 +1,4 @@
+application_id,declared_income,debt_to_income,employment_months,relationship_months,bureau_score_bucket,requested_amount,requested_term_months,feature_snapshot_at
+app-001,3000,0.2,24,0,medium,1000,12,2024-01-02T10:00:00Z
+app-002,1500,0.5,3,0,low,500,6,2024-01-06T10:00:00Z
+app-003,4000,0.3,36,12,high,2000,12,2024-01-11T10:00:00Z

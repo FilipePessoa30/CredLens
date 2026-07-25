@@ -1,0 +1,2 @@
+payment_id,customer_id,contract_id,payment_timestamp,amount,channel,status,settlement_date,reversal_of_payment_id
+pay-001,cust-001,ctr-001,2024-02-02T09:00:00Z,50,app,settled,2024-02-02,

@@ -66,6 +66,11 @@ Legend: **Generic** = enforced automatically for any contract from its YAML sche
 | `delinquency_bucket` consistent with `dpd` | Financial | **Implemented** | `dpd_matches_bucket` (CredLens bucket convention - see `docs/metric_semantics.md`). |
 | `cumulative_paid` non-decreasing (absent a documented reversal) | Financial | **Implemented, `warning` severity** | `cumulative_paid_non_decreasing` |
 | `cumulative_write_off` non-decreasing | Financial | **Implemented, `error` severity** | `cumulative_write_off_non_decreasing` |
+| No snapshot exists after a contract's status is first observed as terminal | Temporal | **Implemented (Phase 4A)** | `no_snapshot_after_terminal_status` - the fix that replaced the Phase 3 fixture's `DPD=999` sentinel; see `docs/adr/0009-dpd-sentinel-removal.md`. |
+| `cumulative_paid` reconciles against the payments/allocations ledger | Financial | **Implemented (Phase 4A)** | `snapshot_cumulative_paid_reconciled` - closes the Phase 3-declared gap ("cumulative_paid is not reconciled against payments"). |
+| `total_balance` reconciles against installments/payments/allocations, net of write-off | Financial | **Implemented (Phase 4A)** | `snapshot_balance_reconciled_with_ledger` |
+| `cumulative_write_off` reconciles against `write_off_events` | Financial | **Implemented (Phase 4A)** | `snapshot_write_off_reconciled` |
+| `dpd` reconciles against installments' real due dates (never a sentinel) | Financial | **Implemented (Phase 4A)** | `snapshot_dpd_reconciled_with_installments` - the mechanical rejection of a fabricated DPD like the old `999`. |
 
 ## Collections and write-off
 
@@ -86,6 +91,12 @@ Legend: **Generic** = enforced automatically for any contract from its YAML sche
 | Observation dates strictly increasing (chunking-boundary regression) | **Implemented** | `bcb_dates_strictly_increasing` - see `docs/data_contracts.md` for the real bug this automates the regression test for. |
 | `EDUCATION`/`MARRIAGE` values within UCI's documented domain | **Implemented (generic)** | `uci_default_credit.yaml` column domains - see `docs/data_quality_audit.md` for the finding this automates. |
 
+## Macro/market context (Phase 4A)
+
+| Rule | Category | Status | Code / mechanism |
+|---|---|---|---|
+| `is_synthetic`/`series_code` agree with `source_type` | Relational | **Implemented (Phase 4A)** | `macro_context_provenance_consistent` - see `docs/adr/0008-macro-context-provenance.md`. |
+
 ## Summary
 
-Of the rules named across this phase's brief, **22 are implemented as real, dispatchable business-rule functions** (`registry.KNOWN_BUSINESS_RULE_CODES` - verified by running `len(KNOWN_BUSINESS_RULE_CODES)`, not estimated), plus the generic schema-driven checks (nullability, domain, PK, FK, uniqueness, CPF-pattern) that apply to every contract automatically. **3 are explicitly specified but not yet automated** (policy-window overlap across rows, full state-transition replay, installment-status/balance consistency) - each is named above and cross-referenced to the document explaining why, rather than silently assumed to be covered.
+As of Phase 3, **22 rules were implemented as real, dispatchable business-rule functions**. Phase 4A added **6 more** (`no_snapshot_after_terminal_status`, the four `snapshot_*_reconciled` ledger-reconciliation rules, and `macro_context_provenance_consistent`), bringing the total to **28** (`registry.KNOWN_BUSINESS_RULE_CODES` - verified by running `len(KNOWN_BUSINESS_RULE_CODES)`, not estimated), plus the generic schema-driven checks (nullability, domain, PK, FK, uniqueness, CPF-pattern) that apply to every contract automatically. **3 are explicitly specified but not yet automated** (policy-window overlap across rows, full state-transition replay, installment-status/balance consistency) - each is named above and cross-referenced to the document explaining why, rather than silently assumed to be covered.

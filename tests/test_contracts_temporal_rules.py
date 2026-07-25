@@ -338,4 +338,5 @@ def test_rules_registry_contains_every_function() -> None:
         "reversal_references_earlier_payment",
         "policy_validity_window_not_inverted",
         "bcb_dates_strictly_increasing",
+        "no_snapshot_after_terminal_status",
     }

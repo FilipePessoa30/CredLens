@@ -1,0 +1,2 @@
+recovery_id,contract_id,write_off_id,recovery_date,amount,channel,source
+rec-001,ctr-002,wo-001,2024-07-01,50,collections_agent,internal

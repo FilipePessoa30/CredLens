@@ -221,7 +221,7 @@ def test_known_business_rule_codes_is_union_of_all_rule_modules() -> None:
         **TEMPORAL_RULES,
         **FINANCIAL_RULES,
     }
-    assert len(KNOWN_BUSINESS_RULE_CODES) == 22
+    assert len(KNOWN_BUSINESS_RULE_CODES) == 28  # 22 (Phase 3) + 6 (Phase 4A conceptual fixes)
 
 
 def test_every_real_contracts_business_rule_code_is_known() -> None:

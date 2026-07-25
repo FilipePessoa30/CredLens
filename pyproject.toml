@@ -1,7 +1,7 @@
 [project]
 name = "credlens"
-version = "0.3.0"
-description = "CredLens - Credit Risk & Portfolio Analytics. Project scaffolding, business framing, a CLI, reproducible public-dataset acquisition/audit, conceptual data model, and data contracts."
+version = "0.4.0"
+description = "CredLens - Credit Risk & Portfolio Analytics. Project scaffolding, business framing, a CLI, reproducible public-dataset acquisition/audit, conceptual data model, data contracts, and a deterministic baseline synthetic-portfolio generator."
 readme = "README.md"
 license = { text = "MIT" }
 requires-python = ">=3.11"
@@ -26,12 +26,22 @@ classifiers = [
 # of the hand-written validation code the Phase 1/2 dataclass-based pattern
 # would need here - see docs/data_contracts.md. Actual DATA rows are still
 # validated with vectorized pandas operations, not per-row Pydantic models
-# (see docs/adr/0006-audit-vs-strict-validation.md).
+# (see docs/adr/0006-audit-vs-strict-validation.md). Phase 4A (the baseline
+# synthetic generator) adds two more: numpy, for np.random.SeedSequence-based
+# reproducible, independently-derived RNG substreams per generation step (see
+# docs/synthetic_generation_implementation.md) - pandas alone has no
+# equivalent substream mechanism; and pyarrow, so pandas can write/read
+# Parquet (the columnar, typed output format generated tables use) without
+# depending on a full analytical engine (DuckDB, etc.) this phase doesn't
+# need. Neither is used for modeling - no scikit-learn/XGBoost/LightGBM/SHAP
+# is added, per this phase's explicit scope.
 dependencies = [
   "pyyaml>=6.0,<7",
   "requests>=2.31,<3",
   "pandas>=2.2,<3",
   "pydantic>=2.6,<3",
+  "numpy>=1.26,<3",
+  "pyarrow>=16,<19",
 ]
 
 [project.urls]

@@ -27,7 +27,7 @@ Handling rules this convention commits to:
 - **Multiple overdue installments**: DPD uses the **oldest** (largest days-overdue) obligation, not a sum - a contract with three overdue installments has one DPD number, driven by the earliest of the three.
 - **No overdue obligation**: DPD is 0 (not null) - `account_monthly_snapshots.dpd` is `nullable: false` for exactly this reason.
 
-This is implemented today only as the **bucket-consistency check** `dpd_matches_bucket` (`src/credlens/contracts/financial_rules.py`) - it verifies a stored `dpd`/`delinquency_bucket` pair are mutually consistent under the bucket convention below; it does not (yet) compute `dpd` from `installments`, because no generator populates `installments`/`account_monthly_snapshots` together yet.
+As of Phase 3 this was implemented only as the **bucket-consistency check** `dpd_matches_bucket` (`src/credlens/contracts/financial_rules.py`) - verifying a stored `dpd`/`delinquency_bucket` pair are mutually consistent, without computing `dpd` from `installments` (no generator existed yet to populate `installments`/`account_monthly_snapshots` together). **As of Phase 4A, the full formula above is implemented twice, independently**: once inside the generator itself (`credlens.generation.snapshots.compute_dpd`, deriving `dpd` from the in-memory ledger as it simulates each month), and once as an output-side reconciliation rule (`snapshot_dpd_reconciled_with_installments`, reconstructing the same formula from `installments`/`payments`/`payment_allocations` alone). This is also the mechanical fix for the Phase 3 fixture's `DPD=999` sentinel - see `docs/adr/0009-dpd-sentinel-removal.md`.
 
 ### DPD buckets (CredLens convention, inclusive on both ends)
 

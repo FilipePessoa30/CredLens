@@ -1,0 +1,3 @@
+source_type,source_id,series_code,reference_date,value,unit,is_synthetic,retrieved_at
+public_bcb_observation,bcb-sgs-20570,20570,2024-01-01,2000000,currency_unit millions,False,2024-02-01T00:00:00Z
+public_bcb_observation,bcb-sgs-21112,21112,2024-01-01,5.2,percent,False,2024-02-01T00:00:00Z
