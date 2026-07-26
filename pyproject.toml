@@ -1,7 +1,7 @@
 [project]
 name = "credlens"
-version = "0.7.0"
-description = "CredLens - Credit Risk & Portfolio Analytics. Project scaffolding, business framing, a CLI, reproducible public-dataset acquisition/audit, conceptual data model, data contracts, a deterministic, performance-optimized synthetic-portfolio generator with counterfactual scenarios and common random numbers, a DuckDB + dbt analytical warehouse with a dimensional schema, SQL KPIs, and quality tests, and a reproducible portfolio-analysis layer with bilingual reporting."
+version = "0.8.0"
+description = "CredLens - Credit Risk & Portfolio Analytics. Project scaffolding, business framing, a CLI, reproducible public-dataset acquisition/audit, conceptual data model, data contracts, a deterministic, performance-optimized synthetic-portfolio generator with counterfactual scenarios and common random numbers, a DuckDB + dbt analytical warehouse with a dimensional schema, SQL KPIs, and quality tests, a reproducible portfolio-analysis layer with bilingual reporting, and a Streamlit decision-intelligence dashboard with a verifiable insights registry and a versioned demo package."
 readme = "README.md"
 license = { text = "MIT" }
 requires-python = ">=3.11"
@@ -80,6 +80,31 @@ warehouse = [
 analysis = [
     "matplotlib>=3.11.1",
 ]
+# Phase 7's case-study notebook (notebooks/credit_portfolio_case_study.ipynb)
+# is a thin, read-only viewer over reports/portfolio_analysis/ - it needs a
+# real Jupyter kernel to execute end-to-end (not just to be opened by a
+# reader's own environment), which the base/analysis extras deliberately do
+# not pull in (Phase 6 kept the analysis CLI notebook-free). Version resolved
+# via `uv add --optional notebook jupyter nbconvert ipykernel`, pinned in
+# uv.lock. Install with `uv sync --extra analysis --extra notebook`.
+notebook = [
+    "jupyter>=1.1.1",
+    "nbconvert>=7.16.6",
+    "ipykernel>=6.30.1",
+]
+# Phase 7's Streamlit dashboard (dashboard/, src/credlens/dashboard/) is a
+# thin PRESENTATION layer over already-validated marts/reports - Streamlit
+# and its interactive-plotting dependency are deliberately an optional
+# extra, never a core runtime dependency, for the same reason warehouse/
+# analysis are optional: a large, fast-moving dependency tree that would
+# otherwise bloat every install of the base package. Version resolved via
+# `uv add --optional dashboard streamlit plotly`, pinned in uv.lock. Install
+# with `uv sync --extra warehouse --extra analysis --extra dashboard`.
+dashboard = [
+    "streamlit>=1.51.0",
+    "plotly>=6.0.0",
+    "kaleido>=0.2.1",
+]
 
 [dependency-groups]
 dev = [
@@ -155,3 +180,10 @@ show_error_codes = true
 [[tool.mypy.overrides]]
 module = "tests.*"
 disallow_untyped_defs = false
+
+# plotly and streamlit (Phase 7 dashboard extra) ship no inline type
+# annotations/py.typed marker - dashboard code that calls into them is
+# still checked itself, only the third-party call boundary is silenced.
+[[tool.mypy.overrides]]
+module = ["plotly.*", "streamlit.*"]
+ignore_missing_imports = true

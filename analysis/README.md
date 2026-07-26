@@ -50,8 +50,18 @@ full analytical architecture.
 
 ## Scope
 
-Out of scope for this layer, per the Phase 6 brief: dashboards, trained
-predictive models, cutoff optimization, profit/LGD/EAD/regulatory-PD
-calculations, and any definitive real-world policy recommendation. Every
-output is a result of a synthetic data-generation process (DGP), never a
-claim about a real financial institution.
+Out of scope for this layer, per the Phase 6 brief: trained predictive
+models, cutoff optimization, profit/LGD/EAD/regulatory-PD calculations,
+and any definitive real-world policy recommendation. Every output is a
+result of a synthetic data-generation process (DGP), never a claim about
+a real financial institution.
+
+Phase 7 added `credlens.analysis.sample_policy` (three-tier minimum-
+sample classification), `credlens.analysis.data_provenance` (five-
+category source classification), `credlens.analysis.robustness`
+(multi-scenario multi-seed sweep), and `credlens.analysis.insights` (the
+generated, versioned insights registry) - still no business logic beyond
+what already lived here, and still no dashboard. The dashboard itself
+(`src/credlens/dashboard/`, `dashboard/`) is a separate, presentation-only
+layer that reuses everything in this package rather than duplicating it -
+see `dashboard/README.md`.

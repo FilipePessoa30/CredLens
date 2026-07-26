@@ -1,0 +1,790 @@
+version: 1
+generated_by: credlens.analysis.insights.generate_insights
+count: 25
+insights:
+- insight_id: INS-FUN-001
+  question_id: FUN-01
+  title: Baseline credit funnel
+  statement:
+    en: In the baseline scenario, 7,488 applications were submitted, 7,106 were decisioned, 4,081 were
+      approved (57.43% approval rate) and 3,478 were booked (85.22% of approved).
+    pt_br: No cenario baseline, 7,488 solicitacoes foram enviadas, 7,106 foram decididas, 4,081 foram
+      aprovadas (57.43% de taxa de aprovacao) e 3,478 foram contratadas (85.22% das aprovadas).
+  statement_type: observed_synthetic_result
+  baseline_value: 7488.0
+  compared_value: 3478.0
+  delta: -4010.0
+  unit: count
+  period: 2024-01-01 to 2024-12-01
+  grain: run_id x submitted_month x channel, summed for the whole suite period
+  filters:
+    scenario: baseline
+  scenario: baseline
+  seed_or_seeds: SUITE_sample_2026
+  sample_size: 7106
+  sample_classification: adequate
+  dbt_model: mart_credit_funnel_monthly
+  query: credlens.analysis.metrics.funnel_monthly
+  evidence_table: reports/portfolio_analysis/tables/funnel_monthly.csv
+  figure: reports/portfolio_analysis/figures/credit_funnel.png
+  build_id: BUILD_kpi_test
+  warehouse_fingerprint: a891dff7f62b3ff48eba09fbde07acffd075c18273d8cc4ca0fc73f05a8911cd
+  analysis_id: ANALYSIS_BUILD_kpi_test_20260726T183443Z
+  provenance_classification: synthetic_scenario
+  limitation: Counts only; no revenue/cost weighting of the funnel stages (see analysis/questions.yml
+    FUN-01).
+  validation_status: validated
+- insight_id: INS-COMP-002
+  question_id: COMP-01
+  title: Baseline outstanding balance trajectory
+  statement:
+    en: Baseline outstanding balance moved from 55,160.15 to 5,556,650.17 synthetic monetary units across
+      the observed period (1,266 active contracts at the final snapshot).
+    pt_br: O saldo em aberto do baseline foi de 55,160.15 para 5,556,650.17 unidades monetarias sinteticas
+      ao longo do periodo observado (1,266 contratos ativos no ultimo snapshot).
+  statement_type: observed_synthetic_result
+  baseline_value: 55160.15
+  compared_value: 5556650.17
+  delta: 5501490.02
+  unit: synthetic_monetary_units
+  period: 2024-01-31 to 2024-12-31
+  grain: run_id x snapshot_date (STOCK)
+  filters:
+    scenario: baseline
+  scenario: baseline
+  seed_or_seeds: SUITE_sample_2026
+  sample_size: 1266
+  sample_classification: adequate
+  dbt_model: mart_portfolio_monthly
+  query: credlens.analysis.metrics.portfolio_monthly
+  evidence_table: reports/portfolio_analysis/tables/portfolio_monthly.csv
+  figure: reports/portfolio_analysis/figures/outstanding_balance_over_time.png
+  build_id: BUILD_kpi_test
+  warehouse_fingerprint: a891dff7f62b3ff48eba09fbde07acffd075c18273d8cc4ca0fc73f05a8911cd
+  analysis_id: ANALYSIS_BUILD_kpi_test_20260726T183443Z
+  provenance_classification: synthetic_scenario
+  limitation: Synthetic monetary units; no real BRL purchasing-power context (see analysis/questions.yml
+    COMP-01).
+  validation_status: validated
+- insight_id: INS-DEL-003
+  question_id: DEL-01
+  title: Baseline PAR30 at final snapshot
+  statement:
+    en: At the final observed snapshot, baseline PAR30 was 17.77% of outstanding balance (263 of 1,343
+      contracts).
+    pt_br: No ultimo snapshot observado, o PAR30 do baseline foi de 17.77% do saldo em aberto (263 de
+      1,343 contratos).
+  statement_type: observed_synthetic_result
+  baseline_value: null
+  compared_value: 0.1776638693812175
+  delta: null
+  unit: fraction_of_balance
+  period: '2024-12-31'
+  grain: run_id x snapshot_date
+  filters:
+    scenario: baseline
+  scenario: baseline
+  seed_or_seeds: SUITE_sample_2026
+  sample_size: 1343
+  sample_classification: adequate
+  dbt_model: mart_delinquency_monthly
+  query: credlens.analysis.metrics.delinquency_monthly
+  evidence_table: reports/portfolio_analysis/tables/delinquency_monthly.csv
+  figure: reports/portfolio_analysis/figures/par_curves.png
+  build_id: BUILD_kpi_test
+  warehouse_fingerprint: a891dff7f62b3ff48eba09fbde07acffd075c18273d8cc4ca0fc73f05a8911cd
+  analysis_id: ANALYSIS_BUILD_kpi_test_20260726T183443Z
+  provenance_classification: synthetic_scenario
+  limitation: Balance-weighted rate at one snapshot date, not a trend (see analysis/questions.yml DEL-01).
+  validation_status: validated
+- insight_id: INS-DEL-004
+  question_id: DEL-01
+  title: Baseline PAR60 at final snapshot
+  statement:
+    en: At the final observed snapshot, baseline PAR60 was 9.89% of outstanding balance (151 of 1,343
+      contracts).
+    pt_br: No ultimo snapshot observado, o PAR60 do baseline foi de 9.89% do saldo em aberto (151 de 1,343
+      contratos).
+  statement_type: observed_synthetic_result
+  baseline_value: null
+  compared_value: 0.0988963391949506
+  delta: null
+  unit: fraction_of_balance
+  period: '2024-12-31'
+  grain: run_id x snapshot_date
+  filters:
+    scenario: baseline
+  scenario: baseline
+  seed_or_seeds: SUITE_sample_2026
+  sample_size: 1343
+  sample_classification: adequate
+  dbt_model: mart_delinquency_monthly
+  query: credlens.analysis.metrics.delinquency_monthly
+  evidence_table: reports/portfolio_analysis/tables/delinquency_monthly.csv
+  figure: reports/portfolio_analysis/figures/par_curves.png
+  build_id: BUILD_kpi_test
+  warehouse_fingerprint: a891dff7f62b3ff48eba09fbde07acffd075c18273d8cc4ca0fc73f05a8911cd
+  analysis_id: ANALYSIS_BUILD_kpi_test_20260726T183443Z
+  provenance_classification: synthetic_scenario
+  limitation: Balance-weighted rate at one snapshot date, not a trend (see analysis/questions.yml DEL-01).
+  validation_status: validated
+- insight_id: INS-DEL-005
+  question_id: DEL-01
+  title: Baseline PAR90 at final snapshot
+  statement:
+    en: At the final observed snapshot, baseline PAR90 was 5.02% of outstanding balance (87 of 1,343 contracts).
+    pt_br: No ultimo snapshot observado, o PAR90 do baseline foi de 5.02% do saldo em aberto (87 de 1,343
+      contratos).
+  statement_type: observed_synthetic_result
+  baseline_value: null
+  compared_value: 0.0502204046435408
+  delta: null
+  unit: fraction_of_balance
+  period: '2024-12-31'
+  grain: run_id x snapshot_date
+  filters:
+    scenario: baseline
+  scenario: baseline
+  seed_or_seeds: SUITE_sample_2026
+  sample_size: 1343
+  sample_classification: adequate
+  dbt_model: mart_delinquency_monthly
+  query: credlens.analysis.metrics.delinquency_monthly
+  evidence_table: reports/portfolio_analysis/tables/delinquency_monthly.csv
+  figure: reports/portfolio_analysis/figures/par_curves.png
+  build_id: BUILD_kpi_test
+  warehouse_fingerprint: a891dff7f62b3ff48eba09fbde07acffd075c18273d8cc4ca0fc73f05a8911cd
+  analysis_id: ANALYSIS_BUILD_kpi_test_20260726T183443Z
+  provenance_classification: synthetic_scenario
+  limitation: Balance-weighted rate at one snapshot date, not a trend (see analysis/questions.yml DEL-01).
+  validation_status: validated
+- insight_id: INS-CUR-006
+  question_id: CUR-01
+  title: Baseline cure rate (period average)
+  statement:
+    en: Baseline's monthly cure rate averaged 23.60% across the observed period (mart_delinquency_monthly.cure_rate).
+    pt_br: A taxa de cura mensal do baseline foi, em media, 23.60% ao longo do periodo observado (mart_delinquency_monthly.cure_rate).
+  statement_type: observed_synthetic_result
+  baseline_value: null
+  compared_value: 0.2360263614244172
+  delta: null
+  unit: fraction
+  period: 2024-01-31 to 2024-12-31
+  grain: run_id x snapshot_date, averaged across months
+  filters:
+    scenario: baseline
+  scenario: baseline
+  seed_or_seeds: SUITE_sample_2026
+  sample_size: 1343
+  sample_classification: adequate
+  dbt_model: mart_delinquency_monthly
+  query: credlens.analysis.metrics.delinquency_monthly
+  evidence_table: reports/portfolio_analysis/tables/delinquency_monthly.csv
+  figure: reports/portfolio_analysis/figures/cure_and_relapse.png
+  build_id: BUILD_kpi_test
+  warehouse_fingerprint: a891dff7f62b3ff48eba09fbde07acffd075c18273d8cc4ca0fc73f05a8911cd
+  analysis_id: ANALYSIS_BUILD_kpi_test_20260726T183443Z
+  provenance_classification: synthetic_scenario
+  limitation: A simple mean of a monthly rate, not weighted by delinquent population.
+  validation_status: validated
+- insight_id: INS-VIN-007
+  question_id: VIN-01
+  title: Baseline roll-forward rate from current
+  statement:
+    en: Of 3,410 current-bucket contract-months observed in baseline, 23.64% rolled forward into a delinquent
+      bucket the following month (mart_roll_rates).
+    pt_br: Dos 3,410 contrato-meses no bucket 'current' observados no baseline, 23.64% avancaram para
+      um bucket de atraso no mes seguinte (mart_roll_rates).
+  statement_type: observed_synthetic_result
+  baseline_value: null
+  compared_value: 0.23636363636363633
+  delta: null
+  unit: fraction
+  period: Whole suite period
+  grain: run_id x snapshot_date x from_bucket x to_bucket, summed
+  filters:
+    scenario: baseline
+    from_bucket: current
+  scenario: baseline
+  seed_or_seeds: SUITE_sample_2026
+  sample_size: 3410
+  sample_classification: adequate
+  dbt_model: mart_roll_rates
+  query: credlens.analysis.metrics.roll_rates
+  evidence_table: reports/portfolio_analysis/tables/roll_rates.csv
+  figure: reports/portfolio_analysis/figures/roll_rate_heatmap.png
+  build_id: BUILD_kpi_test
+  warehouse_fingerprint: a891dff7f62b3ff48eba09fbde07acffd075c18273d8cc4ca0fc73f05a8911cd
+  analysis_id: ANALYSIS_BUILD_kpi_test_20260726T183443Z
+  provenance_classification: synthetic_scenario
+  limitation: Aggregated across the whole period, not month-by-month.
+  validation_status: validated
+- insight_id: INS-VIN-008
+  question_id: VIN-01
+  title: Baseline vintage 90+ incidence at MOB 0
+  statement:
+    en: Across cohorts that have all reached month-on-book 0, 0.00% of 1,649 contracts were 90+ DPD (mart_vintage_cohorts,
+      comparable-MOB only).
+    pt_br: Entre as coortes que atingiram o mes-na-carteira 0, 0.00% de 1,649 contratos estavam com 90+
+      dias de atraso (mart_vintage_cohorts, apenas MOB comparavel).
+  statement_type: observed_synthetic_result
+  baseline_value: null
+  compared_value: 0.0
+  delta: null
+  unit: fraction
+  period: months_on_book = 0
+  grain: run_id x vintage_month x months_on_book
+  filters:
+    scenario: baseline
+    months_on_book: 0
+  scenario: baseline
+  seed_or_seeds: SUITE_sample_2026
+  sample_size: 1649
+  sample_classification: adequate
+  dbt_model: mart_vintage_cohorts
+  query: credlens.analysis.metrics.vintage_cohorts
+  evidence_table: reports/portfolio_analysis/tables/vintage_cohorts.csv
+  figure: reports/portfolio_analysis/figures/vintage_curves.png
+  build_id: BUILD_kpi_test
+  warehouse_fingerprint: a891dff7f62b3ff48eba09fbde07acffd075c18273d8cc4ca0fc73f05a8911cd
+  analysis_id: ANALYSIS_BUILD_kpi_test_20260726T183443Z
+  provenance_classification: synthetic_scenario
+  limitation: Only cohorts that have reached this MOB are compared (analysis/questions.yml VIN-01/VIN-02).
+  validation_status: validated
+- insight_id: INS-CUR-009
+  question_id: CUR-02
+  title: Baseline redefault (relapse) rate
+  statement:
+    en: Of 257 baseline contracts that ever cured, 107 later redefaulted (41.63%).
+    pt_br: Dos 257 contratos do baseline que ja curaram, 107 posteriormente reincidiram (41.63%).
+  statement_type: observed_synthetic_result
+  baseline_value: 257.0
+  compared_value: 107.0
+  delta: -150.0
+  unit: count_and_fraction
+  period: Whole suite period
+  grain: run_id x contract_key
+  filters:
+    scenario: baseline
+  scenario: baseline
+  seed_or_seeds: SUITE_sample_2026
+  sample_size: 257
+  sample_classification: adequate
+  dbt_model: mart_cure_and_redefault
+  query: credlens.analysis.metrics.cure_and_redefault
+  evidence_table: reports/portfolio_analysis/tables/cure_and_redefault.csv
+  figure: reports/portfolio_analysis/figures/cure_and_relapse.png
+  build_id: BUILD_kpi_test
+  warehouse_fingerprint: a891dff7f62b3ff48eba09fbde07acffd075c18273d8cc4ca0fc73f05a8911cd
+  analysis_id: ANALYSIS_BUILD_kpi_test_20260726T183443Z
+  provenance_classification: synthetic_scenario
+  limitation: warehouse/analyses/redefault_rate.sql is the canonical aggregate query.
+  validation_status: validated
+- insight_id: INS-COL-010
+  question_id: COL-01
+  title: Baseline write-off total
+  statement:
+    en: Baseline wrote off 237,562.61 synthetic monetary units across 51 contracts.
+    pt_br: O baseline baixou 237,562.61 unidades monetarias sinteticas em 51 contratos.
+  statement_type: observed_synthetic_result
+  baseline_value: null
+  compared_value: 237562.61
+  delta: null
+  unit: synthetic_monetary_units
+  period: Whole suite period
+  grain: run_id x write_off_month, summed
+  filters:
+    scenario: baseline
+  scenario: baseline
+  seed_or_seeds: SUITE_sample_2026
+  sample_size: 51
+  sample_classification: limited
+  dbt_model: mart_writeoff_recovery
+  query: credlens.analysis.metrics.writeoff_recovery
+  evidence_table: reports/portfolio_analysis/tables/writeoff_recovery.csv
+  figure: reports/portfolio_analysis/figures/writeoff_and_recovery.png
+  build_id: BUILD_kpi_test
+  warehouse_fingerprint: a891dff7f62b3ff48eba09fbde07acffd075c18273d8cc4ca0fc73f05a8911cd
+  analysis_id: ANALYSIS_BUILD_kpi_test_20260726T183443Z
+  provenance_classification: synthetic_scenario
+  limitation: No LGD/EAD modeling - a DGP configuration outcome, not a real loss estimate.
+  validation_status: validated
+- insight_id: INS-COL-011
+  question_id: COL-01
+  title: Baseline recovery total and rate
+  statement:
+    en: Baseline recovered 3,027.89 synthetic monetary units against 237,562.61 written off (1.27% recovery
+      rate).
+    pt_br: O baseline recuperou 3,027.89 unidades monetarias sinteticas contra 237,562.61 baixados (1.27%
+      de taxa de recuperacao).
+  statement_type: observed_synthetic_result
+  baseline_value: 237562.61
+  compared_value: 3027.89
+  delta: -234534.71999999997
+  unit: synthetic_monetary_units
+  period: Whole suite period
+  grain: run_id x write_off_month, summed
+  filters:
+    scenario: baseline
+  scenario: baseline
+  seed_or_seeds: SUITE_sample_2026
+  sample_size: 51
+  sample_classification: limited
+  dbt_model: mart_writeoff_recovery
+  query: credlens.analysis.metrics.writeoff_recovery
+  evidence_table: reports/portfolio_analysis/tables/writeoff_recovery.csv
+  figure: reports/portfolio_analysis/figures/writeoff_and_recovery.png
+  build_id: BUILD_kpi_test
+  warehouse_fingerprint: a891dff7f62b3ff48eba09fbde07acffd075c18273d8cc4ca0fc73f05a8911cd
+  analysis_id: ANALYSIS_BUILD_kpi_test_20260726T183443Z
+  provenance_classification: synthetic_scenario
+  limitation: recovery_rate reflects the DGP's own configured recovery-probability rule, not a real collections
+    operation's performance.
+  validation_status: validated
+- insight_id: INS-SCN-012
+  question_id: FUN-03
+  title: policy_expansion vs. baseline approval rate
+  statement:
+    en: policy_expansion's approval rate was 88.32% vs. 57.43% for baseline (delta +30.89%).
+    pt_br: A taxa de aprovacao de policy_expansion foi 88.32% vs. 57.43% do baseline (delta +30.89%).
+  statement_type: scenario_comparison
+  baseline_value: 0.5743034055727554
+  compared_value: 0.8831972980579792
+  delta: 0.3088938924852238
+  unit: fraction
+  period: Whole run
+  grain: suite_id x scenario
+  filters:
+    scenario: policy_expansion
+  scenario: policy_expansion
+  seed_or_seeds: SUITE_sample_2026
+  sample_size: null
+  sample_classification: null
+  dbt_model: mart_scenario_comparison
+  query: credlens.analysis.metrics.scenario_comparison
+  evidence_table: reports/portfolio_analysis/tables/scenario_comparison.csv
+  figure: reports/portfolio_analysis/figures/policy_scenario_comparison.png
+  build_id: BUILD_kpi_test
+  warehouse_fingerprint: a891dff7f62b3ff48eba09fbde07acffd075c18273d8cc4ca0fc73f05a8911cd
+  analysis_id: ANALYSIS_BUILD_kpi_test_20260726T183443Z
+  provenance_classification: synthetic_scenario
+  limitation: Single suite/seed - see the multi-seed robustness insights for run-to-run variability.
+  validation_status: validated
+- insight_id: INS-SCN-013
+  question_id: FUN-03
+  title: policy_tightening vs. baseline approval rate
+  statement:
+    en: policy_tightening's approval rate was 21.84% vs. 57.43% for baseline (delta -35.59%).
+    pt_br: A taxa de aprovacao de policy_tightening foi 21.84% vs. 57.43% do baseline (delta -35.59%).
+  statement_type: scenario_comparison
+  baseline_value: 0.5743034055727554
+  compared_value: 0.2184069800168871
+  delta: -0.3558964255558682
+  unit: fraction
+  period: Whole run
+  grain: suite_id x scenario
+  filters:
+    scenario: policy_tightening
+  scenario: policy_tightening
+  seed_or_seeds: SUITE_sample_2026
+  sample_size: null
+  sample_classification: null
+  dbt_model: mart_scenario_comparison
+  query: credlens.analysis.metrics.scenario_comparison
+  evidence_table: reports/portfolio_analysis/tables/scenario_comparison.csv
+  figure: reports/portfolio_analysis/figures/policy_scenario_comparison.png
+  build_id: BUILD_kpi_test
+  warehouse_fingerprint: a891dff7f62b3ff48eba09fbde07acffd075c18273d8cc4ca0fc73f05a8911cd
+  analysis_id: ANALYSIS_BUILD_kpi_test_20260726T183443Z
+  provenance_classification: synthetic_scenario
+  limitation: Single suite/seed - see the multi-seed robustness insights for run-to-run variability.
+  validation_status: validated
+- insight_id: INS-SCN-014
+  question_id: SCN-01
+  title: collections_change vs. baseline approval rate
+  statement:
+    en: collections_change's approval rate was 57.43% vs. 57.43% for baseline (delta +0.00%).
+    pt_br: A taxa de aprovacao de collections_change foi 57.43% vs. 57.43% do baseline (delta +0.00%).
+  statement_type: scenario_comparison
+  baseline_value: 0.5743034055727554
+  compared_value: 0.5743034055727554
+  delta: 0.0
+  unit: fraction
+  period: Whole run
+  grain: suite_id x scenario
+  filters:
+    scenario: collections_change
+  scenario: collections_change
+  seed_or_seeds: SUITE_sample_2026
+  sample_size: null
+  sample_classification: null
+  dbt_model: mart_scenario_comparison
+  query: credlens.analysis.metrics.scenario_comparison
+  evidence_table: reports/portfolio_analysis/tables/scenario_comparison.csv
+  figure: reports/portfolio_analysis/figures/policy_scenario_comparison.png
+  build_id: BUILD_kpi_test
+  warehouse_fingerprint: a891dff7f62b3ff48eba09fbde07acffd075c18273d8cc4ca0fc73f05a8911cd
+  analysis_id: ANALYSIS_BUILD_kpi_test_20260726T183443Z
+  provenance_classification: synthetic_scenario
+  limitation: Single suite/seed - see the multi-seed robustness insights for run-to-run variability.
+  validation_status: validated
+- insight_id: INS-SCN-015
+  question_id: SCN-02
+  title: Macro stress PAR90 delta - pre_shock
+  statement:
+    en: During the pre-shock period, macroeconomic_stress's PAR90 was 0.2085% vs. baseline's 0.2085% (delta
+      +0.0000%).
+    pt_br: No periodo pre-shock, o PAR90 de macroeconomic_stress foi 0.2085% vs. 0.2085% do baseline (delta
+      +0.0000%).
+  statement_type: scenario_comparison
+  baseline_value: 0.0020848409922422
+  compared_value: 0.0020848409922422
+  delta: 0.0
+  unit: fraction_of_balance
+  period: pre_shock
+  grain: suite_id x period
+  filters:
+    scenario: macroeconomic_stress
+    period: pre_shock
+  scenario: macroeconomic_stress
+  seed_or_seeds: SUITE_sample_2026
+  sample_size: null
+  sample_classification: null
+  dbt_model: mart_macro_stress_pre_post
+  query: credlens.analysis.metrics.macro_stress_pre_post
+  evidence_table: reports/portfolio_analysis/tables/macro_stress_pre_post.csv
+  figure: reports/portfolio_analysis/figures/macro_stress_pre_post.png
+  build_id: BUILD_kpi_test
+  warehouse_fingerprint: a891dff7f62b3ff48eba09fbde07acffd075c18273d8cc4ca0fc73f05a8911cd
+  analysis_id: ANALYSIS_BUILD_kpi_test_20260726T183443Z
+  provenance_classification: synthetic_scenario
+  limitation: Pre-shock delta is expected to be ~0 by CRN design (warehouse/tests/assert_pre_shock_period_identical_across_scenarios.sql);
+    single suite/seed.
+  validation_status: validated
+- insight_id: INS-SCN-016
+  question_id: SCN-02
+  title: Macro stress PAR90 delta - post_shock
+  statement:
+    en: During the post-shock period, macroeconomic_stress's PAR90 was 10.1512% vs. baseline's 4.5600%
+      (delta +5.5912%).
+    pt_br: No periodo post-shock, o PAR90 de macroeconomic_stress foi 10.1512% vs. 4.5600% do baseline
+      (delta +5.5912%).
+  statement_type: scenario_comparison
+  baseline_value: 0.0455995727946886
+  compared_value: 0.1015117936160436
+  delta: 0.055912220821355
+  unit: fraction_of_balance
+  period: post_shock
+  grain: suite_id x period
+  filters:
+    scenario: macroeconomic_stress
+    period: post_shock
+  scenario: macroeconomic_stress
+  seed_or_seeds: SUITE_sample_2026
+  sample_size: null
+  sample_classification: null
+  dbt_model: mart_macro_stress_pre_post
+  query: credlens.analysis.metrics.macro_stress_pre_post
+  evidence_table: reports/portfolio_analysis/tables/macro_stress_pre_post.csv
+  figure: reports/portfolio_analysis/figures/macro_stress_pre_post.png
+  build_id: BUILD_kpi_test
+  warehouse_fingerprint: a891dff7f62b3ff48eba09fbde07acffd075c18273d8cc4ca0fc73f05a8911cd
+  analysis_id: ANALYSIS_BUILD_kpi_test_20260726T183443Z
+  provenance_classification: synthetic_scenario
+  limitation: Pre-shock delta is expected to be ~0 by CRN design (warehouse/tests/assert_pre_shock_period_identical_across_scenarios.sql);
+    single suite/seed.
+  validation_status: validated
+- insight_id: INS-ROBUST-017
+  question_id: SCN-03
+  title: collections_change multi-seed robustness (cure_rate)
+  statement:
+    en: Across 10 seeds (5970001-5970010) at smoke scale, collections_change's cure_rate moved in the
+      expected direction (increase) in 80% of seeds (mean delta +0.0628, stdev 0.0583, 2 inversion(s)).
+    pt_br: Em 10 seeds (5970001-5970010) na escala smoke, cure_rate de collections_change moveu-se na
+      direcao esperada (increase) em 80% das seeds (delta medio +0.0628, desvio padrao 0.0583, 2 inversao(oes)).
+  statement_type: analytical_inference
+  baseline_value: null
+  compared_value: 0.8
+  delta: 0.062802
+  unit: fraction_of_seeds
+  period: 5970001-5970010
+  grain: scenario x seed, smoke scale
+  filters:
+    scenario: collections_change
+    scale: smoke
+  scenario: collections_change
+  seed_or_seeds: 5970001-5970010 (n=10)
+  sample_size: 10
+  sample_classification: null
+  dbt_model: null
+  query: credlens.analysis.robustness.full_robustness_sweep
+  evidence_table: reports/synthetic_validation/multiseed_robustness.json
+  figure: null
+  build_id: BUILD_kpi_test
+  warehouse_fingerprint: a891dff7f62b3ff48eba09fbde07acffd075c18273d8cc4ca0fc73f05a8911cd
+  analysis_id: ANALYSIS_BUILD_kpi_test_20260726T183443Z
+  provenance_classification: synthetic_scenario
+  limitation: Variability across synthetic DGP runs / Variabilidade entre execucoes do DGP sintetico -
+    NEVER a statistical confidence interval. Generation-layer metric, not a rebuilt warehouse per seed.
+  validation_status: validated
+- insight_id: INS-ROBUST-018
+  question_id: SCN-03
+  title: macroeconomic_stress multi-seed robustness (dpd30_plus_rate)
+  statement:
+    en: Across 10 seeds (5970001-5970010) at smoke scale, macroeconomic_stress's dpd30_plus_rate moved
+      in the expected direction (increase) in 100% of seeds (mean delta +0.1513, stdev 0.0464, 0 inversion(s)).
+    pt_br: Em 10 seeds (5970001-5970010) na escala smoke, dpd30_plus_rate de macroeconomic_stress moveu-se
+      na direcao esperada (increase) em 100% das seeds (delta medio +0.1513, desvio padrao 0.0464, 0 inversao(oes)).
+  statement_type: analytical_inference
+  baseline_value: null
+  compared_value: 1.0
+  delta: 0.151312
+  unit: fraction_of_seeds
+  period: 5970001-5970010
+  grain: scenario x seed, smoke scale
+  filters:
+    scenario: macroeconomic_stress
+    scale: smoke
+  scenario: macroeconomic_stress
+  seed_or_seeds: 5970001-5970010 (n=10)
+  sample_size: 10
+  sample_classification: null
+  dbt_model: null
+  query: credlens.analysis.robustness.full_robustness_sweep
+  evidence_table: reports/synthetic_validation/multiseed_robustness.json
+  figure: null
+  build_id: BUILD_kpi_test
+  warehouse_fingerprint: a891dff7f62b3ff48eba09fbde07acffd075c18273d8cc4ca0fc73f05a8911cd
+  analysis_id: ANALYSIS_BUILD_kpi_test_20260726T183443Z
+  provenance_classification: synthetic_scenario
+  limitation: Variability across synthetic DGP runs / Variabilidade entre execucoes do DGP sintetico -
+    NEVER a statistical confidence interval. Generation-layer metric, not a rebuilt warehouse per seed.
+  validation_status: validated
+- insight_id: INS-ROBUST-019
+  question_id: SCN-03
+  title: policy_expansion multi-seed robustness (approval_rate)
+  statement:
+    en: Across 10 seeds (5970001-5970010) at smoke scale, policy_expansion's approval_rate moved in the
+      expected direction (increase) in 100% of seeds (mean delta +0.3144, stdev 0.0131, 0 inversion(s)).
+    pt_br: Em 10 seeds (5970001-5970010) na escala smoke, approval_rate de policy_expansion moveu-se na
+      direcao esperada (increase) em 100% das seeds (delta medio +0.3144, desvio padrao 0.0131, 0 inversao(oes)).
+  statement_type: analytical_inference
+  baseline_value: null
+  compared_value: 1.0
+  delta: 0.314392
+  unit: fraction_of_seeds
+  period: 5970001-5970010
+  grain: scenario x seed, smoke scale
+  filters:
+    scenario: policy_expansion
+    scale: smoke
+  scenario: policy_expansion
+  seed_or_seeds: 5970001-5970010 (n=10)
+  sample_size: 10
+  sample_classification: null
+  dbt_model: null
+  query: credlens.analysis.robustness.full_robustness_sweep
+  evidence_table: reports/synthetic_validation/multiseed_robustness.json
+  figure: null
+  build_id: BUILD_kpi_test
+  warehouse_fingerprint: a891dff7f62b3ff48eba09fbde07acffd075c18273d8cc4ca0fc73f05a8911cd
+  analysis_id: ANALYSIS_BUILD_kpi_test_20260726T183443Z
+  provenance_classification: synthetic_scenario
+  limitation: Variability across synthetic DGP runs / Variabilidade entre execucoes do DGP sintetico -
+    NEVER a statistical confidence interval. Generation-layer metric, not a rebuilt warehouse per seed.
+  validation_status: validated
+- insight_id: INS-ROBUST-020
+  question_id: SCN-03
+  title: policy_tightening multi-seed robustness (approval_rate)
+  statement:
+    en: Across 10 seeds (5970001-5970010) at smoke scale, policy_tightening's approval_rate moved in the
+      expected direction (decrease) in 100% of seeds (mean delta -0.3637, stdev 0.0223, 0 inversion(s)).
+    pt_br: Em 10 seeds (5970001-5970010) na escala smoke, approval_rate de policy_tightening moveu-se
+      na direcao esperada (decrease) em 100% das seeds (delta medio -0.3637, desvio padrao 0.0223, 0 inversao(oes)).
+  statement_type: analytical_inference
+  baseline_value: null
+  compared_value: 1.0
+  delta: -0.363689
+  unit: fraction_of_seeds
+  period: 5970001-5970010
+  grain: scenario x seed, smoke scale
+  filters:
+    scenario: policy_tightening
+    scale: smoke
+  scenario: policy_tightening
+  seed_or_seeds: 5970001-5970010 (n=10)
+  sample_size: 10
+  sample_classification: null
+  dbt_model: null
+  query: credlens.analysis.robustness.full_robustness_sweep
+  evidence_table: reports/synthetic_validation/multiseed_robustness.json
+  figure: null
+  build_id: BUILD_kpi_test
+  warehouse_fingerprint: a891dff7f62b3ff48eba09fbde07acffd075c18273d8cc4ca0fc73f05a8911cd
+  analysis_id: ANALYSIS_BUILD_kpi_test_20260726T183443Z
+  provenance_classification: synthetic_scenario
+  limitation: Variability across synthetic DGP runs / Variabilidade entre execucoes do DGP sintetico -
+    NEVER a statistical confidence interval. Generation-layer metric, not a rebuilt warehouse per seed.
+  validation_status: validated
+- insight_id: INS-BMK-021
+  question_id: SCN-04
+  title: 'Public source profile: bcb-sgs-20570'
+  statement:
+    en: bcb-sgs-20570 (Brazil, aggregate banking system, 2015-present (monthly)) has 137 rows and 2 columns
+      - a real public source, structurally profiled and kept separate from the synthetic portfolio.
+    pt_br: bcb-sgs-20570 (Brazil, aggregate banking system, 2015-present (monthly)) tem 137 linhas e 2
+      colunas - uma fonte publica real, perfilada estruturalmente e mantida separada da carteira sintetica.
+  statement_type: public_benchmark_description
+  baseline_value: null
+  compared_value: 137.0
+  delta: null
+  unit: count
+  period: 2015-present (monthly)
+  grain: source_id
+  filters:
+    source_id: bcb-sgs-20570
+  scenario: null
+  seed_or_seeds: n/a
+  sample_size: 137
+  sample_classification: null
+  dbt_model: null
+  query: credlens.analysis.benchmark.profile_public_sources
+  evidence_table: n/a (profiled directly from data/raw/ at analysis time)
+  figure: public_benchmark_overview
+  build_id: BUILD_kpi_test
+  warehouse_fingerprint: a891dff7f62b3ff48eba09fbde07acffd075c18273d8cc4ca0fc73f05a8911cd
+  analysis_id: ANALYSIS_BUILD_kpi_test_20260726T183443Z
+  provenance_classification: public_market_context
+  limitation: Structural profile only - never merged with the synthetic portfolio, never treated as a
+    CredLens result.
+  validation_status: validated
+- insight_id: INS-BMK-022
+  question_id: SCN-04
+  title: 'Public source profile: bcb-sgs-21112'
+  statement:
+    en: bcb-sgs-21112 (Brazil, aggregate banking system, 2015-present (monthly)) has 137 rows and 2 columns
+      - a real public source, structurally profiled and kept separate from the synthetic portfolio.
+    pt_br: bcb-sgs-21112 (Brazil, aggregate banking system, 2015-present (monthly)) tem 137 linhas e 2
+      colunas - uma fonte publica real, perfilada estruturalmente e mantida separada da carteira sintetica.
+  statement_type: public_benchmark_description
+  baseline_value: null
+  compared_value: 137.0
+  delta: null
+  unit: count
+  period: 2015-present (monthly)
+  grain: source_id
+  filters:
+    source_id: bcb-sgs-21112
+  scenario: null
+  seed_or_seeds: n/a
+  sample_size: 137
+  sample_classification: null
+  dbt_model: null
+  query: credlens.analysis.benchmark.profile_public_sources
+  evidence_table: n/a (profiled directly from data/raw/ at analysis time)
+  figure: public_benchmark_overview
+  build_id: BUILD_kpi_test
+  warehouse_fingerprint: a891dff7f62b3ff48eba09fbde07acffd075c18273d8cc4ca0fc73f05a8911cd
+  analysis_id: ANALYSIS_BUILD_kpi_test_20260726T183443Z
+  provenance_classification: public_market_context
+  limitation: Structural profile only - never merged with the synthetic portfolio, never treated as a
+    CredLens result.
+  validation_status: validated
+- insight_id: INS-BMK-023
+  question_id: SCN-04
+  title: 'Public source profile: south-german-credit'
+  statement:
+    en: south-german-credit (Credit applicants, Germany, 1973-1975 (correction/republication donated 2019))
+      has 1,000 rows and 21 columns - a real public source, structurally profiled and kept separate from
+      the synthetic portfolio.
+    pt_br: south-german-credit (Credit applicants, Germany, 1973-1975 (correction/republication donated
+      2019)) tem 1,000 linhas e 21 colunas - uma fonte publica real, perfilada estruturalmente e mantida
+      separada da carteira sintetica.
+  statement_type: public_benchmark_description
+  baseline_value: null
+  compared_value: 1000.0
+  delta: null
+  unit: count
+  period: 1973-1975 (correction/republication donated 2019)
+  grain: source_id
+  filters:
+    source_id: south-german-credit
+  scenario: null
+  seed_or_seeds: n/a
+  sample_size: 1000
+  sample_classification: null
+  dbt_model: null
+  query: credlens.analysis.benchmark.profile_public_sources
+  evidence_table: n/a (profiled directly from data/raw/ at analysis time)
+  figure: public_benchmark_overview
+  build_id: BUILD_kpi_test
+  warehouse_fingerprint: a891dff7f62b3ff48eba09fbde07acffd075c18273d8cc4ca0fc73f05a8911cd
+  analysis_id: ANALYSIS_BUILD_kpi_test_20260726T183443Z
+  provenance_classification: public_benchmark
+  limitation: Structural profile only - never merged with the synthetic portfolio, never treated as a
+    CredLens result.
+  validation_status: validated
+- insight_id: INS-BMK-024
+  question_id: SCN-04
+  title: 'Public source profile: uci-default-credit'
+  statement:
+    en: uci-default-credit (Credit card clients, Taiwan, 2005) has 30,000 rows and 25 columns - a real
+      public source, structurally profiled and kept separate from the synthetic portfolio.
+    pt_br: uci-default-credit (Credit card clients, Taiwan, 2005) tem 30,000 linhas e 25 colunas - uma
+      fonte publica real, perfilada estruturalmente e mantida separada da carteira sintetica.
+  statement_type: public_benchmark_description
+  baseline_value: null
+  compared_value: 30000.0
+  delta: null
+  unit: count
+  period: '2005'
+  grain: source_id
+  filters:
+    source_id: uci-default-credit
+  scenario: null
+  seed_or_seeds: n/a
+  sample_size: 30000
+  sample_classification: null
+  dbt_model: null
+  query: credlens.analysis.benchmark.profile_public_sources
+  evidence_table: n/a (profiled directly from data/raw/ at analysis time)
+  figure: public_benchmark_overview
+  build_id: BUILD_kpi_test
+  warehouse_fingerprint: a891dff7f62b3ff48eba09fbde07acffd075c18273d8cc4ca0fc73f05a8911cd
+  analysis_id: ANALYSIS_BUILD_kpi_test_20260726T183443Z
+  provenance_classification: public_benchmark
+  limitation: Structural profile only - never merged with the synthetic portfolio, never treated as a
+    CredLens result.
+  validation_status: validated
+- insight_id: INS-OOS-025
+  question_id: null
+  title: Portfolio profitability - not computed
+  statement:
+    en: Revenue, cost of funds, contribution margin, and expected loss (PD x EAD x LGD) are NOT computed
+      anywhere in this project - see docs/roadmap.md phase 9. Any profitability claim would be unsupported
+      by current data.
+    pt_br: Receita, custo de captacao, margem de contribuicao e perda esperada (PD x EAD x LGD) NAO sao
+      calculados em nenhum lugar deste projeto - ver docs/roadmap.md fase 9. Qualquer alegacao de rentabilidade
+      seria sem sustentacao nos dados atuais.
+  statement_type: unsupported
+  baseline_value: null
+  compared_value: null
+  delta: null
+  unit: n/a
+  period: n/a
+  grain: n/a
+  filters: {}
+  scenario: null
+  seed_or_seeds: n/a
+  sample_size: null
+  sample_classification: null
+  dbt_model: null
+  query: n/a
+  evidence_table: n/a
+  figure: null
+  build_id: BUILD_kpi_test
+  warehouse_fingerprint: a891dff7f62b3ff48eba09fbde07acffd075c18273d8cc4ca0fc73f05a8911cd
+  analysis_id: ANALYSIS_BUILD_kpi_test_20260726T183443Z
+  provenance_classification: synthetic_operational
+  limitation: Explicitly out of scope through Phase 7 - see docs/roadmap.md.
+  validation_status: unsupported

@@ -40,11 +40,16 @@ _SCENARIO_COLORS = {
 }
 
 
-def _watermark(fig: Any) -> None:
+def _watermark(fig: Any, text: str | None = None) -> None:
+    """Stamps a provenance watermark on a figure. Defaults to the
+    synthetic-data notice (every chart in this module used to hardcode
+    that text unconditionally, including `public_benchmark_overview` -
+    a REAL public dataset chart - Phase 7 gate C fixes that by letting
+    `_save` pass an explicit, provenance-correct override)."""
     fig.text(
         0.99,
         0.01,
-        "Synthetic data - CredLens DGP, not a real institution",
+        text or "Synthetic data - CredLens DGP, not a real institution",
         ha="right",
         va="bottom",
         fontsize=7,
@@ -58,9 +63,9 @@ def _new_fig(figsize: tuple[float, float] = (9, 5)) -> tuple[Any, Any]:
     return fig, ax
 
 
-def _save(fig: Any, output_path: Path) -> Path:
+def _save(fig: Any, output_path: Path, watermark_text: str | None = None) -> Path:
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    _watermark(fig)
+    _watermark(fig, watermark_text)
     fig.tight_layout()
     fig.savefig(output_path, dpi=150)
     plt.close(fig)
@@ -333,14 +338,36 @@ def quality_provenance_scorecard(manifest_summary: dict[str, Any], output_path: 
 
 
 def public_benchmark_overview(profiles: list[dict[str, Any]], output_path: Path) -> Path:
-    """Row counts of the public benchmark sources, kept visually and
-    numerically separate from every synthetic-operational chart above."""
+    """Row/observation counts of the public sources, kept visually and
+    numerically separate from every synthetic chart above - REAL public
+    data (UCI/South German Credit/BCB SGS), never watermarked
+    "Synthetic data" (Phase 7 gate C fixed this: every chart in this
+    module used to get that watermark unconditionally via `_save`).
+    Mixes two provenance categories (public_benchmark row counts vs.
+    public_market_context time-series observation counts) on one bar
+    chart for compactness - the methodological note below states plainly
+    that the two are not directly comparable counts."""
     labels = [p["source_id"] for p in profiles]
     values = [p["num_rows"] for p in profiles]
     fig, ax = _new_fig((7, 4))
     ax.bar(labels, values, color=_PALETTE["reddish_purple"])
-    ax.set_ylabel("Rows")
-    ax.set_title("Public Benchmark Sources - Row Counts (REAL public data, not synthetic)")
+    ax.set_ylabel("Rows / observations (not a single comparable unit - see note below)")
+    ax.set_title("Public Sources Overview - Row/Observation Counts (REAL public data)")
     ax.set_xticks(range(len(labels)))
     ax.set_xticklabels(labels, rotation=20, ha="right", fontsize=8)
-    return _save(fig, output_path)
+    fig.text(
+        0.01,
+        0.01,
+        "Note: combines public_benchmark (UCI, South German Credit) and "
+        "public_market_context (BCB SGS) sources; counts are not directly comparable.",
+        ha="left",
+        va="bottom",
+        fontsize=6,
+        color="#666666",
+        style="italic",
+    )
+    return _save(
+        fig,
+        output_path,
+        watermark_text="Public benchmark data - separate from the synthetic portfolio",
+    )

@@ -20,15 +20,35 @@ from pathlib import Path
 
 from credlens.generation.suite import generate_suite
 
-# The one or two metrics each scenario is EXPECTED (by this synthetic DGP's
-# own documented design, not by any real-world claim) to move in a
-# consistent direction - see docs/counterfactual_scenarios.md section
-# "targets and tolerances" for the reasoning behind each entry.
+# The metrics each scenario is EXPECTED (by this synthetic DGP's own
+# documented design, not by any real-world claim) to move in a consistent
+# direction - see docs/counterfactual_scenarios.md section "targets and
+# tolerances" for the reasoning behind each entry. Phase 6 only declared
+# one metric per scenario; Phase 7 gate A adds the other metrics each
+# scenario's own design already implies a direction for (e.g.
+# policy_expansion approving more applicants must also book more
+# contracts), so multi-seed robustness can report "fraction of seeds in
+# expected direction" for more than a single metric per scenario.
 EXPECTED_DIRECTIONS: dict[str, dict[str, str]] = {
-    "policy_expansion": {"approval_rate": "increase"},
-    "policy_tightening": {"approval_rate": "decrease"},
-    "macroeconomic_stress": {"dpd90_plus_rate": "increase"},
-    "collections_change": {"cure_rate": "increase"},
+    "policy_expansion": {
+        "approval_rate": "increase",
+        "n_approved": "increase",
+        "n_contracts": "increase",
+    },
+    "policy_tightening": {
+        "approval_rate": "decrease",
+        "n_approved": "decrease",
+        "n_contracts": "decrease",
+    },
+    "macroeconomic_stress": {
+        "dpd90_plus_rate": "increase",
+        "dpd30_plus_rate": "increase",
+        "write_off_rate": "increase",
+    },
+    "collections_change": {
+        "cure_rate": "increase",
+        "total_recovery_amount": "increase",
+    },
 }
 
 

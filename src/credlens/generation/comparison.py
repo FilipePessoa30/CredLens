@@ -38,6 +38,11 @@ class ScenarioMetrics:
     write_off_rate: float
     n_recoveries: int
     n_collection_events: int
+    # Monetary totals (Phase 7 gate A) - added so multi-seed robustness can
+    # track write-off/recovery AMOUNT, not just event counts, across
+    # scenarios/seeds. Synthetic monetary units - see docs/glossary.md.
+    total_write_off_amount: float
+    total_recovery_amount: float
     avg_latent_propensity_of_approved: float | None
 
     def to_dict(self) -> dict[str, object]:
@@ -58,6 +63,8 @@ class ScenarioMetrics:
             "write_off_rate": round(self.write_off_rate, 6),
             "n_recoveries": self.n_recoveries,
             "n_collection_events": self.n_collection_events,
+            "total_write_off_amount": round(self.total_write_off_amount, 2),
+            "total_recovery_amount": round(self.total_recovery_amount, 2),
             "avg_latent_propensity_of_approved": (
                 round(self.avg_latent_propensity_of_approved, 6)
                 if self.avg_latent_propensity_of_approved is not None
@@ -108,6 +115,16 @@ def compute_metrics(
     write_off_rate = n_write_offs / n_contracts if n_contracts else 0.0
     n_recoveries = len(recoveries)
     n_collection_events = len(collections)
+    total_write_off_amount = (
+        float(pd.to_numeric(write_offs["amount"], errors="coerce").sum())
+        if not write_offs.empty
+        else 0.0
+    )
+    total_recovery_amount = (
+        float(pd.to_numeric(recoveries["amount"], errors="coerce").sum())
+        if not recoveries.empty
+        else 0.0
+    )
 
     avg_latent_propensity_of_approved: float | None = None
     if truth_dir is not None and not contracts.empty:
@@ -137,6 +154,8 @@ def compute_metrics(
         write_off_rate=write_off_rate,
         n_recoveries=n_recoveries,
         n_collection_events=n_collection_events,
+        total_write_off_amount=total_write_off_amount,
+        total_recovery_amount=total_recovery_amount,
         avg_latent_propensity_of_approved=avg_latent_propensity_of_approved,
     )
 
@@ -158,6 +177,17 @@ class MetricComparison:
 
 
 _COMPARABLE_METRICS = (
+    # Counts (Phase 7 gate A additions) - raw deltas double as "marginal
+    # contracts/approvals added or removed" for policy_expansion/
+    # tightening, and as collections-activity volume for
+    # collections_change, without duplicating warehouse-layer business
+    # logic (this reads the same generation-layer parquet already loaded
+    # above, nothing new is computed elsewhere).
+    "n_applications",
+    "n_approved",
+    "n_contracts",
+    "n_collection_events",
+    # Rates (Phase 4B/6 original set).
     "approval_rate",
     "booking_rate",
     "dpd30_plus_rate",
@@ -165,6 +195,9 @@ _COMPARABLE_METRICS = (
     "dpd90_plus_rate",
     "cure_rate",
     "write_off_rate",
+    # Monetary totals (Phase 7 gate A additions).
+    "total_write_off_amount",
+    "total_recovery_amount",
 )
 
 

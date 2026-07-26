@@ -100,6 +100,13 @@ Thumbs.db
 *.log
 logs/
 
+# --- Jupyter (Phase 7 notebook extra) ---
+# Checkpoint files and an ad hoc executed-notebook copy are transient
+# evidence of a `jupyter nbconvert --execute` run, never the source
+# notebook itself (notebooks/*.ipynb IS versioned).
+.ipynb_checkpoints/
+*_executed.ipynb
+
 # --- Warehouse (Phase 5: DuckDB + dbt) ---
 # warehouse/ itself (SQL/YAML/macros/seeds/analyses/tests) IS versioned -
 # only dbt's own generated/compiled artifacts and the rendered profile

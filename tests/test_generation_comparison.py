@@ -43,6 +43,25 @@ class TestComputeMetrics:
         assert metrics.n_applications == 0
         assert metrics.approval_rate == 0.0
         assert metrics.n_contracts == 0
+        assert metrics.total_write_off_amount == 0.0
+        assert metrics.total_recovery_amount == 0.0
+
+    def test_monetary_totals_are_non_negative_and_consistent_with_counts(
+        self, a_real_run: Path
+    ) -> None:
+        metrics = compute_metrics("RUN_test", a_real_run)
+        assert metrics.total_write_off_amount >= 0.0
+        assert metrics.total_recovery_amount >= 0.0
+        if metrics.n_write_offs == 0:
+            assert metrics.total_write_off_amount == 0.0
+        if metrics.n_recoveries == 0:
+            assert metrics.total_recovery_amount == 0.0
+
+    def test_to_dict_includes_monetary_totals(self, a_real_run: Path) -> None:
+        metrics = compute_metrics("RUN_test", a_real_run)
+        d = metrics.to_dict()
+        assert "total_write_off_amount" in d
+        assert "total_recovery_amount" in d
 
 
 class TestCompareMetrics:

@@ -50,7 +50,10 @@ questions:
     segmentations: [channel, scenario]
     temporal_window: "Whole suite period, summed across months per (run, channel)."
     maturity_criteria: "None."
-    limitations: "Suppressed/low_sample-flagged below MIN_SEGMENT_OBSERVATIONS=10 decisioned applications."
+    limitations: >
+      Classified insufficient/limited/adequate by credlens.analysis.sample_policy
+      (Phase 7 gate B: n<30 insufficient - never ranked/recommended; 30<=n<100
+      limited - descriptive only; n>=100 adequate) rather than a flat cutoff.
     status: answered
     evidence:
       query_function: credlens.analysis.metrics.funnel_by_channel_and_scenario
@@ -109,8 +112,9 @@ questions:
     limitations: >
       region is sourced from stg_fairness_attributes, an EVALUATION-ONLY field
       (docs/fairness_data_design.md); used here strictly as an aggregate audit
-      breakdown, never joined into any decisioning path. Suppressed/flagged
-      below MIN_SEGMENT_OBSERVATIONS=10 contracts.
+      breakdown, never joined into any decisioning path. Classified insufficient/
+      limited/adequate by credlens.analysis.sample_policy (Phase 7 gate B: n<30
+      insufficient, 30<=n<100 limited, n>=100 adequate).
     status: answered
     evidence:
       query_function: credlens.analysis.metrics.portfolio_by_region_and_channel
@@ -127,7 +131,9 @@ questions:
     segmentations: [policy_version_id, scenario]
     temporal_window: "Whole run."
     maturity_criteria: "None."
-    limitations: "Suppressed/flagged below MIN_SEGMENT_OBSERVATIONS=10 decisions."
+    limitations: >
+      Classified insufficient/limited/adequate by credlens.analysis.sample_policy
+      (Phase 7 gate B: n<30 insufficient, 30<=n<100 limited, n>=100 adequate).
     status: answered
     evidence:
       query_function: credlens.analysis.metrics.policy_version_comparison
@@ -344,7 +350,10 @@ questions:
     segmentations: [scenario]
     temporal_window: "Each run's own final snapshot_date, matched by application_id (not contract_id)."
     maturity_criteria: "None; both runs' final snapshot_date used directly."
-    limitations: "low_sample-flagged below MIN_SEGMENT_OBSERVATIONS=10 in either the shared or marginal group."
+    limitations: >
+      Classified insufficient/limited/adequate (least favorable of the shared/
+      marginal groups) by credlens.analysis.sample_policy (Phase 7 gate B:
+      n<30 insufficient, 30<=n<100 limited, n>=100 adequate).
     status: answered
     evidence:
       query_function: credlens.analysis.scenarios.composition_vs_performance
@@ -374,24 +383,42 @@ questions:
     question_en: "How stable are scenario deltas across multiple seeds (simulation variability)?"
     stakeholder: "Model Risk / Analytics Engineering"
     decision_supported: "Reading whether a single-seed delta is directionally robust before citing it."
-    kpis_used: [mean_delta, stdev_delta, fraction_in_expected_direction]
-    models_used: ["credlens.generation.montecarlo.run_monte_carlo (Phase 4B, not a warehouse mart)"]
+    kpis_used:
+      [
+        mean_delta,
+        median_delta,
+        stdev_delta,
+        quantiles,
+        fraction_in_expected_direction,
+        inversions,
+      ]
+    models_used:
+      [
+        "credlens.analysis.robustness (Phase 7 gate A, not a warehouse mart)",
+        "credlens.generation.montecarlo.run_monte_carlo (Phase 4B, underlying mechanism)",
+      ]
     segmentations: [scenario, scale]
-    temporal_window: "Smoke-scale, multiple seeds starting at a non-official start_seed (Phase 6 gate B)."
+    temporal_window: "Smoke-scale, 10 seeds per scenario starting at a non-official start_seed (Phase 6/7 gate B)."
     maturity_criteria: "None."
     limitations: >
-      Explicitly labeled "simulation variability across synthetic DGP seeds" -
-      never a real institution's statistical confidence interval. Optional
-      (--multiseed) - expensive to run, so not part of every analysis run;
-      never run at portfolio scale repeatedly (section 13).
-    status: partially_answered
+      Explicitly labeled "Variability across synthetic DGP runs" / "Variabilidade
+      entre execucoes do DGP sintetico" - never a real institution's statistical
+      confidence interval. Operates at the generation layer (parquet outputs),
+      not by rebuilding a dbt warehouse per seed - richer warehouse-layer metrics
+      (balance-weighted PAR, true roll rates, redefault) are computed once per
+      suite, not swept across seeds (Phase 7 final report states this scope
+      boundary explicitly). Never run at portfolio scale repeatedly (section 13).
+    status: answered
     evidence:
-      query_function: credlens.analysis.multiseed.robustness_across_seeds
-      table: reports/portfolio_analysis/tables/ (only present when --multiseed was used)
+      query_function: credlens.analysis.robustness.full_robustness_sweep
+      table: reports/synthetic_validation/multiseed_robustness.json
       note: >
-        "partially_answered" because this only executes when `credlens
-        analysis run --multiseed` is explicitly requested (it performs real
-        data generation, so it is not run by default or in CI).
+        Phase 6 only ever ran this for macroeconomic_stress, optionally, via
+        `credlens analysis run --multiseed`. Phase 7 gate A closed that gap:
+        a dedicated 10-seed x 4-scenario sweep (policy_expansion,
+        policy_tightening, macroeconomic_stress, collections_change) was run
+        once and persisted to the table above; `--multiseed` on `analysis run`
+        still exists separately for a single scenario embedded in one report.
 
   - id: SCN-04
     category: cenarios

@@ -2,7 +2,7 @@
 
 Build ID: `BUILD_kpi_test` | Suite ID: `SUITE_sample_2026` | Analytical fingerprint: `a891dff7f62b3ff48eba09fbde07acffd075c18273d8cc4ca0fc73f05a8911cd`
 
-dbt version: =1.12.0 | DuckDB version: 1.5.5 | credlens version: 0.6.0 | Python: 3.11.9
+dbt version: =1.12.0 | DuckDB version: 1.5.5 | credlens version: 0.7.0 | Python: 3.11.9
 
 ## 1. Analytical architecture
 See `docs/warehouse_architecture.md` for the full design. This analysis queries only already-materialized marts and staging/intermediate views - no new business logic was implemented in pandas.
@@ -24,20 +24,26 @@ See `docs/warehouse_architecture.md` for the full design. This analysis queries 
 
 
 ## 4. Composition vs. performance (policy)
-**policy_expansion**: {'suite_id': 'SUITE_sample_2026', 'scenario': 'policy_expansion', 'baseline_run_id': 'RUN_baseline_sample_2026_29e3fb70', 'scenario_run_id': 'RUN_policy_expansion_sample_2026_275cb395', 'shared_booked_count': 2935, 'baseline_only_count': 543, 'scenario_only_count': 2384, 'shared_par90': 0.056061631197636026, 'marginal_par90': 0.0683659897195828, 'shared_outstanding_balance': 4656761.04, 'marginal_outstanding_balance': 4067951.64, 'low_sample': False}
+**policy_expansion**: {'suite_id': 'SUITE_sample_2026', 'scenario': 'policy_expansion', 'baseline_run_id': 'RUN_baseline_sample_2026_29e3fb70', 'scenario_run_id': 'RUN_policy_expansion_sample_2026_275cb395', 'shared_booked_count': 2935, 'baseline_only_count': 543, 'scenario_only_count': 2384, 'shared_par90': 0.056061631197636026, 'marginal_par90': 0.0683659897195828, 'shared_outstanding_balance': 4656761.04, 'marginal_outstanding_balance': 4067951.64, 'low_sample': False, 'sample_classification': 'adequate'}
 
-**policy_tightening**: {'suite_id': 'SUITE_sample_2026', 'scenario': 'policy_tightening', 'baseline_run_id': 'RUN_baseline_sample_2026_29e3fb70', 'scenario_run_id': 'RUN_policy_tightening_sample_2026_4aaa4164', 'shared_booked_count': 1119, 'baseline_only_count': 2359, 'scenario_only_count': 200, 'shared_par90': 0.03136479828757316, 'marginal_par90': 0.11929781694834575, 'shared_outstanding_balance': 1846287.34, 'marginal_outstanding_balance': 343865.89, 'low_sample': False}
+**policy_tightening**: {'suite_id': 'SUITE_sample_2026', 'scenario': 'policy_tightening', 'baseline_run_id': 'RUN_baseline_sample_2026_29e3fb70', 'scenario_run_id': 'RUN_policy_tightening_sample_2026_4aaa4164', 'shared_booked_count': 1119, 'baseline_only_count': 2359, 'scenario_only_count': 200, 'shared_par90': 0.03136479828757316, 'marginal_par90': 0.11929781694834575, 'shared_outstanding_balance': 1846287.34, 'marginal_outstanding_balance': 343865.89, 'low_sample': False, 'sample_classification': 'adequate'}
 
 ## 5. Multi-seed robustness
 Scenario: `macroeconomic_stress` | Scale: `smoke` | Seeds: [970001, 970002, 970003, 970004, 970005]
 
+- `n_applications`: mean_delta=0.0000, stdev=0.0000, n_seeds=5, fraction_in_expected_direction=None
+- `n_approved`: mean_delta=0.0000, stdev=0.0000, n_seeds=5, fraction_in_expected_direction=None
+- `n_contracts`: mean_delta=0.0000, stdev=0.0000, n_seeds=5, fraction_in_expected_direction=None
+- `n_collection_events`: mean_delta=53.2000, stdev=4.2615, n_seeds=5, fraction_in_expected_direction=None
 - `approval_rate`: mean_delta=0.0000, stdev=0.0000, n_seeds=5, fraction_in_expected_direction=None
 - `booking_rate`: mean_delta=0.0000, stdev=0.0000, n_seeds=5, fraction_in_expected_direction=None
-- `dpd30_plus_rate`: mean_delta=0.1566, stdev=0.0196, n_seeds=5, fraction_in_expected_direction=None
+- `dpd30_plus_rate`: mean_delta=0.1566, stdev=0.0196, n_seeds=5, fraction_in_expected_direction=1.0
 - `dpd60_plus_rate`: mean_delta=0.1075, stdev=0.0100, n_seeds=5, fraction_in_expected_direction=None
 - `dpd90_plus_rate`: mean_delta=0.0672, stdev=0.0062, n_seeds=5, fraction_in_expected_direction=1.0
 - `cure_rate`: mean_delta=-0.0490, stdev=0.0503, n_seeds=5, fraction_in_expected_direction=None
-- `write_off_rate`: mean_delta=0.0333, stdev=0.0058, n_seeds=5, fraction_in_expected_direction=None
+- `write_off_rate`: mean_delta=0.0333, stdev=0.0058, n_seeds=5, fraction_in_expected_direction=1.0
+- `total_write_off_amount`: mean_delta=18756.3440, stdev=7150.8058, n_seeds=5, fraction_in_expected_direction=None
+- `total_recovery_amount`: mean_delta=0.0000, stdev=0.0000, n_seeds=5, fraction_in_expected_direction=None
 
 _Label: simulation variability across synthetic DGP seeds - never a real institution's statistical confidence interval._
 
@@ -93,8 +99,8 @@ _(showing 20 of 40 rows - see reports/portfolio_analysis/tables/ for the full CS
 - `writeoff_and_recovery` (sha256 fd11a5d61383c0b0...)
 - `policy_scenario_comparison` (sha256 026e171244903fa5...)
 - `macro_stress_pre_post` (sha256 e45b3dbc406dabda...)
-- `multiseed_stability` (sha256 717ff8ad7c4e7c59...)
-- `public_benchmark_overview` (sha256 fef9557678584bce...)
+- `multiseed_stability` (sha256 c468c391f6e15442...)
+- `public_benchmark_overview` (sha256 de0a67a6ef101a87...)
 - `quality_provenance_scorecard` (sha256 57069f618acde3e0...)
 
 ## 10. Reproduction

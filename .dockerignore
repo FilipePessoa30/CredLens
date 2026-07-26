@@ -1,0 +1,31 @@
+# Keep the dashboard demo image small and free of anything not needed for
+# --demo mode (Phase 7). No data/, no .venv, no tests, no warehouse/dbt
+# project, no notebooks, no synthetic-generation/warehouse source.
+.git/
+.github/
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+coverage.xml
+htmlcov/
+
+data/
+warehouse/
+contracts/
+config/
+notebooks/
+docs/
+reports/
+tests/
+scripts/
+
+# Only src/credlens is needed, and within it only what the analysis +
+# dashboard extras import - but excluding at the file level would be
+# fragile, so the Dockerfile COPYs source selectively instead; this
+# .dockerignore just keeps the build context itself small.
+*.md
+!README.md
+!dashboard/README.md

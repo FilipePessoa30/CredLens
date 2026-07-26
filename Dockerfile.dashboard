@@ -1,0 +1,50 @@
+# Optional local container for the CredLens Decision Intelligence Dashboard
+# (Phase 7) - DEMO MODE ONLY. Not a production deployment, not built/pushed
+# anywhere by this project; see dashboard/README.md for the direct
+# `uv run credlens dashboard run --demo` alternative, which needs no Docker
+# at all.
+#
+# Build (from the repository root):
+#   docker build -f Dockerfile.dashboard -t credlens-dashboard-demo .
+# Run:
+#   docker run --rm -p 8501:8501 credlens-dashboard-demo
+# Then open http://localhost:8501 - the demo package baked into the image
+# (dashboard/demo_data/) is the ONLY data source; no data/warehouse/ mount,
+# no network access needed.
+
+FROM python:3.11-slim AS base
+
+# Runtime deps only: build-essential/curl are not needed since uv installs
+# prebuilt wheels; dbt/duckdb (the "warehouse" extra) are deliberately NOT
+# installed - this image only ever serves --demo mode.
+RUN pip install --no-cache-dir uv==0.11.7
+
+WORKDIR /app
+
+COPY pyproject.toml uv.lock README.md ./
+COPY src/ ./src/
+COPY dashboard/ ./dashboard/
+COPY analysis/ ./analysis/
+
+# --extra analysis is needed for credlens.analysis (KPI/insight/provenance
+# logic the dashboard reuses) and --extra dashboard for Streamlit/Plotly -
+# --extra warehouse (dbt-core/dbt-duckdb) is skipped entirely: this image
+# never opens a live warehouse connection.
+RUN uv sync --frozen --no-dev --extra analysis --extra dashboard
+
+# A non-root user - the demo package is read-only data, no reason to run
+# as root.
+RUN useradd --create-home --uid 1000 credlens
+USER credlens
+
+ENV CREDLENS_DASHBOARD_DEMO=1 \
+    CREDLENS_DASHBOARD_DEMO_DIR=/app/dashboard/demo_data \
+    STREAMLIT_SERVER_HEADLESS=true \
+    STREAMLIT_SERVER_ADDRESS=0.0.0.0
+
+EXPOSE 8501
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
+    CMD uv run python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8501/_stcore/health', timeout=3)" || exit 1
+
+CMD ["uv", "run", "streamlit", "run", "dashboard/app.py", "--server.port=8501", "--server.address=0.0.0.0", "--", "--demo"]

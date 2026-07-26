@@ -24,6 +24,8 @@
         "n_recoveries": 0,
         "n_snapshots": 245,
         "n_write_offs": 0,
+        "total_recovery_amount": 0.0,
+        "total_write_off_amount": 0.0,
         "write_off_rate": 0.0
       },
       "config_diff": {
@@ -136,6 +138,30 @@
       ],
       "metric_comparisons": [
         {
+          "baseline_value": 294.0,
+          "candidate_value": 294.0,
+          "delta": 0.0,
+          "metric": "n_applications"
+        },
+        {
+          "baseline_value": 173.0,
+          "candidate_value": 173.0,
+          "delta": 0.0,
+          "metric": "n_approved"
+        },
+        {
+          "baseline_value": 149.0,
+          "candidate_value": 149.0,
+          "delta": 0.0,
+          "metric": "n_contracts"
+        },
+        {
+          "baseline_value": 61.0,
+          "candidate_value": 59.0,
+          "delta": -2.0,
+          "metric": "n_collection_events"
+        },
+        {
           "baseline_value": 0.611307,
           "candidate_value": 0.611307,
           "delta": 0.0,
@@ -176,6 +202,18 @@
           "candidate_value": 0.006711,
           "delta": 0.006711,
           "metric": "write_off_rate"
+        },
+        {
+          "baseline_value": 0.0,
+          "candidate_value": 7259.07,
+          "delta": 7259.07,
+          "metric": "total_write_off_amount"
+        },
+        {
+          "baseline_value": 0.0,
+          "candidate_value": 2320.94,
+          "delta": 2320.94,
+          "metric": "total_recovery_amount"
         }
       ],
       "population_crn_preserved": true,
@@ -211,6 +249,8 @@
         "n_recoveries": 1,
         "n_snapshots": 251,
         "n_write_offs": 1,
+        "total_recovery_amount": 2320.94,
+        "total_write_off_amount": 7259.07,
         "write_off_rate": 0.006711
       }
     }

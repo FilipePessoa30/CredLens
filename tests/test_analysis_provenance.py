@@ -10,7 +10,13 @@ import hashlib
 import json
 from pathlib import Path
 
-from credlens.analysis.provenance import finalize, new_manifest, record_figure, record_table
+from credlens.analysis.provenance import (
+    finalize,
+    new_manifest,
+    record_figure,
+    record_report,
+    record_table,
+)
 from credlens.warehouse.build import BuildManifest
 
 
@@ -116,6 +122,26 @@ class TestRecordTableAndFigure:
 
         expected = hashlib.sha256(figure_path.read_bytes()).hexdigest()
         assert m.figures_written["chart"] == expected
+
+    def test_record_report_hashes_real_file_content(self, tmp_path: Path) -> None:
+        """Phase 7 gate E: reports (executive/technical summaries, the
+        insights registry) get the SAME content-hash treatment
+        tables/figures already have."""
+        build = _fake_build_manifest()
+        m = new_manifest(build, "ANALYSIS_test_0004b")
+        report_path = tmp_path / "executive_summary.md"
+        report_path.write_text("# Executive Summary\n", encoding="utf-8")
+
+        record_report(m, "executive_summary_en", report_path)
+
+        expected = hashlib.sha256(report_path.read_bytes()).hexdigest()
+        assert m.reports_written["executive_summary_en"] == expected
+
+    def test_record_report_missing_file_records_missing(self, tmp_path: Path) -> None:
+        build = _fake_build_manifest()
+        m = new_manifest(build, "ANALYSIS_test_0004c")
+        record_report(m, "does_not_exist", tmp_path / "nope.md")
+        assert m.reports_written["does_not_exist"] == "missing"
 
     def test_two_different_files_hash_differently(self, tmp_path: Path) -> None:
         build = _fake_build_manifest()

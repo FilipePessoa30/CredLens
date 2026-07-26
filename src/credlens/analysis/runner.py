@@ -21,6 +21,7 @@ from credlens.analysis.provenance import (
     finalize,
     new_manifest,
     record_figure,
+    record_report,
     record_table,
 )
 from credlens.analysis.validation import validate_build_for_analysis
@@ -43,6 +44,9 @@ class AnalysisResult:
     manifest: AnalysisManifest
 
 
+_DEFAULT_ROBUSTNESS_REPORT_PATH = Path("reports/synthetic_validation/multiseed_robustness.json")
+
+
 def run_analysis(
     build_id: str,
     output_dir: Path,
@@ -52,6 +56,7 @@ def run_analysis(
     multiseed_seeds: int = 5,
     multiseed_scenario: str = "macroeconomic_stress",
     multiseed_scale: str = "smoke",
+    include_insights: bool = False,
 ) -> AnalysisResult:
     build = validate_build_for_analysis(build_id)
     if build.suite_id is None:
@@ -68,6 +73,7 @@ def run_analysis(
         "multiseed_seeds": multiseed_seeds,
         "multiseed_scenario": multiseed_scenario,
         "multiseed_scale": multiseed_scale,
+        "include_insights": include_insights,
     }
     manifest = new_manifest(build, analysis_id, parameters)
 
@@ -287,12 +293,49 @@ def run_analysis(
     technical_report_en_path.write_text(technical_en, encoding="utf-8")
     technical_report_pt_path.write_text(technical_pt, encoding="utf-8")
 
+    # Phase 7 gate E: every textual report gets a content hash in the
+    # SAME reproducibility fingerprint tables/figures already use - a
+    # previous "identical" run could silently diverge in prose while
+    # every table/figure hash still matched.
+    record_report(manifest, "executive_summary_en", executive_summary_en_path)
+    record_report(manifest, "executive_summary_pt", executive_summary_pt_path)
+    record_report(manifest, "technical_report_en", technical_report_en_path)
+    record_report(manifest, "technical_report_pt", technical_report_pt_path)
+
     any_reconciliation_failed = any(not r["passed"] for r in reconciliation_results)
     finalize(
         manifest, status="success" if not any_reconciliation_failed else "completed_with_warnings"
     )
     manifest_path = output_dir / "manifest.json"
     manifest.write(manifest_path)
+
+    if include_insights:
+        from credlens.analysis.insights import (
+            content_fingerprint,
+            generate_insights,
+            write_insights_registry,
+        )
+
+        try:
+            robustness_path = (
+                _DEFAULT_ROBUSTNESS_REPORT_PATH
+                if _DEFAULT_ROBUSTNESS_REPORT_PATH.is_file()
+                else None
+            )
+            insights = generate_insights(output_dir, robustness_report_path=robustness_path)
+            insights_path = output_dir / "insights.yml"
+            write_insights_registry(insights, insights_path)
+            # Phase 7 gate E: the insights registry embeds a fresh
+            # analysis_id per insight (execution metadata, changes every
+            # invocation by design) - record_report's raw-file hash would
+            # spuriously differ across two otherwise-identical runs, so
+            # this uses content_fingerprint() instead, which excludes it.
+            manifest.reports_written["insights_registry"] = content_fingerprint(insights)
+        except Exception as exc:
+            manifest.warnings.append(
+                f"Insights registry generation failed: {type(exc).__name__}: {exc}"
+            )
+        manifest.write(manifest_path)
 
     return AnalysisResult(
         analysis_id=analysis_id,

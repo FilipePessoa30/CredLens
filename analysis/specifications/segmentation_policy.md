@@ -1,4 +1,4 @@
-# Segmentation Policy (Phase 6 section 11)
+# Segmentation Policy (Phase 6 section 11, revised Phase 7 gate B)
 
 Applies to every segmented breakdown produced by
 `src/credlens/analysis/metrics.py` (funnel by channel, portfolio by
@@ -32,20 +32,36 @@ aggregate `region` breakdown above) are **not** used to recommend credit
 policy in this phase - fairness/bias analysis is out of scope until a
 dedicated phase with its own methodology.
 
-## Minimum-observation threshold
+## Minimum-observation policy (revised Phase 7 gate B)
 
-`MIN_SEGMENT_OBSERVATIONS = 10` (`src/credlens/analysis/metrics.py`).
+Phase 6 used a single flat cutoff, `MIN_SEGMENT_OBSERVATIONS = 10` - judged,
+in Phase 7, too low to sustain executive-facing reading (a 10-observation
+cell is still dominated by single-contract noise). It is replaced by a
+versioned, three-tier policy: `credlens.analysis.sample_policy`, loaded
+from `analysis/specifications/segmentation_policy.yaml`.
 
-**Why 10**: below 10 observations, a single contract's outcome can swing a
-rate by more than 10 percentage points (`1/9 ≈ 11.1%`) - the metric would
-read as more statistically precise than it actually is. This is a
-simplicity-first, defensible floor, not a claim of formal statistical
-power; it exists to prevent a single-digit-observation cell from being read
-as a stable rate.
+| Classification | Condition | Meaning |
+|---|---|---|
+| `insufficient` | `n < insufficient_below` (default 30) | Never ranked, never recommended, never called out as best/worst. The count itself stays visible for audit only. |
+| `limited` | `insufficient_below <= n < limited_below` (default 30-99) | Shown, with a visible caution label; avoid conclusive language. |
+| `adequate` | `n >= limited_below` (default 100) | Shown without a suppression label - a descriptive-adequacy convention, **not** a formal statistical power guarantee. |
 
-**Enforcement**: every segmented query adds a `low_sample: bool` column
-(`row_count < MIN_SEGMENT_OBSERVATIONS`) rather than dropping rows -
-segmentation coverage stays visible in the CSV/JSON output even where the
-metric itself should not be quoted in a headline figure. Reports built from
-these tables (`credlens.analysis.reporting`) must not cite a `low_sample`
-row's rate as a standalone finding.
+**Why 30/100**: 30 is the smallest sample size below which a single
+contract's outcome can still swing a rate by several percentage points
+in a way that reads as more precise than it is; 100 is a conventional,
+easy-to-communicate floor for "large enough to describe without a
+caveat" in an executive setting. Neither is a formal power calculation -
+see `CLASSIFICATION_LABELS` in `credlens.analysis.sample_policy`, which
+is deliberately worded to never claim statistical significance, a
+confidence interval, or a margin of error.
+
+**Enforcement**: every segmented query (`credlens.analysis.metrics`,
+`credlens.analysis.scenarios`) adds both a `low_sample: bool` column (kept
+for backward compatibility, `True` iff `sample_classification ==
+"insufficient"`) and a `sample_classification: "insufficient" | "limited"
+| "adequate"` column, rather than dropping rows - segmentation coverage
+stays visible in the CSV/JSON output even where the metric itself should
+not be quoted in a headline figure. Reports and the dashboard must not
+rank, recommend, or cite an `insufficient` row's rate as a standalone
+finding (`credlens.analysis.sample_policy.is_reportable`); `limited` rows
+may be shown descriptively but never with conclusive language.

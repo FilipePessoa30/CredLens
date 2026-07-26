@@ -419,6 +419,12 @@ def _build_parser() -> argparse.ArgumentParser:
         "--multiseed-seeds", type=int, default=5, help="Number of seeds for --multiseed."
     )
     analysis_run_parser.add_argument(
+        "--insights",
+        action="store_true",
+        help="Also generate the verifiable insights registry (Phase 7 gate D) at "
+        "<output-dir>/insights.yml, hashed into the reproducibility fingerprint (gate E).",
+    )
+    analysis_run_parser.add_argument(
         "--json", action="store_true", help="Emit machine-readable JSON output."
     )
 
@@ -482,6 +488,90 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Where to write the reproduction run (default: <output-dir>_reproduce).",
     )
     analysis_reproduce_parser.add_argument(
+        "--json", action="store_true", help="Emit machine-readable JSON output."
+    )
+
+    dashboard_parser = subparsers.add_parser(
+        "dashboard",
+        help="Streamlit decision-intelligence dashboard: validate a data source, export a "
+        "small demo package, and run the app (Phase 7).",
+    )
+    dashboard_subparsers = dashboard_parser.add_subparsers(dest="dashboard_command")
+
+    dashboard_validate_parser = dashboard_subparsers.add_parser(
+        "validate",
+        help="Check a build or the demo package is safe to display, without launching Streamlit.",
+    )
+    dashboard_validate_group = dashboard_validate_parser.add_mutually_exclusive_group(required=True)
+    dashboard_validate_group.add_argument("--build-id", default=None, help="build_id to validate.")
+    dashboard_validate_group.add_argument(
+        "--demo", action="store_true", help="Validate the demo package instead of a build."
+    )
+    dashboard_validate_parser.add_argument(
+        "--demo-data-dir",
+        default=None,
+        help="Demo package directory (default: dashboard/demo_data).",
+    )
+    dashboard_validate_parser.add_argument(
+        "--json", action="store_true", help="Emit machine-readable JSON output."
+    )
+
+    dashboard_export_demo_parser = dashboard_subparsers.add_parser(
+        "export-demo",
+        help="Build the small, versionable demo aggregate package from a validated "
+        "`credlens analysis run` output directory.",
+    )
+    dashboard_export_demo_parser.add_argument(
+        "--build-id", required=True, help="build_id whose analysis output to export from."
+    )
+    dashboard_export_demo_parser.add_argument(
+        "--analysis-output-dir",
+        default=None,
+        help=f"Analysis output directory to export from (default: {ANALYSIS_OUTPUT_DIR}).",
+    )
+    dashboard_export_demo_parser.add_argument(
+        "--output-dir",
+        default=None,
+        help="Where to write the demo package (default: dashboard/demo_data).",
+    )
+    dashboard_export_demo_parser.add_argument(
+        "--force",
+        action="store_true",
+        help="Overwrite an existing demo package at the same output dir.",
+    )
+    dashboard_export_demo_parser.add_argument(
+        "--json", action="store_true", help="Emit machine-readable JSON output."
+    )
+
+    dashboard_run_parser = dashboard_subparsers.add_parser(
+        "run", help="Launch the Streamlit dashboard against a validated build or the demo package."
+    )
+    dashboard_run_group = dashboard_run_parser.add_mutually_exclusive_group(required=True)
+    dashboard_run_group.add_argument("--build-id", default=None, help="build_id to display.")
+    dashboard_run_group.add_argument(
+        "--demo", action="store_true", help="Run against the demo aggregate package instead."
+    )
+    dashboard_run_parser.add_argument(
+        "--demo-data-dir",
+        default=None,
+        help="Demo package directory (default: dashboard/demo_data).",
+    )
+    dashboard_run_parser.add_argument(
+        "--port", type=int, default=8501, help="TCP port for the Streamlit server (default: 8501)."
+    )
+    dashboard_run_parser.add_argument(
+        "--no-browser", action="store_true", help="Do not automatically open a browser tab."
+    )
+
+    dashboard_status_parser = dashboard_subparsers.add_parser(
+        "status", help="Show the demo package's manifest and the builds available to run against."
+    )
+    dashboard_status_parser.add_argument(
+        "--demo-data-dir",
+        default=None,
+        help="Demo package directory (default: dashboard/demo_data).",
+    )
+    dashboard_status_parser.add_argument(
         "--json", action="store_true", help="Emit machine-readable JSON output."
     )
 
@@ -1734,6 +1824,7 @@ def _cmd_analysis_run(
     multiseed_scenario: str,
     multiseed_scale: str,
     multiseed_seeds: int,
+    insights: bool,
     as_json: bool,
 ) -> int:
     from credlens.analysis.runner import AnalysisRunError, run_analysis
@@ -1755,6 +1846,7 @@ def _cmd_analysis_run(
             include_multiseed=multiseed,
             multiseed_seeds=multiseed_seeds,
             multiseed_scenario=multiseed_scenario,
+            include_insights=insights,
             multiseed_scale=multiseed_scale,
         )
     except AnalysisValidationError as exc:
@@ -1775,6 +1867,7 @@ def _cmd_analysis_run(
         print(f"output_dir:      {result.output_dir}")
         print(f"tables written:  {len(result.manifest.tables_written)}")
         print(f"figures written: {len(result.manifest.figures_written)}")
+        print(f"reports hashed:  {len(result.manifest.reports_written)}")
         print(f"executive_summary (en):     {result.executive_summary_en}")
         print(f"executive_summary (pt-BR):  {result.executive_summary_pt}")
         print(f"technical_report (en):      {result.technical_report_en}")
@@ -1949,6 +2042,14 @@ def _cmd_analysis_reproduce(
         for name, h in reproduced["figures_written"].items()
         if original["figures_written"].get(name) != h
     }
+    # Phase 7 gate E: reports (executive/technical summaries, the
+    # insights registry when --insights was used) are part of the SAME
+    # reproducibility proof tables/figures already get.
+    mismatches |= {
+        name: {"original": original.get("reports_written", {}).get(name), "reproduced": h}
+        for name, h in reproduced.get("reports_written", {}).items()
+        if original.get("reports_written", {}).get(name) != h
+    }
     matched = not mismatches
 
     if as_json:
@@ -2003,6 +2104,8 @@ def main(argv: list[str] | None = None) -> int:
         return _dispatch_warehouse_command(args)
     if args.command == "analysis":
         return _dispatch_analysis_command(args)
+    if args.command == "dashboard":
+        return _dispatch_dashboard_command(args)
 
     parser.print_help()
     return 0
@@ -2044,6 +2147,7 @@ def _dispatch_analysis_command(args: argparse.Namespace) -> int:
             args.multiseed_scenario,
             args.multiseed_scale,
             args.multiseed_seeds,
+            args.insights,
             args.json,
         )
     if args.analysis_command == "scenarios":
@@ -2059,6 +2163,193 @@ def _dispatch_analysis_command(args: argparse.Namespace) -> int:
 
     print("usage: credlens analysis {validate,run,scenarios,benchmark,status,reproduce} ...")
     print("Run 'credlens analysis <command> --help' for details.")
+    return 1
+
+
+_DASHBOARD_APP_PATH = Path("dashboard/app.py")
+_DEFAULT_DEMO_DATA_DIR = Path("dashboard/demo_data")
+
+
+def _cmd_dashboard_validate(
+    build_id: str | None, demo: bool, demo_data_dir: str | None, as_json: bool
+) -> int:
+    from credlens.dashboard.config import DashboardConfigError, resolve_config
+    from credlens.dashboard.validation import DashboardValidationError, validate_dashboard_source
+
+    try:
+        config = resolve_config(
+            build_id=build_id,
+            demo=demo,
+            demo_data_dir=Path(demo_data_dir) if demo_data_dir else None,
+        )
+        report = validate_dashboard_source(config)
+    except (DashboardConfigError, DashboardValidationError) as exc:
+        if as_json:
+            print(json.dumps({"ok": False, "error": str(exc)}, indent=2))
+        else:
+            print(f"Error: {exc}")
+        return 1
+
+    if as_json:
+        print(json.dumps(report.to_dict(), indent=2))
+    else:
+        print(f"CredLens dashboard validate ({report.mode})")
+        print("=" * 40)
+        print(f"build_id:    {report.build_id}")
+        print(f"fingerprint: {report.fingerprint}")
+        print(f"detail:      {report.detail}")
+        print("Result: OK (safe to display)")
+    return 0
+
+
+def _cmd_dashboard_export_demo(
+    build_id: str,
+    analysis_output_dir: str | None,
+    output_dir: str | None,
+    force: bool,
+    as_json: bool,
+) -> int:
+    from credlens.analysis.validation import AnalysisValidationError, validate_build_for_analysis
+    from credlens.dashboard.demo_package import DemoPackageError, build_demo_package
+
+    resolved_output_dir = Path(output_dir) if output_dir else _DEFAULT_DEMO_DATA_DIR
+    if (resolved_output_dir / "manifest.json").exists() and not force:
+        print(
+            f"Error: a demo package already exists at '{resolved_output_dir}'. Pass --force "
+            "to overwrite it, or --output-dir to write elsewhere."
+        )
+        return 1
+
+    resolved_analysis_output_dir = (
+        Path(analysis_output_dir) if analysis_output_dir else ANALYSIS_OUTPUT_DIR
+    )
+
+    try:
+        build = validate_build_for_analysis(build_id)
+    except AnalysisValidationError as exc:
+        print(f"Error: {exc}")
+        return 1
+
+    try:
+        manifest = build_demo_package(
+            analysis_output_dir=resolved_analysis_output_dir,
+            output_dir=resolved_output_dir,
+            db_path=Path(build.db_path),
+            suite_id=build.suite_id,
+        )
+    except DemoPackageError as exc:
+        print(f"Error: {exc}")
+        return 1
+
+    if as_json:
+        print(json.dumps(manifest.to_dict(), indent=2))
+    else:
+        print(f"CredLens dashboard export-demo: {resolved_output_dir}")
+        print("=" * 40)
+        print(f"source build_id:  {manifest.source_build_id}")
+        print(f"tables:           {len(manifest.tables)}")
+        print(f"insights included: {manifest.insights_included}")
+        print(f"total size:       {manifest.total_size_bytes:,} bytes")
+    return 0
+
+
+def _cmd_dashboard_run(
+    build_id: str | None, demo: bool, demo_data_dir: str | None, port: int, no_browser: bool
+) -> int:
+    import subprocess
+
+    from credlens.dashboard.config import DashboardConfigError, resolve_config
+    from credlens.dashboard.validation import DashboardValidationError, validate_dashboard_source
+
+    try:
+        config = resolve_config(
+            build_id=build_id,
+            demo=demo,
+            demo_data_dir=Path(demo_data_dir) if demo_data_dir else None,
+            port=port,
+            open_browser=not no_browser,
+        )
+        report = validate_dashboard_source(config)
+    except (DashboardConfigError, DashboardValidationError) as exc:
+        print(f"Error: {exc}")
+        return 1
+
+    if not _DASHBOARD_APP_PATH.is_file():
+        print(f"Error: dashboard entrypoint '{_DASHBOARD_APP_PATH}' was not found.")
+        return 1
+
+    print(f"CredLens dashboard: mode={report.mode} build_id={report.build_id} port={port}")
+    app_args = ["--demo"] if demo else ["--build-id", str(build_id)]
+    if demo_data_dir:
+        app_args += ["--demo-data-dir", demo_data_dir]
+
+    command = [
+        sys.executable,
+        "-m",
+        "streamlit",
+        "run",
+        str(_DASHBOARD_APP_PATH),
+        "--server.port",
+        str(port),
+        "--server.headless",
+        "true" if no_browser else "false",
+        "--",
+        *app_args,
+    ]
+    result = subprocess.run(command, check=False)
+    return result.returncode
+
+
+def _cmd_dashboard_status(demo_data_dir: str | None, as_json: bool) -> int:
+    from credlens.dashboard.data_access import list_available_builds
+    from credlens.dashboard.demo_package import DemoPackageError, load_demo_manifest
+
+    resolved_demo_dir = Path(demo_data_dir) if demo_data_dir else _DEFAULT_DEMO_DATA_DIR
+    builds = list_available_builds()
+    demo_summary: dict[str, Any] | None = None
+    try:
+        demo_summary = load_demo_manifest(resolved_demo_dir).to_dict()
+    except DemoPackageError:
+        demo_summary = None
+
+    payload = {
+        "available_builds": builds,
+        "demo_package": demo_summary,
+        "demo_data_dir": str(resolved_demo_dir),
+    }
+    if as_json:
+        print(json.dumps(payload, indent=2))
+        return 0
+
+    print("CredLens dashboard status")
+    print("=" * 40)
+    print(f"available builds: {builds if builds else '(none)'}")
+    if demo_summary:
+        print(
+            f"demo package:     v{demo_summary['demo_package_version']} from build "
+            f"'{demo_summary['source_build_id']}' ({demo_summary['total_size_bytes']:,} bytes)"
+        )
+    else:
+        print(f"demo package:     not found at '{resolved_demo_dir}'")
+    return 0
+
+
+def _dispatch_dashboard_command(args: argparse.Namespace) -> int:
+    if args.dashboard_command == "validate":
+        return _cmd_dashboard_validate(args.build_id, args.demo, args.demo_data_dir, args.json)
+    if args.dashboard_command == "export-demo":
+        return _cmd_dashboard_export_demo(
+            args.build_id, args.analysis_output_dir, args.output_dir, args.force, args.json
+        )
+    if args.dashboard_command == "run":
+        return _cmd_dashboard_run(
+            args.build_id, args.demo, args.demo_data_dir, args.port, args.no_browser
+        )
+    if args.dashboard_command == "status":
+        return _cmd_dashboard_status(args.demo_data_dir, args.json)
+
+    print("usage: credlens dashboard {validate,export-demo,run,status} ...")
+    print("Run 'credlens dashboard <command> --help' for details.")
     return 1
 
 

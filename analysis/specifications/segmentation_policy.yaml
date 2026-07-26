@@ -1,0 +1,23 @@
+# Machine-readable minimum-sample-size policy for segmented breakdowns
+# (Phase 7 gate B) - loaded by credlens.analysis.sample_policy. See
+# segmentation_policy.md in this same directory for the full rationale
+# and the Phase 6 history this replaces (a flat MIN_SEGMENT_OBSERVATIONS
+# = 10 cutoff, judged too low to sustain executive-facing reading).
+#
+# This is a statistical-readability convention for how a number is
+# PRESENTED (ranked, labeled, shown at all), not a business decision
+# threshold (see config/README.md's distinction) - it never gates a
+# credit decision, only whether a segmented rate may be read as a
+# stable finding.
+segmentation:
+  # n < insufficient_below: "insufficient sample" - the count stays
+  # visible for audit, but the metric must not be ranked, recommended,
+  # or called out as best/worst.
+  insufficient_below: 30
+  # insufficient_below <= n < limited_below: "limited sample" - the
+  # metric is shown with a visible caution label; avoid conclusive
+  # language.
+  # n >= limited_below: "adequate descriptive sample" - shown without a
+  # suppression label. This is a descriptive-adequacy convention, not a
+  # formal statistical power guarantee.
+  limited_below: 100

@@ -31,7 +31,9 @@ jobs:
         run: uv python install ${{ matrix.python-version }}
 
       - name: Install dependencies
-        run: uv sync --all-groups --extra warehouse --extra analysis --python ${{ matrix.python-version }}
+        run: |
+          uv sync --all-groups --extra warehouse --extra analysis --extra dashboard \
+            --extra notebook --python ${{ matrix.python-version }}
 
       - name: Lint (ruff check)
         run: uv run ruff check .
@@ -40,7 +42,7 @@ jobs:
         run: uv run ruff format --check .
 
       - name: Type check (mypy)
-        run: uv run mypy src tests
+        run: uv run mypy src tests dashboard
 
       # Every generation-related test in this suite runs at 'smoke' scale
       # (a few hundred customers, well under a second) or, for Monte Carlo
@@ -109,7 +111,7 @@ jobs:
       - name: Analysis run (smoke scale, no benchmark, CI-scoped output dir)
         run: |
           uv run credlens analysis run --build-id CI_ANALYSIS_BUILD \
-            --output-dir /tmp/ci_portfolio_analysis --no-benchmark
+            --output-dir /tmp/ci_portfolio_analysis --no-benchmark --insights
 
       - name: Validate analysis outputs were really written
         run: |
@@ -118,6 +120,7 @@ jobs:
           test -s /tmp/ci_portfolio_analysis/executive_summary.pt-BR.md
           test -s /tmp/ci_portfolio_analysis/technical_report.md
           test -s /tmp/ci_portfolio_analysis/technical_report.pt-BR.md
+          test -s /tmp/ci_portfolio_analysis/insights.yml
           FIGURE_COUNT=$(find /tmp/ci_portfolio_analysis/figures -name '*.png' | wc -l)
           echo "Generated $FIGURE_COUNT figures"
           test "$FIGURE_COUNT" -ge 8
@@ -139,6 +142,45 @@ jobs:
           uv run credlens analysis reproduce --output-dir /tmp/ci_portfolio_analysis \
             --reproduce-dir /tmp/ci_portfolio_analysis_reproduce --json
 
+      # Notebook (Phase 7): executes the case-study notebook end to end in
+      # a real Jupyter kernel against the committed, versioned
+      # reports/portfolio_analysis/ - never data/warehouse/ or any CI-only
+      # scratch build (the notebook's own relative paths only ever look at
+      # the checked-in reports/ tree). Output goes to a scratch path
+      # outside the repo, so this can never touch tracked files.
+      - name: Notebook - execute end to end in a real kernel
+        run: |
+          uv run jupyter nbconvert --to notebook --execute \
+            notebooks/credit_portfolio_case_study.ipynb \
+            --output /tmp/ci_notebook_executed.ipynb \
+            --ExecutePreprocessor.timeout=120
+
+      # Decision Intelligence Dashboard (Phase 7): validates both a real
+      # build and a demo package exported from it, then drives every one
+      # of the 8 pages through streamlit.testing.v1.AppTest in both modes
+      # - the strongest verification available without a browser (this CI
+      # image has no browser-automation tool, Phase 7 section 21). Never
+      # portfolio scale, never a heavy browser test, per section 24.
+      - name: Dashboard - export demo package from the CI analysis build
+        run: |
+          uv run credlens dashboard export-demo --build-id CI_ANALYSIS_BUILD \
+            --analysis-output-dir /tmp/ci_portfolio_analysis \
+            --output-dir /tmp/ci_dashboard_demo
+
+      - name: Dashboard - validate the build and the demo package
+        run: |
+          uv run credlens dashboard validate --build-id CI_ANALYSIS_BUILD
+          uv run credlens dashboard validate --demo --demo-data-dir /tmp/ci_dashboard_demo
+
+      - name: Dashboard - AppTest execution of all 8 pages (demo + warehouse mode)
+        env:
+          CREDLENS_TEST_DEMO_DATA_DIR: /tmp/ci_dashboard_demo
+          CREDLENS_TEST_BUILD_ID: CI_ANALYSIS_BUILD
+        run: uv run pytest tests/test_dashboard_apptest.py -q
+
+      # Runs LAST so it also covers every step above (notebook execution,
+      # dashboard demo export/validate/AppTest) - none of them may modify
+      # a tracked, official artifact.
       - name: Prove the official reports/portfolio_analysis/ was never altered
         run: |
           git status --porcelain reports/portfolio_analysis/ analysis/ warehouse/ | tee ci_git_status.txt

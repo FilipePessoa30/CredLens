@@ -29,6 +29,7 @@ from typing import Any
 import pandas as pd
 
 from credlens.analysis.metrics import MIN_SEGMENT_OBSERVATIONS, _df
+from credlens.analysis.sample_policy import SampleClassification, combine_classifications
 
 
 @dataclass(frozen=True)
@@ -45,6 +46,10 @@ class CompositionVsPerformance:
     shared_outstanding_balance: float
     marginal_outstanding_balance: float
     low_sample: bool
+    # The three-tier classification (Phase 7 gate B) of the LEAST
+    # favorable of shared/baseline-only/scenario-only counts - never
+    # 'adequate' if any side of the comparison is not.
+    sample_classification: SampleClassification
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -60,6 +65,7 @@ class CompositionVsPerformance:
             "shared_outstanding_balance": self.shared_outstanding_balance,
             "marginal_outstanding_balance": self.marginal_outstanding_balance,
             "low_sample": self.low_sample,
+            "sample_classification": self.sample_classification,
         }
 
 
@@ -169,5 +175,14 @@ def composition_vs_performance(conn: Any, suite_id: str, scenario: str) -> Compo
         low_sample=(
             shared_count < MIN_SEGMENT_OBSERVATIONS
             or max(baseline_only_count, scenario_only_count) < MIN_SEGMENT_OBSERVATIONS
+        ),
+        # Mirrors low_sample's own semantics: for policy_expansion/
+        # tightening, one of baseline_only/scenario_only is STRUCTURALLY
+        # near-zero by design (expansion should not remove contracts,
+        # tightening should not add any) - that near-zero side is not a
+        # sampling defect, so only the LARGER of the two exclusive groups
+        # is judged, same as the max() used for low_sample above.
+        sample_classification=combine_classifications(
+            shared_count, max(baseline_only_count, scenario_only_count)
         ),
     )

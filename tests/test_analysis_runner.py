@@ -82,6 +82,80 @@ class TestRunAnalysisProducesTheFullReportTree:
         assert len(result.manifest.tables_written) >= 10
         assert len(result.manifest.figures_written) >= 8
 
+    def test_reports_are_always_hashed_into_the_manifest(
+        self, a_built_suite: str, tmp_path: Path
+    ) -> None:
+        """Phase 7 gate E: executive/technical reports get a content hash
+        unconditionally (not opt-in like --multiseed/--insights) - a
+        previous "identical" run could silently diverge in prose while
+        every table/figure hash still matched."""
+        output_dir = tmp_path / "report_hashes"
+        result = run_analysis(
+            build_id=a_built_suite, output_dir=output_dir, include_benchmark=False
+        )
+        for name in (
+            "executive_summary_en",
+            "executive_summary_pt",
+            "technical_report_en",
+            "technical_report_pt",
+        ):
+            assert name in result.manifest.reports_written
+            assert result.manifest.reports_written[name] != "missing"
+
+    def test_insights_registry_is_generated_and_hashed_when_requested(
+        self, a_built_suite: str, tmp_path: Path
+    ) -> None:
+        """Phase 7 gate D+E: --insights writes insights.yml and hashes it
+        into the same reproducibility fingerprint as everything else."""
+        output_dir = tmp_path / "report_insights"
+        result = run_analysis(
+            build_id=a_built_suite,
+            output_dir=output_dir,
+            include_benchmark=False,
+            include_insights=True,
+        )
+        assert (output_dir / "insights.yml").is_file()
+        assert "insights_registry" in result.manifest.reports_written
+        assert result.manifest.reports_written["insights_registry"] != "missing"
+        assert not result.manifest.warnings
+
+    def test_insights_registry_content_fingerprint_matches_across_two_runs(
+        self, a_built_suite: str, tmp_path: Path
+    ) -> None:
+        """Phase 7 gate E regression: two independent run_analysis() calls
+        against the SAME build get different analysis_id values (fresh
+        timestamp each time, by design) - the insights_registry entry in
+        reports_written must still match, because it is a content
+        fingerprint (credlens.analysis.insights.content_fingerprint), not
+        a raw file hash of a file that embeds analysis_id."""
+        first = run_analysis(
+            build_id=a_built_suite,
+            output_dir=tmp_path / "insights_run_1",
+            include_benchmark=False,
+            include_insights=True,
+        )
+        second = run_analysis(
+            build_id=a_built_suite,
+            output_dir=tmp_path / "insights_run_2",
+            include_benchmark=False,
+            include_insights=True,
+        )
+        assert first.analysis_id != second.analysis_id
+        assert (
+            first.manifest.reports_written["insights_registry"]
+            == second.manifest.reports_written["insights_registry"]
+        )
+
+    def test_insights_registry_is_absent_by_default(
+        self, a_built_suite: str, tmp_path: Path
+    ) -> None:
+        output_dir = tmp_path / "report_no_insights"
+        result = run_analysis(
+            build_id=a_built_suite, output_dir=output_dir, include_benchmark=False
+        )
+        assert not (output_dir / "insights.yml").is_file()
+        assert "insights_registry" not in result.manifest.reports_written
+
     def test_benchmark_figure_is_included_when_requested(
         self, a_built_suite: str, tmp_path: Path
     ) -> None:

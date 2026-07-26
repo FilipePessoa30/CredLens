@@ -43,6 +43,12 @@ class AnalysisManifest:
     queries_executed: list[str]
     tables_written: dict[str, str]
     figures_written: dict[str, str]
+    # Phase 7 gate E: the reproducibility fingerprint originally only
+    # covered tables_written/figures_written - textual reports (executive/
+    # technical summaries, the insights registry) were never hashed, so
+    # two "identical" runs could silently diverge in prose while every
+    # table/figure hash still matched. reports_written closes that gap.
+    reports_written: dict[str, str]
     warnings: list[str]
     final_status: str
     # The exact run_analysis() keyword arguments used - required so
@@ -69,6 +75,7 @@ class AnalysisManifest:
             "queries_executed": self.queries_executed,
             "tables_written": self.tables_written,
             "figures_written": self.figures_written,
+            "reports_written": self.reports_written,
             "warnings": self.warnings,
             "final_status": self.final_status,
             "parameters": self.parameters,
@@ -103,6 +110,7 @@ def new_manifest(
         queries_executed=[],
         tables_written={},
         figures_written={},
+        reports_written={},
         warnings=[],
         final_status="running",
         parameters=dict(parameters) if parameters is not None else {},
@@ -115,6 +123,15 @@ def record_table(manifest: AnalysisManifest, name: str, path: Path) -> None:
 
 def record_figure(manifest: AnalysisManifest, name: str, path: Path) -> None:
     manifest.figures_written[name] = _file_sha256(path) if path.is_file() else "missing"
+
+
+def record_report(manifest: AnalysisManifest, name: str, path: Path) -> None:
+    """Hashes a textual report (executive/technical summary, insights
+    registry) into the SAME reproducibility fingerprint tables/figures
+    already use (Phase 7 gate E) - `credlens analysis reproduce` compares
+    these hashes exactly like it already compares tables_written/
+    figures_written."""
+    manifest.reports_written[name] = _file_sha256(path) if path.is_file() else "missing"
 
 
 def finalize(manifest: AnalysisManifest, *, status: str) -> None:

@@ -1,0 +1,260 @@
+{
+  "baseline_run_id": "RUN_baseline_smoke_5970010_29e3fb70",
+  "dgp_version": "0.6.0",
+  "scale": "smoke",
+  "scenario_run_ids": {
+    "collections_change": "RUN_collections_change_smoke_5970010_7932bc75"
+  },
+  "scenarios": {
+    "collections_change": {
+      "baseline_metrics": {
+        "approval_rate": 0.600694,
+        "avg_latent_propensity_of_approved": 0.766069,
+        "booking_rate": 0.843931,
+        "cure_rate": 0.230769,
+        "dpd30_plus_rate": 0.134615,
+        "dpd60_plus_rate": 0.065385,
+        "dpd90_plus_rate": 0.042308,
+        "generation_run_id": "RUN_baseline_smoke_5970010_29e3fb70",
+        "n_applications": 303,
+        "n_approved": 173,
+        "n_collection_events": 48,
+        "n_contracts": 146,
+        "n_decided": 288,
+        "n_recoveries": 0,
+        "n_snapshots": 260,
+        "n_write_offs": 3,
+        "total_recovery_amount": 0.0,
+        "total_write_off_amount": 17628.95,
+        "write_off_rate": 0.020548
+      },
+      "config_diff": {
+        "collections": {
+          "baseline": {
+            "contact_dpd_thresholds": [
+              15,
+              45,
+              75
+            ],
+            "promise_to_pay_probability": 0.35
+          },
+          "scenario": {
+            "contact_dpd_thresholds": [
+              7,
+              25,
+              55
+            ],
+            "promise_to_pay_probability": 0.55
+          }
+        },
+        "payment_behavior": {
+          "baseline": {
+            "allocation_order": [
+              "fees",
+              "interest",
+              "principal"
+            ],
+            "cure_probability_per_month": 0.2,
+            "on_time_probability": 0.7,
+            "partial_payment_probability": 0.12,
+            "prepayment_probability": 0.05,
+            "reversal_rate": 0.01
+          },
+          "scenario": {
+            "allocation_order": [
+              "fees",
+              "interest",
+              "principal"
+            ],
+            "cure_probability_per_month": 0.38,
+            "on_time_probability": 0.7,
+            "partial_payment_probability": 0.12,
+            "prepayment_probability": 0.05,
+            "reversal_rate": 0.01
+          }
+        },
+        "recovery": {
+          "baseline": {
+            "max_months_after_write_off": 6,
+            "recovery_fraction_max": 0.4,
+            "recovery_fraction_min": 0.05,
+            "recovery_probability": 0.25
+          },
+          "scenario": {
+            "max_months_after_write_off": 6,
+            "recovery_fraction_max": 0.55,
+            "recovery_fraction_min": 0.1,
+            "recovery_probability": 0.45
+          }
+        },
+        "scales": {
+          "baseline": {
+            "portfolio": {
+              "customers": 50000,
+              "description": "Demonstration scale - not executed automatically by tests or CI in Phase 4A; a manual, deliberate invocation only."
+            },
+            "sample": {
+              "customers": 5000,
+              "description": "Development/demo scale - enough longitudinal depth for vintage-style analysis without a long run."
+            },
+            "smoke": {
+              "customers": 200,
+              "description": "Fast, deterministic sanity-check scale - seconds, covers every state (approve/reject/pay/delinquent/cure/write-off/recover)."
+            }
+          },
+          "scenario": {
+            "portfolio": {
+              "customers": 50000,
+              "description": "Same population as baseline's portfolio, per CRN - not executed automatically."
+            },
+            "sample": {
+              "customers": 5000,
+              "description": "Same population as baseline's sample, per CRN."
+            },
+            "smoke": {
+              "customers": 200,
+              "description": "Fast, deterministic sanity-check scale - same population as baseline's smoke, per CRN."
+            }
+          }
+        },
+        "scenario": {
+          "baseline": "baseline",
+          "scenario": "collections_change"
+        }
+      },
+      "directional_checks": [
+        {
+          "detail": "collection_events.parquet exists for this run",
+          "name": "collection_activity_present",
+          "passed": true,
+          "type": "invariant"
+        },
+        {
+          "detail": "baseline=147 payments, scenario=162 payments",
+          "name": "payments_exist_both_runs",
+          "passed": true,
+          "type": "invariant"
+        }
+      ],
+      "metric_comparisons": [
+        {
+          "baseline_value": 303.0,
+          "candidate_value": 303.0,
+          "delta": 0.0,
+          "metric": "n_applications"
+        },
+        {
+          "baseline_value": 173.0,
+          "candidate_value": 173.0,
+          "delta": 0.0,
+          "metric": "n_approved"
+        },
+        {
+          "baseline_value": 146.0,
+          "candidate_value": 146.0,
+          "delta": 0.0,
+          "metric": "n_contracts"
+        },
+        {
+          "baseline_value": 48.0,
+          "candidate_value": 40.0,
+          "delta": -8.0,
+          "metric": "n_collection_events"
+        },
+        {
+          "baseline_value": 0.600694,
+          "candidate_value": 0.600694,
+          "delta": 0.0,
+          "metric": "approval_rate"
+        },
+        {
+          "baseline_value": 0.843931,
+          "candidate_value": 0.843931,
+          "delta": 0.0,
+          "metric": "booking_rate"
+        },
+        {
+          "baseline_value": 0.134615,
+          "candidate_value": 0.042636,
+          "delta": -0.09198,
+          "metric": "dpd30_plus_rate"
+        },
+        {
+          "baseline_value": 0.065385,
+          "candidate_value": 0.003876,
+          "delta": -0.061509,
+          "metric": "dpd60_plus_rate"
+        },
+        {
+          "baseline_value": 0.042308,
+          "candidate_value": 0.0,
+          "delta": -0.042308,
+          "metric": "dpd90_plus_rate"
+        },
+        {
+          "baseline_value": 0.230769,
+          "candidate_value": 0.192308,
+          "delta": -0.038462,
+          "metric": "cure_rate"
+        },
+        {
+          "baseline_value": 0.020548,
+          "candidate_value": 0.0,
+          "delta": -0.020548,
+          "metric": "write_off_rate"
+        },
+        {
+          "baseline_value": 17628.95,
+          "candidate_value": 0.0,
+          "delta": -17628.95,
+          "metric": "total_write_off_amount"
+        },
+        {
+          "baseline_value": 0.0,
+          "candidate_value": 0.0,
+          "delta": 0.0,
+          "metric": "total_recovery_amount"
+        }
+      ],
+      "population_crn_preserved": true,
+      "population_hashes": {
+        "baseline": {
+          "application_features": "47e8385e6ed54b1b1295a5f0cbd18d170a9585a6bbe7078a5694609f23dddd20",
+          "applications": "d3f6a40c5d5b1d66003c6d11cc908b37c4895bd1dd61a17de3d9e7928c3ae748",
+          "customers": "e68da579e8915fbb2561086b716e1f6810e87b641f40735662e53f7cc612e696",
+          "fairness_attributes": "689680b95b34c0544d9e06f52639e467bc2ede4290ba58299ce5585d3d990ba2"
+        },
+        "scenario": {
+          "application_features": "47e8385e6ed54b1b1295a5f0cbd18d170a9585a6bbe7078a5694609f23dddd20",
+          "applications": "d3f6a40c5d5b1d66003c6d11cc908b37c4895bd1dd61a17de3d9e7928c3ae748",
+          "customers": "e68da579e8915fbb2561086b716e1f6810e87b641f40735662e53f7cc612e696",
+          "fairness_attributes": "689680b95b34c0544d9e06f52639e467bc2ede4290ba58299ce5585d3d990ba2"
+        }
+      },
+      "run_id": "RUN_collections_change_smoke_5970010_7932bc75",
+      "scenario_metrics": {
+        "approval_rate": 0.600694,
+        "avg_latent_propensity_of_approved": 0.766069,
+        "booking_rate": 0.843931,
+        "cure_rate": 0.192308,
+        "dpd30_plus_rate": 0.042636,
+        "dpd60_plus_rate": 0.003876,
+        "dpd90_plus_rate": 0.0,
+        "generation_run_id": "RUN_collections_change_smoke_5970010_7932bc75",
+        "n_applications": 303,
+        "n_approved": 173,
+        "n_collection_events": 40,
+        "n_contracts": 146,
+        "n_decided": 288,
+        "n_recoveries": 0,
+        "n_snapshots": 258,
+        "n_write_offs": 0,
+        "total_recovery_amount": 0.0,
+        "total_write_off_amount": 0.0,
+        "write_off_rate": 0.0
+      }
+    }
+  },
+  "seed": 5970010,
+  "suite_id": "SUITE_smoke_5970010"
+}

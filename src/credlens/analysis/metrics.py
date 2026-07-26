@@ -20,14 +20,18 @@ from typing import Any
 
 import pandas as pd
 
+from credlens.analysis.sample_policy import classify_sample_size, load_sample_policy
+
 # Minimum observations a segmented breakdown must have before its metric
-# is reported un-suppressed (Phase 6 section 11) - chosen as the smallest
-# sample size below which a single contract's outcome can swing a rate by
-# more than 10 percentage points (1/9 ≈ 11%), i.e. below which the number
-# reads as more precise than it is. Rows under this threshold are labeled
-# `low_sample = True` rather than dropped, so segmentation coverage stays
-# visible even where the metric itself is suppressed from headline use.
-MIN_SEGMENT_OBSERVATIONS = 10
+# is reported un-suppressed. Phase 6 used a flat cutoff of 10; Phase 7
+# gate B replaced it with the versioned, three-tier policy in
+# `credlens.analysis.sample_policy` (insufficient / limited / adequate -
+# see `analysis/specifications/segmentation_policy.yaml`). This constant
+# is kept, at the policy's `insufficient_below` value, purely so
+# `low_sample` (a plain boolean "insufficient" flag) stays available for
+# callers that only need a yes/no suppression signal; new code should
+# prefer the `sample_classification` column these functions now also add.
+MIN_SEGMENT_OBSERVATIONS = load_sample_policy().insufficient_below
 
 
 @contextmanager
@@ -186,6 +190,7 @@ def funnel_by_channel_and_scenario(conn: Any, suite_id: str) -> pd.DataFrame:
         [suite_id],
     )
     df["low_sample"] = df["decisioned_applications"] < MIN_SEGMENT_OBSERVATIONS
+    df["sample_classification"] = df["decisioned_applications"].map(classify_sample_size)
     return df
 
 
@@ -226,6 +231,7 @@ def portfolio_by_region_and_channel(conn: Any, suite_id: str) -> pd.DataFrame:
         [suite_id],
     )
     df["low_sample"] = df["contracts"] < MIN_SEGMENT_OBSERVATIONS
+    df["sample_classification"] = df["contracts"].map(classify_sample_size)
     return df
 
 
@@ -256,4 +262,61 @@ def policy_version_comparison(conn: Any, suite_id: str) -> pd.DataFrame:
         [suite_id],
     )
     df["low_sample"] = df["decisions"] < MIN_SEGMENT_OBSERVATIONS
+    df["sample_classification"] = df["decisions"].map(classify_sample_size)
+    return df
+
+
+def credit_risk_segment_summary(conn: Any, suite_id: str) -> pd.DataFrame:
+    """Purpose: approval rate by product / bureau_score_bucket /
+    income_band / contract_value_band (Phase 7 dashboard filters - not
+    covered by any existing mart, which never groups by product or by
+    application-feature attributes). Grain: (run_id, product,
+    bureau_score_bucket, income_band, contract_value_band).
+    `product`/`bureau_score_bucket` are direct categorical columns
+    (fct_applications/stg_application_features); `income_band`/
+    `contract_value_band` are display-only quartile buckets (SQL
+    ntile(4) over declared_income/requested_amount) computed here for
+    dashboard filtering, never a business/credit decision rule. Filters:
+    suite_id. Suppression: fewer than MIN_SEGMENT_OBSERVATIONS decisions
+    -> low_sample."""
+    df = _df(
+        conn,
+        """
+        with banded as (
+            select
+                d.run_id,
+                d.application_key,
+                d.outcome,
+                a.product,
+                saf.bureau_score_bucket,
+                'Q' || ntile(4) over (partition by d.run_id order by saf.declared_income)
+                    as income_band,
+                'Q' || ntile(4) over (partition by d.run_id order by saf.requested_amount)
+                    as contract_value_band
+            from main_facts.fct_credit_decisions d
+            join main_staging.stg_application_features saf
+                on d.application_key = saf.application_key and d.run_id = saf.run_id
+            join main_facts.fct_applications a
+                on d.application_key = a.application_key and d.run_id = a.run_id
+            join main_dimensions.dim_run r on d.run_id = r.run_id
+            where r.suite_id = ?
+        )
+        select
+            run_id,
+            product,
+            bureau_score_bucket,
+            income_band,
+            contract_value_band,
+            count(*) as decisions,
+            sum(case when outcome = 'approved' then 1 else 0 end) as approved,
+            sum(case when outcome = 'approved' then 1 else 0 end)::double
+                / nullif(count(*), 0) as approval_rate
+        from banded
+        group by 1, 2, 3, 4, 5
+        order by all
+        """,
+        [suite_id],
+    )
+    df["low_sample"] = df["decisions"] < MIN_SEGMENT_OBSERVATIONS
+    df["sample_classification"] = df["decisions"].map(classify_sample_size)
     return df
