@@ -9,12 +9,14 @@ docs/roadmap.md.
 from __future__ import annotations
 
 import argparse
+import contextlib
 import json
 import platform
 import sys
 from dataclasses import dataclass, replace
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
 
 import pandas as pd
 
@@ -82,6 +84,7 @@ AUDIT_METRICS_PATH = AUDIT_REPORTS_DIR / "quality_metrics.json"
 CONTRACTS_RAW_DIR = Path("contracts/raw")
 CONTRACTS_OPERATIONAL_DIR = Path("contracts/operational")
 SYNTHETIC_SCENARIOS_DIR = Path("config/synthetic/scenarios")
+ANALYSIS_OUTPUT_DIR = Path("reports/portfolio_analysis")
 
 
 @dataclass(frozen=True)
@@ -268,7 +271,15 @@ def _build_parser() -> argparse.ArgumentParser:
         "--scale", required=True, choices=["smoke", "sample", "portfolio"], help="Scale preset."
     )
     monte_carlo_parser.add_argument(
-        "--seeds", required=True, type=int, help="Number of seeds to run (2026, 2027, ...)."
+        "--seeds", required=True, type=int, help="Number of seeds to run."
+    )
+    monte_carlo_parser.add_argument(
+        "--start-seed",
+        type=int,
+        default=2026,
+        help="First seed in the sweep (default: 2026); subsequent seeds increment by 1. "
+        "Override this in tests/CI so a sweep never reuses the same seeds an official "
+        "demonstration run/suite occupies (Phase 6 gate B).",
     )
 
     profile_parser = synthetic_subparsers.add_parser(
@@ -351,6 +362,126 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     reconcile_parser.add_argument("--build-id", required=True, help="build_id from a prior build.")
     reconcile_parser.add_argument(
+        "--json", action="store_true", help="Emit machine-readable JSON output."
+    )
+
+    analysis_parser = subparsers.add_parser(
+        "analysis",
+        help="Reproducible portfolio-analysis layer: SQL-first metrics, scenario "
+        "comparison, charts, and bilingual reports over a built warehouse (Phase 6).",
+    )
+    analysis_subparsers = analysis_parser.add_subparsers(dest="analysis_command")
+
+    analysis_validate_parser = analysis_subparsers.add_parser(
+        "validate",
+        help="Check a build is safe to analyze (tests passed, sources unmutated, "
+        "fingerprint present) without running the full analysis.",
+    )
+    analysis_validate_parser.add_argument("--build-id", required=True, help="build_id to validate.")
+    analysis_validate_parser.add_argument(
+        "--json", action="store_true", help="Emit machine-readable JSON output."
+    )
+
+    analysis_run_parser = analysis_subparsers.add_parser(
+        "run",
+        help="Run the full analysis (metrics, scenario comparison, charts, bilingual "
+        "reports, provenance manifest) against a built warehouse.",
+    )
+    analysis_run_parser.add_argument(
+        "--build-id", required=True, help="build_id from a prior build."
+    )
+    analysis_run_parser.add_argument(
+        "--output-dir",
+        default=None,
+        help=f"Output directory (default: {ANALYSIS_OUTPUT_DIR}).",
+    )
+    analysis_run_parser.add_argument(
+        "--force",
+        action="store_true",
+        help="Overwrite an existing analysis at the same output dir.",
+    )
+    analysis_run_parser.add_argument(
+        "--no-benchmark", action="store_true", help="Skip the public-dataset benchmark appendix."
+    )
+    analysis_run_parser.add_argument(
+        "--multiseed", action="store_true", help="Also run a real multi-seed robustness sweep."
+    )
+    analysis_run_parser.add_argument(
+        "--multiseed-scenario", default="macroeconomic_stress", help="Scenario for --multiseed."
+    )
+    analysis_run_parser.add_argument(
+        "--multiseed-scale",
+        default="smoke",
+        choices=["smoke", "sample", "portfolio"],
+        help="Scale for --multiseed (default: smoke - never portfolio, Phase 6 section 13).",
+    )
+    analysis_run_parser.add_argument(
+        "--multiseed-seeds", type=int, default=5, help="Number of seeds for --multiseed."
+    )
+    analysis_run_parser.add_argument(
+        "--json", action="store_true", help="Emit machine-readable JSON output."
+    )
+
+    analysis_scenarios_parser = analysis_subparsers.add_parser(
+        "scenarios",
+        help="Paired scenario comparison (baseline vs. each scenario) and "
+        "composition-vs-performance for policy_expansion/policy_tightening, without "
+        "writing the full report tree.",
+    )
+    analysis_scenarios_parser.add_argument(
+        "--build-id", required=True, help="build_id from a prior build."
+    )
+    analysis_scenarios_parser.add_argument(
+        "--json", action="store_true", help="Emit machine-readable JSON output."
+    )
+
+    analysis_benchmark_parser = analysis_subparsers.add_parser(
+        "benchmark",
+        help="Profile the already-acquired public benchmark sources (UCI, South German "
+        "Credit, BCB SGS), kept separate from any synthetic build.",
+    )
+    analysis_benchmark_parser.add_argument(
+        "--json", action="store_true", help="Emit machine-readable JSON output."
+    )
+
+    analysis_status_parser = analysis_subparsers.add_parser(
+        "status", help="Show a prior analysis run's provenance manifest."
+    )
+    analysis_status_parser.add_argument(
+        "--output-dir",
+        default=None,
+        help=f"Analysis output directory (default: {ANALYSIS_OUTPUT_DIR}).",
+    )
+    analysis_status_parser.add_argument(
+        "--analysis-id",
+        default=None,
+        help="If given, verifies the manifest at --output-dir belongs to this analysis_id.",
+    )
+    analysis_status_parser.add_argument(
+        "--json", action="store_true", help="Emit machine-readable JSON output."
+    )
+
+    analysis_reproduce_parser = analysis_subparsers.add_parser(
+        "reproduce",
+        help="Re-run a prior analysis (same build_id) into a separate directory and "
+        "verify its table/figure content hashes match the original exactly.",
+    )
+    analysis_reproduce_parser.add_argument(
+        "--output-dir",
+        default=None,
+        help=f"Original analysis output directory to reproduce (default: {ANALYSIS_OUTPUT_DIR}).",
+    )
+    analysis_reproduce_parser.add_argument(
+        "--analysis-id",
+        default=None,
+        help="If given, verifies the manifest at --output-dir belongs to this analysis_id.",
+    )
+    analysis_reproduce_parser.add_argument(
+        "--reproduce-dir",
+        default=None,
+        help="Where to write the reproduction run (default: <output-dir>_reproduce).",
+    )
+    analysis_reproduce_parser.add_argument(
         "--json", action="store_true", help="Emit machine-readable JSON output."
     )
 
@@ -1270,12 +1401,12 @@ def _cmd_synthetic_validate_suite(suite_id: str) -> int:
     return 1 if any_errors else 0
 
 
-def _cmd_synthetic_monte_carlo(scenario: str, scale: str, n_seeds: int) -> int:
+def _cmd_synthetic_monte_carlo(scenario: str, scale: str, n_seeds: int, start_seed: int) -> int:
     from credlens.generation.config import ConfigError, CrnIncompatibleError
     from credlens.generation.montecarlo import run_monte_carlo, write_monte_carlo_report
     from credlens.generation.orchestrator import GenerationError
 
-    seeds = [2026 + i for i in range(n_seeds)]
+    seeds = [start_seed + i for i in range(n_seeds)]
     try:
         result = run_monte_carlo(scenario=scenario, scale_name=scale, seeds=seeds)
     except (GenerationError, ConfigError, CrnIncompatibleError, ValueError) as exc:
@@ -1471,6 +1602,7 @@ def _cmd_warehouse_status(build_id: str, as_json: bool) -> int:
 
 def _cmd_warehouse_query(build_id: str, name: str, as_json: bool) -> int:
     from credlens.warehouse.build import BuildError, load_build_manifest
+    from credlens.warehouse.integrity import RawIntegrityError
     from credlens.warehouse.queries import QueryError, run_named_query
 
     try:
@@ -1480,7 +1612,10 @@ def _cmd_warehouse_query(build_id: str, name: str, as_json: bool) -> int:
         return 1
 
     try:
-        columns, rows = run_named_query(Path(manifest.db_path), name)
+        columns, rows = run_named_query(Path(manifest.db_path), name, manifest.sources)
+    except RawIntegrityError as exc:
+        print(f"Error: {exc}")
+        return 1
     except QueryError as exc:
         print(f"Error: {exc}")
         return 1
@@ -1501,6 +1636,7 @@ def _cmd_warehouse_query(build_id: str, name: str, as_json: bool) -> int:
 
 def _cmd_warehouse_reconcile(build_id: str, as_json: bool) -> int:
     from credlens.warehouse.build import BuildError, load_build_manifest
+    from credlens.warehouse.integrity import RawIntegrityError
     from credlens.warehouse.reconciliation import run_reconciliation
 
     try:
@@ -1509,7 +1645,11 @@ def _cmd_warehouse_reconcile(build_id: str, as_json: bool) -> int:
         print(f"Error: {exc}")
         return 1
 
-    results = run_reconciliation(Path(manifest.db_path), manifest.sources)
+    try:
+        results = run_reconciliation(Path(manifest.db_path), manifest.sources)
+    except RawIntegrityError as exc:
+        print(f"Error: {exc}")
+        return 1
     any_failed = any(not r.passed for r in results)
 
     if as_json:
@@ -1540,6 +1680,302 @@ def _cmd_warehouse_docs(build_id: str) -> int:
     return 0
 
 
+# --- analysis (Phase 6) ------------------------------------------------------
+
+
+def _cmd_analysis_validate(build_id: str, as_json: bool) -> int:
+    from credlens.analysis.validation import AnalysisValidationError, validate_build_for_analysis
+
+    try:
+        manifest = validate_build_for_analysis(build_id)
+    except AnalysisValidationError as exc:
+        if as_json:
+            print(json.dumps({"build_id": build_id, "valid": False, "error": str(exc)}, indent=2))
+        else:
+            print(f"Error: {exc}")
+        return 1
+
+    if as_json:
+        print(
+            json.dumps(
+                {
+                    "build_id": manifest.build_id,
+                    "valid": True,
+                    "suite_id": manifest.suite_id,
+                    "analytical_fingerprint": manifest.analytical_fingerprint,
+                    "test_results": manifest.test_results,
+                },
+                indent=2,
+            )
+        )
+        return 0
+
+    print(f"CredLens analysis validate: {build_id}")
+    print("=" * (26 + len(build_id)))
+    print(f"suite_id:               {manifest.suite_id}")
+    print(f"analytical_fingerprint: {manifest.analytical_fingerprint}")
+    print(
+        f"dbt tests:              {manifest.test_results.get('passed')} passed / "
+        f"{manifest.test_results.get('failed')} failed / "
+        f"{manifest.test_results.get('errored')} errored"
+    )
+    print("raw source integrity:   OK (re-verified against build manifest)")
+    print()
+    print("Result: OK (safe to analyze)")
+    return 0
+
+
+def _cmd_analysis_run(
+    build_id: str,
+    output_dir: str | None,
+    force: bool,
+    no_benchmark: bool,
+    multiseed: bool,
+    multiseed_scenario: str,
+    multiseed_scale: str,
+    multiseed_seeds: int,
+    as_json: bool,
+) -> int:
+    from credlens.analysis.runner import AnalysisRunError, run_analysis
+    from credlens.analysis.validation import AnalysisValidationError
+
+    resolved_output_dir = Path(output_dir) if output_dir else ANALYSIS_OUTPUT_DIR
+    if (resolved_output_dir / "manifest.json").exists() and not force:
+        print(
+            f"Error: an analysis already exists at '{resolved_output_dir}'. Pass --force to "
+            "overwrite it, or --output-dir to write elsewhere."
+        )
+        return 1
+
+    try:
+        result = run_analysis(
+            build_id=build_id,
+            output_dir=resolved_output_dir,
+            include_benchmark=not no_benchmark,
+            include_multiseed=multiseed,
+            multiseed_seeds=multiseed_seeds,
+            multiseed_scenario=multiseed_scenario,
+            multiseed_scale=multiseed_scale,
+        )
+    except AnalysisValidationError as exc:
+        print(f"Error: {exc}")
+        return 1
+    except AnalysisRunError as exc:
+        print(f"Error: {exc}")
+        return 1
+    except Exception as exc:
+        logger.exception("Unhandled error during analysis run")
+        print(f"Error: analysis run failed unexpectedly ({type(exc).__name__}). See logs.")
+        return 1
+
+    if as_json:
+        print(json.dumps(result.manifest.to_dict(), indent=2))
+    else:
+        print(f"analysis_id:     {result.analysis_id}")
+        print(f"output_dir:      {result.output_dir}")
+        print(f"tables written:  {len(result.manifest.tables_written)}")
+        print(f"figures written: {len(result.manifest.figures_written)}")
+        print(f"executive_summary (en):     {result.executive_summary_en}")
+        print(f"executive_summary (pt-BR):  {result.executive_summary_pt}")
+        print(f"technical_report (en):      {result.technical_report_en}")
+        print(f"technical_report (pt-BR):   {result.technical_report_pt}")
+        if result.manifest.warnings:
+            print("warnings:")
+            for w in result.manifest.warnings:
+                print(f"  - {w}")
+        print(f"final_status:    {result.manifest.final_status}")
+
+    return 0 if result.manifest.final_status == "success" else 1
+
+
+def _cmd_analysis_scenarios(build_id: str, as_json: bool) -> int:
+    from credlens.analysis import metrics
+    from credlens.analysis.scenarios import composition_vs_performance
+    from credlens.analysis.validation import AnalysisValidationError, validate_build_for_analysis
+
+    try:
+        build = validate_build_for_analysis(build_id)
+    except AnalysisValidationError as exc:
+        print(f"Error: {exc}")
+        return 1
+    if build.suite_id is None:
+        print(f"Error: build '{build_id}' has no suite_id - nothing to compare scenarios against.")
+        return 1
+
+    with metrics.connect(Path(build.db_path)) as conn:
+        scenario_cmp = metrics.scenario_comparison(conn, build.suite_id)
+        composition = {}
+        for scenario_name in ("policy_expansion", "policy_tightening"):
+            with contextlib.suppress(ValueError):
+                composition[scenario_name] = composition_vs_performance(
+                    conn, build.suite_id, scenario_name
+                ).to_dict()
+
+    if as_json:
+        print(
+            json.dumps(
+                {
+                    "scenario_comparison": scenario_cmp.to_dict(orient="records"),
+                    "composition_vs_performance": composition,
+                },
+                indent=2,
+                default=str,
+            )
+        )
+        return 0
+
+    print(f"CredLens analysis scenarios: {build_id} (suite {build.suite_id})")
+    print("=" * 60)
+    print(scenario_cmp.to_string(index=False))
+    print()
+    for scenario_name, comp in composition.items():
+        print(f"-- {scenario_name} composition vs. performance --")
+        for k, v in comp.items():
+            print(f"  {k}: {v}")
+    return 0
+
+
+def _cmd_analysis_benchmark(as_json: bool) -> int:
+    from credlens.analysis.benchmark import profile_public_sources
+
+    profiles = profile_public_sources()
+    if as_json:
+        print(json.dumps([p.to_dict() for p in profiles], indent=2))
+        return 0
+
+    if not profiles:
+        print(
+            "No public benchmark sources found (no acquired/manifested files). This is "
+            "an optional appendix - see docs/dataset_selection.md."
+        )
+        return 0
+
+    print("CredLens analysis benchmark (public data, kept separate from synthetic builds)")
+    print("=" * 60)
+    for p in profiles:
+        print(f"source_id: {p.source_id}")
+        print(f"  rows / columns: {p.num_rows} / {p.num_columns}")
+        print(f"  missing-value findings: {p.missing_value_findings}")
+        print(f"  domain findings: {p.domain_findings}")
+        print(f"  context: {p.context}")
+    return 0
+
+
+def _load_analysis_manifest(output_dir: Path) -> dict[str, Any]:
+    manifest_path = output_dir / "manifest.json"
+    if not manifest_path.is_file():
+        raise FileNotFoundError(f"No analysis manifest found at '{manifest_path}'.")
+    payload: dict[str, Any] = json.loads(manifest_path.read_text(encoding="utf-8"))
+    return payload
+
+
+def _cmd_analysis_status(output_dir: str | None, analysis_id: str | None, as_json: bool) -> int:
+    resolved_output_dir = Path(output_dir) if output_dir else ANALYSIS_OUTPUT_DIR
+    try:
+        manifest = _load_analysis_manifest(resolved_output_dir)
+    except FileNotFoundError as exc:
+        print(f"Error: {exc}")
+        return 1
+
+    if analysis_id is not None and manifest.get("analysis_id") != analysis_id:
+        print(
+            f"Error: manifest at '{resolved_output_dir}' has analysis_id "
+            f"'{manifest.get('analysis_id')}', not '{analysis_id}'."
+        )
+        return 1
+
+    if as_json:
+        print(json.dumps(manifest, indent=2))
+        return 0
+
+    print(f"CredLens analysis status: {resolved_output_dir}")
+    print("=" * 40)
+    print(f"analysis_id:            {manifest.get('analysis_id')}")
+    print(f"build_id:                {manifest.get('build_id')}")
+    print(f"warehouse_fingerprint:   {manifest.get('warehouse_fingerprint')}")
+    print(f"queries_executed:        {len(manifest.get('queries_executed', []))}")
+    print(f"tables_written:          {len(manifest.get('tables_written', {}))}")
+    print(f"figures_written:         {len(manifest.get('figures_written', {}))}")
+    print(f"warnings:                {len(manifest.get('warnings', []))}")
+    print(f"final_status:            {manifest.get('final_status')}")
+    return 0 if manifest.get("final_status") in ("success", "completed_with_warnings") else 1
+
+
+def _cmd_analysis_reproduce(
+    output_dir: str | None, analysis_id: str | None, reproduce_dir: str | None, as_json: bool
+) -> int:
+    from credlens.analysis.runner import AnalysisRunError, run_analysis
+    from credlens.analysis.validation import AnalysisValidationError
+
+    resolved_output_dir = Path(output_dir) if output_dir else ANALYSIS_OUTPUT_DIR
+    try:
+        original = _load_analysis_manifest(resolved_output_dir)
+    except FileNotFoundError as exc:
+        print(f"Error: {exc}")
+        return 1
+
+    if analysis_id is not None and original.get("analysis_id") != analysis_id:
+        print(
+            f"Error: manifest at '{resolved_output_dir}' has analysis_id "
+            f"'{original.get('analysis_id')}', not '{analysis_id}'."
+        )
+        return 1
+
+    resolved_reproduce_dir = (
+        Path(reproduce_dir)
+        if reproduce_dir
+        else resolved_output_dir.parent / f"{resolved_output_dir.name}_reproduce"
+    )
+
+    original_parameters = original.get("parameters", {})
+    try:
+        result = run_analysis(
+            build_id=original["build_id"],
+            output_dir=resolved_reproduce_dir,
+            **original_parameters,
+        )
+    except (AnalysisValidationError, AnalysisRunError) as exc:
+        print(f"Error: {exc}")
+        return 1
+
+    reproduced = result.manifest.to_dict()
+    mismatches = {
+        name: {"original": original["tables_written"].get(name), "reproduced": h}
+        for name, h in reproduced["tables_written"].items()
+        if original["tables_written"].get(name) != h
+    }
+    mismatches |= {
+        name: {"original": original["figures_written"].get(name), "reproduced": h}
+        for name, h in reproduced["figures_written"].items()
+        if original["figures_written"].get(name) != h
+    }
+    matched = not mismatches
+
+    if as_json:
+        print(
+            json.dumps(
+                {
+                    "matched": matched,
+                    "mismatches": mismatches,
+                    "reproduce_dir": str(resolved_reproduce_dir),
+                },
+                indent=2,
+            )
+        )
+        return 0 if matched else 1
+
+    print(f"CredLens analysis reproduce: {resolved_output_dir} -> {resolved_reproduce_dir}")
+    print("=" * 40)
+    if matched:
+        n_items = len(reproduced["tables_written"]) + len(reproduced["figures_written"])
+        print(f"Result: MATCH ({n_items} table(s)/figure(s), identical content hashes)")
+    else:
+        print(f"Result: MISMATCH ({len(mismatches)} table(s)/figure(s) differ)")
+        for name, diff in mismatches.items():
+            print(f"  - {name}: original={diff['original']} reproduced={diff['reproduced']}")
+    return 0 if matched else 1
+
+
 # --- main --------------------------------------------------------------------
 
 
@@ -1565,6 +2001,8 @@ def main(argv: list[str] | None = None) -> int:
         return _dispatch_synthetic_command(args)
     if args.command == "warehouse":
         return _dispatch_warehouse_command(args)
+    if args.command == "analysis":
+        return _dispatch_analysis_command(args)
 
     parser.print_help()
     return 0
@@ -1590,6 +2028,37 @@ def _dispatch_warehouse_command(args: argparse.Namespace) -> int:
 
     print("usage: credlens warehouse {prepare,build,test,status,query,docs,reconcile} ...")
     print("Run 'credlens warehouse <command> --help' for details.")
+    return 1
+
+
+def _dispatch_analysis_command(args: argparse.Namespace) -> int:
+    if args.analysis_command == "validate":
+        return _cmd_analysis_validate(args.build_id, args.json)
+    if args.analysis_command == "run":
+        return _cmd_analysis_run(
+            args.build_id,
+            args.output_dir,
+            args.force,
+            args.no_benchmark,
+            args.multiseed,
+            args.multiseed_scenario,
+            args.multiseed_scale,
+            args.multiseed_seeds,
+            args.json,
+        )
+    if args.analysis_command == "scenarios":
+        return _cmd_analysis_scenarios(args.build_id, args.json)
+    if args.analysis_command == "benchmark":
+        return _cmd_analysis_benchmark(args.json)
+    if args.analysis_command == "status":
+        return _cmd_analysis_status(args.output_dir, args.analysis_id, args.json)
+    if args.analysis_command == "reproduce":
+        return _cmd_analysis_reproduce(
+            args.output_dir, args.analysis_id, args.reproduce_dir, args.json
+        )
+
+    print("usage: credlens analysis {validate,run,scenarios,benchmark,status,reproduce} ...")
+    print("Run 'credlens analysis <command> --help' for details.")
     return 1
 
 
@@ -1628,7 +2097,7 @@ def _dispatch_synthetic_command(args: argparse.Namespace) -> int:
     if args.synthetic_command == "validate-suite":
         return _cmd_synthetic_validate_suite(args.suite_id)
     if args.synthetic_command == "monte-carlo":
-        return _cmd_synthetic_monte_carlo(args.scenario, args.scale, args.seeds)
+        return _cmd_synthetic_monte_carlo(args.scenario, args.scale, args.seeds, args.start_seed)
     if args.synthetic_command == "profile":
         return _cmd_synthetic_profile(args.scenario, args.scale, args.seed)
 

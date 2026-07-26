@@ -15,11 +15,16 @@ import pandas as pd
 from credlens.generation.comparison import compare_metrics, compute_metrics
 from credlens.generation.config import (
     CRN_SCENARIOS,
+    DEFAULT_CONFIG_PATH,
+    GenerationConfig,
     config_path_for_scenario,
     load_generation_config,
+    with_output_dirs,
 )
 from credlens.generation.manifest import canonical_table_hash
 from credlens.generation.orchestrator import GenerationOutcome, generate_scenario
+
+_DEFAULT_MANIFEST_DIR = Path("reports/synthetic_validation/suites")
 
 
 class SuiteError(Exception):
@@ -184,17 +189,41 @@ def generate_suite(
     seed: int,
     force: bool = False,
     scenarios: tuple[str, ...] = CRN_SCENARIOS,
+    output_dirs: tuple[Path, Path] | None = None,
+    manifest_dir: Path | None = None,
 ) -> SuiteOutcome:
     """Generates one baseline run and one run per `scenarios` (default:
     every CRN scenario), all sharing common random numbers for the same
-    seed, and writes a suite manifest tying them together."""
+    seed, and writes a suite manifest tying them together.
+
+    `output_dirs` (operational_dir, truth_dir), if given, is applied
+    uniformly to baseline AND every scenario config (Phase 6 gate B) - so
+    generated data never touches the shared data/synthetic/ or
+    data/synthetic_truth/ roots, and no spurious config_diff appears
+    between baseline/scenario on the output paths themselves, since both
+    get the identical override. `manifest_dir`, if given, redirects the
+    suite manifest away from the shared, git-tracked
+    reports/synthetic_validation/suites/ root - see load_suite_manifest's
+    matching parameter."""
     suite_id = _suite_id(scale_name, seed)
 
+    def _load_cfg(path: Path) -> GenerationConfig:
+        cfg = load_generation_config(path)
+        if output_dirs is not None:
+            cfg = with_output_dirs(cfg, operational_dir=output_dirs[0], truth_dir=output_dirs[1])
+        return cfg
+
+    baseline_config_override = _load_cfg(DEFAULT_CONFIG_PATH) if output_dirs is not None else None
     baseline_outcome = generate_scenario(
-        scenario="baseline", scale_name=scale_name, seed=seed, force=force, suite_id=suite_id
+        scenario="baseline",
+        scale_name=scale_name,
+        seed=seed,
+        force=force,
+        suite_id=suite_id,
+        config_override=baseline_config_override,
     )
     baseline_dir = baseline_outcome.operational_dir / "operational"
-    baseline_config = load_generation_config()
+    baseline_config = _load_cfg(DEFAULT_CONFIG_PATH)
     baseline_dump = baseline_config.model_dump(mode="json", exclude_none=True)
 
     outcomes: dict[str, GenerationOutcome] = {"baseline": baseline_outcome}
@@ -202,6 +231,9 @@ def generate_suite(
     scenario_reports: dict[str, object] = {}
 
     for scenario in scenarios:
+        scenario_config_override = (
+            _load_cfg(config_path_for_scenario(scenario)) if output_dirs is not None else None
+        )
         outcome = generate_scenario(
             scenario=scenario,
             scale_name=scale_name,
@@ -209,12 +241,13 @@ def generate_suite(
             force=force,
             suite_id=suite_id,
             parent_run_id=baseline_outcome.generation_run_id,
+            config_override=scenario_config_override,
         )
         outcomes[scenario] = outcome
         scenario_run_ids[scenario] = outcome.generation_run_id
         scenario_dir = outcome.operational_dir / "operational"
 
-        scenario_config = load_generation_config(config_path_for_scenario(scenario))
+        scenario_config = _load_cfg(config_path_for_scenario(scenario))
         scenario_dump = scenario_config.model_dump(mode="json", exclude_none=True)
         config_diff = _config_diff(baseline_dump, scenario_dump)
 
@@ -255,9 +288,9 @@ def generate_suite(
         "scenarios": scenario_reports,
     }
 
-    manifest_dir = Path("reports/synthetic_validation/suites")
-    manifest_dir.mkdir(parents=True, exist_ok=True)
-    manifest_path = manifest_dir / f"{suite_id}.json"
+    manifest_dir_final = manifest_dir if manifest_dir is not None else _DEFAULT_MANIFEST_DIR
+    manifest_dir_final.mkdir(parents=True, exist_ok=True)
+    manifest_path = manifest_dir_final / f"{suite_id}.json"
     manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True), encoding="utf-8")
 
     return SuiteOutcome(
@@ -270,8 +303,9 @@ def generate_suite(
     )
 
 
-def load_suite_manifest(suite_id: str) -> dict[str, object]:
-    path = Path("reports/synthetic_validation/suites") / f"{suite_id}.json"
+def load_suite_manifest(suite_id: str, manifest_dir: Path | None = None) -> dict[str, object]:
+    base = manifest_dir if manifest_dir is not None else _DEFAULT_MANIFEST_DIR
+    path = base / f"{suite_id}.json"
     if not path.is_file():
         raise SuiteError(f"No suite manifest found for '{suite_id}' at '{path}'.")
     payload: dict[str, object] = json.loads(path.read_text(encoding="utf-8"))

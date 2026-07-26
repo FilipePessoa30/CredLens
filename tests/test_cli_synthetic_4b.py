@@ -111,7 +111,17 @@ def test_compare_two_runs(capsys: pytest.CaptureFixture[str], cleanup_4b_runs: N
     assert "approval_rate" in captured.out
 
 
+_MONTE_CARLO_START_SEED = 981_001  # never used by any official demo run/suite or other test
+
+
 def test_monte_carlo_two_seeds(capsys: pytest.CaptureFixture[str]) -> None:
+    # --start-seed (Phase 6 gate B) exists precisely so this test never
+    # has to reuse seed 2026 - the CLI's own default start seed, and the
+    # exact coordinate a real official demonstration suite occupies (see
+    # docs/adr/0010's Phase 5 report for how a substring-match cleanup
+    # bug at this same seed was first found). Picking a start seed no
+    # other run/suite/test uses is the structural fix; the exact-run-id
+    # cleanup below is defense in depth, not the primary mechanism.
     exit_code = main(
         [
             "synthetic",
@@ -122,6 +132,8 @@ def test_monte_carlo_two_seeds(capsys: pytest.CaptureFixture[str]) -> None:
             "smoke",
             "--seeds",
             "2",
+            "--start-seed",
+            str(_MONTE_CARLO_START_SEED),
         ]
     )
     captured = capsys.readouterr()
@@ -129,37 +141,43 @@ def test_monte_carlo_two_seeds(capsys: pytest.CaptureFixture[str]) -> None:
     assert "approval_rate" in captured.out
 
     # Delete ONLY the exact runs this test's own monte-carlo call created
-    # (baseline + policy_tightening, seeds 2026/2027) - NOT a substring
-    # match on "2026"/"2027" in the directory name, which would also
-    # delete any unrelated run that happens to share one of those seeds
-    # (e.g. a demonstration run some other scenario made with seed 2026).
-    # A prior version of this fixture did exactly that and silently swept
-    # up other, unrelated run directories - see docs/adr/0010's Phase 5
-    # report for how this was found.
+    # - never a substring match on the seed, which would also delete any
+    # unrelated run that happens to share one of these seeds.
     from credlens.generation.manifest import canonical_config_hash
     from credlens.generation.orchestrator import _compute_generation_run_id
+    from credlens.generation.testing_support import delete_exact_run_dir
 
     baseline_hash = canonical_config_hash(load_generation_config())
     tightening_hash = canonical_config_hash(
         load_generation_config(config_path_for_scenario("policy_tightening"))
     )
     scenario_hashes = (("baseline", baseline_hash), ("policy_tightening", tightening_hash))
+    seeds = (_MONTE_CARLO_START_SEED, _MONTE_CARLO_START_SEED + 1)
     run_ids = [
         _compute_generation_run_id(scenario, "smoke", seed, config_hash)
-        for seed in (2026, 2027)
+        for seed in seeds
         for scenario, config_hash in scenario_hashes
     ]
 
     config = load_generation_config()
     for base in (config.output.operational_dir, config.output.truth_dir):
-        base_path = Path(base)
         for run_id in run_ids:
-            run_dir = base_path / run_id
-            if run_dir.exists():
-                shutil.rmtree(run_dir, ignore_errors=True)
+            delete_exact_run_dir(Path(base), run_id)
     mc_report = Path("reports/synthetic_validation/monte_carlo_summary.json")
     if mc_report.is_file():
         mc_report.unlink()
+
+    # generate_suite() (called once per seed by run_monte_carlo) also
+    # writes a suite manifest to the shared reports/synthetic_validation/
+    # suites/ directory by default (run_monte_carlo never exposed a
+    # manifest_dir override) - a real, previously-undetected gap found
+    # while auditing this same code path for Phase 6's analysis layer
+    # (see tests/test_analysis_multiseed.py). Delete only the exact,
+    # uniquely-seeded files this test's own call created.
+    suites_dir = Path("reports/synthetic_validation/suites")
+    for seed in seeds:
+        manifest_path = suites_dir / f"SUITE_smoke_{seed}.json"
+        manifest_path.unlink(missing_ok=True)
 
 
 def test_profile_baseline(capsys: pytest.CaptureFixture[str], cleanup_4b_runs: None) -> None:

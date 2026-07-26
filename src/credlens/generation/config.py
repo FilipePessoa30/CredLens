@@ -302,3 +302,31 @@ def load_generation_config(path: Path = DEFAULT_CONFIG_PATH) -> GenerationConfig
         raise ConfigError(
             f"Generation config file '{path}' failed schema validation:\n{exc}"
         ) from exc
+
+
+def with_output_dirs(
+    config: GenerationConfig, *, operational_dir: Path, truth_dir: Path
+) -> GenerationConfig:
+    """Returns a copy of `config` with its output roots overridden - the
+    injection point tests use (Phase 6 gate B) to write generated data
+    under an isolated `tmp_path` instead of the shared `data/synthetic/`
+    and `data/synthetic_truth/` roots that official runs/demos/analytical
+    builds also use. Since `operational_dir`/`truth_dir` are part of
+    `canonical_config_hash`'s own payload (config.model_dump includes
+    every field), overriding them also changes `config_hash` and
+    therefore `generation_run_id` - so an isolated-root run is never
+    merely written to a different place, it is a genuinely different,
+    non-colliding run identity even for an otherwise-identical
+    (scenario, scale, seed) triple. Never mutates the input config
+    (pydantic models here are immutable-by-convention; this returns a
+    new instance)."""
+    return config.model_copy(
+        update={
+            "output": config.output.model_copy(
+                update={
+                    "operational_dir": str(operational_dir),
+                    "truth_dir": str(truth_dir),
+                }
+            )
+        }
+    )

@@ -47,11 +47,25 @@ def _qualified_table(conn: Any, table: str) -> str:
     return f'"{row[0]}"."{table}"'
 
 
-def run_named_query(db_path: Path, name: str) -> tuple[list[str], list[tuple[Any, ...]]]:
-    """Runs one fixed, named, read-only demo query. Returns (column_names, rows)."""
+def run_named_query(
+    db_path: Path, name: str, sources: list[dict[str, Any]]
+) -> tuple[list[str], list[tuple[Any, ...]]]:
+    """Runs one fixed, named, read-only demo query. Returns (column_names, rows).
+
+    Phase 6 gate C: `sources` (a build manifest's own `sources` list) is
+    re-verified against the current state of its raw parquet/manifests
+    BEFORE the query runs - the raw layer is a DuckDB view over those
+    same files, so a named query result is only as trustworthy as the
+    files it currently reads. Raises RawIntegrityError, not QueryError,
+    on any mismatch."""
     if name not in NAMED_QUERIES:
         available = ", ".join(sorted(NAMED_QUERIES))
         raise QueryError(f"Unknown query name '{name}'. Available: {available}")
+
+    from credlens.warehouse.integrity import verify_build_sources
+
+    verify_build_sources(sources)
+
     if not db_path.is_file():
         raise QueryError(f"No database file at '{db_path}'.")
 

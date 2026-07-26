@@ -1,6 +1,6 @@
-# Warehouse Architecture (Phase 5)
+# Warehouse Architecture (Phase 5, hardened in Phase 6)
 
-This document describes the **implemented** DuckDB + dbt analytical warehouse under `warehouse/`. It is the as-built companion to `docs/adr/0010-cure-semantics-and-relapse.md` (the DGP correction that made this layer meaningful to build) and to `warehouse/kpi_catalog.yml` (the KPI-by-KPI catalog this architecture supports).
+This document describes the **implemented** DuckDB + dbt analytical warehouse under `warehouse/`. It is the as-built companion to `docs/adr/0010-cure-semantics-and-relapse.md` (the DGP correction that made this layer meaningful to build) and to `warehouse/kpi_catalog.yml` (the KPI-by-KPI catalog this architecture supports). Phase 6 hardened three specific gaps found by re-reading this document against the actual code (see [Testing strategy](#testing-strategy) and [Raw Materialization Trade-off](#raw-materialization-trade-off) below) and added a reproducible analysis layer on top - see `docs/analysis_architecture.md`.
 
 **Everything in this warehouse describes a synthetic portfolio.** No number here represents a real financial institution, a real borrower, or a real-world base rate - see `docs/counterfactual_scenarios.md` and `docs/synthetic_calibration.md`.
 
@@ -67,19 +67,19 @@ flowchart LR
     end
 
     subgraph Marts["marts/ (TABLE)"]
-        MARTM["mart_credit_funnel_monthly, mart_portfolio_monthly,\nmart_delinquency_monthly, mart_vintage_cohorts,\nmart_roll_rates, mart_cure_and_redefault,\nmart_collections_performance, mart_writeoff_recovery,\nmart_scenario_comparison"]
+        MARTM["mart_credit_funnel_monthly, mart_portfolio_monthly,\nmart_delinquency_monthly, mart_vintage_cohorts,\nmart_roll_rates, mart_cure_and_redefault,\nmart_collections_performance, mart_writeoff_recovery,\nmart_scenario_comparison, mart_macro_stress_pre_post"]
     end
 
-    subgraph Consumers["Consumers (Phase 6+, out of scope now)"]
-        BI["Power BI / Tableau / Looker Studio\n(reads marts only)"]
+    subgraph Consumers["credlens.analysis (Phase 6, implemented - see docs/analysis_architecture.md)"]
+        AN["SQL-first metrics/scenarios/charts/reports\n(never a BI tool - out of scope, see docs/roadmap.md)"]
     end
 
     PARQUET --> RESOLVE --> RAWM --> STGM --> INTM --> DIMM
     INTM --> FCTM
-    DIMM --> FCTM --> MARTM -.future.-> BI
+    DIMM --> FCTM --> MARTM --> AN
 ```
 
-62 SQL models total (16 raw + 16 staging + 4 intermediate + 7 dimensions + 10 facts + 9 marts) plus 1 seed (`dim_dpd_bucket`) - 63 files total, 122+ generic dbt tests, 12 singular dbt tests. A full `dbt build` against one suite (5 runs) currently produces 197 total nodes (26 tables, 36 views, 134 data tests, 1 seed) - see [Running it](#running-it) for real timing.
+63 SQL models total (16 raw + 16 staging + 4 intermediate + 7 dimensions + 10 facts + 10 marts) plus 1 seed (`dim_dpd_bucket`) - 64 files total, 122+ generic dbt tests, 13 singular dbt tests (Phase 6 added `mart_macro_stress_pre_post` and `assert_pre_shock_period_identical_across_scenarios.sql`). A full `dbt build` against one suite (5 runs) currently produces 199 total nodes (27 tables, 36 views, 135 data tests, 1 seed) - see [Running it](#running-it) for real timing.
 
 ## Dimensional schema (ERD)
 
@@ -131,9 +131,10 @@ applied as `surrogate_key(['run_id', 'customer_id'])`, never the bare natural id
 
 Raw models (`raw_*`) are materialized as **views**, not tables. Each one is a single call to the `raw_union_sources(table_name)` macro, which compiles a `read_parquet(...)` per selected run, `union all`'d together, tagged with `run_id`/`suite_id`/`scenario`/`seed`/`scale`/`generator_version`.
 
-- **Trade-off accepted**: a raw view always reflects the current parquet files on disk (re-reading them, and re-verifying their existence, on every query) - there is no separate "load" step that can silently go stale relative to the source files.
-- **Cost**: every query against a raw model (and everything downstream of it that DuckDB can't cache within one session) re-reads the source parquet from disk. For the smoke/sample scales this project uses, that cost is small (observed: full 197-node build in ~7-13s - see [Running it](#running-it)).
-- **Alternative considered, rejected for this phase**: materializing raw as tables would need an explicit invalidation/refresh step whenever `data/synthetic/` changes, adding state to reason about for no real benefit at this data scale. Revisit if portfolio-scale (50k customers) raw queries become a bottleneck.
+- **Trade-off accepted**: a raw view always reflects the current parquet files on disk (re-reading them, and re-verifying their existence, on every query) - there is no separate "load" step that can silently go stale relative to the source files. The direct consequence: a file that mutates (or is deleted/corrupted) **after** a build finished would silently change what every query downstream of that build sees, with nothing in the build's own manifest or fingerprint ever having been wrong at build time - a real gap, not a hypothetical one.
+- **Phase 6 gate C closes that gap directly, without abandoning views**: `credlens.warehouse.integrity.verify_build_sources()` re-verifies, at query/reconcile/report time (not just at build time), every source's file existence, size, row count, and the generator's own `canonical_table_hash` (recomputed from the file currently on disk) against what the build's manifest recorded - plus the run's own `manifest.json` status/validation_passed/generator_version/contract_version_set. Every one of `credlens warehouse query`, `reconcile`, and the entire `credlens.analysis` layer's own `validate_build_for_analysis()` calls this first and raises `RawIntegrityError` (refusing to proceed) on any mismatch. Proven with a mandatory negative test (`tests/test_warehouse_integrity.py::TestPostBuildParquetMutationIsDetected`): mutate a parquet file after the build, confirm detection, confirm both reconciliation and named queries are blocked.
+- **Cost**: every query against a raw model (and everything downstream of it that DuckDB can't cache within one session) re-reads the source parquet from disk, and every reconcile/query/analysis call now also re-hashes every source table before proceeding. For the smoke/sample scales this project uses, that cost is small (observed: full 197-node build in ~7-13s - see [Running it](#running-it)).
+- **Alternative considered, rejected for this phase**: materializing raw as tables (with hashes recorded at materialization time) would need an explicit invalidation/refresh step whenever `data/synthetic/` changes, adding state to reason about, and would still need the same re-verification-on-read discipline to catch a file that changed between materialization and use - it does not remove the need for gate C, it only relocates it. Revisit if portfolio-scale (50k customers) raw queries become a bottleneck.
 
 ## Layer-by-layer reference
 
@@ -234,7 +235,7 @@ Both bugs are documented in detail in `CHANGELOG.md`'s `[0.6.0]` entry with the 
 ## Testing strategy
 
 - **Generic dbt tests** (`not_null`, `unique`, `relationships`, `accepted_values`) on every model's own primary key, foreign keys, and domain-constrained columns - see each layer's `_*__models.yml`.
-- **12 singular tests** (`warehouse/tests/*.sql`), each a SELECT that returns rows only when the invariant is violated:
+- **13 singular tests** (`warehouse/tests/*.sql`), each a SELECT that returns rows only when the invariant is violated:
   - `assert_prior_month_status_never_uses_future_data.sql` - the deliberate temporal-leakage test (see [Temporal semantics](#temporal-semantics))
   - `assert_decision_not_before_submission.sql`, `assert_contract_not_before_decision.sql`, `assert_no_active_contract_after_terminal_status.sql` - temporal integrity
   - `assert_natural_id_reuse_across_runs_does_not_collide.sql` - cross-run key isolation
@@ -242,8 +243,13 @@ Both bugs are documented in detail in `CHANGELOG.md`'s `[0.6.0]` entry with the 
   - `assert_balance_components_reconcile.sql`, `assert_balance_non_negative.sql`, `assert_recovery_not_exceeding_write_off.sql` - financial reconciliation/sanity
   - `assert_cumulative_dpd_buckets_nested.sql` - DPD bucket structural invariant
   - `assert_raw_to_staging_row_counts_reconcile.sql`, `assert_write_off_recovery_join_no_fanout.sql` - raw/staging reconciliation and join-fanout absence
-- **Independent Python reconciliation** (`credlens.warehouse.reconciliation`, `credlens warehouse reconcile --build-id`): re-derives 6 KPIs (approval rate, outstanding balance, PAR90, cure rate, write-off amount, recovery amount) directly from source parquet via pandas - never through dbt/SQL - and compares against the built warehouse. Tolerance is explicit: `max(0.01, 0.1% of expected)` for money (justified by the worst-case DECIMAL(18,2) rounding drift, see the module's own docstring), `1e-6` absolute for dimensionless ratios.
+  - `assert_pre_shock_period_identical_across_scenarios.sql` (Phase 6) - baseline and `macroeconomic_stress` must be exactly identical, per metric, in every pre-shock month
+- **Independent Python reconciliation** (`credlens.warehouse.reconciliation`, `credlens warehouse reconcile --build-id`): re-derives 8 KPIs (approval rate, outstanding balance, PAR90, cure rate, write-off amount, recovery amount, paid amount, scheduled amount) directly from source parquet via pandas - never through dbt/SQL - and compares against the built warehouse.
+  - **Monetary tolerance (Phase 6 gate A) is EXACT integer cents, not a percentage band.** The original `max(0.01, 0.1% of expected)` rule was wide enough to mask a material discrepancy on a large balance (0.1% of a six-figure balance is real money). Every monetary value on both sides is converted to integer cents via `decimal.Decimal(str(value)).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)` - verified empirically to match DuckDB's own `CAST(x AS DECIMAL(18,2))` rounding exactly (round-half-away-from-zero on the decimal string, sidestepping both Python's banker's-rounding `round()` and float64 representation error) - then compared for exact equality. This is achievable, not just aspirational, because the staging layer casts every monetary column to `DECIMAL(18,2)` exactly once and every downstream `SUM` is exact decimal addition (see [Determinism and Decimal Money](#determinism-and-decimal-money)) - both sides are summing an identical multiset of already-rounded values, so the sums must match exactly. `tests/test_warehouse_reconciliation.py::TestOldToleranceRuleWasInsufficient` is the mandatory negative test: a discrepancy small enough to pass the old percentage rule that MUST fail the new exact-cents rule.
+  - Ratios (`approval_rate`, `par90`, `cure_rate`) remain `1e-6` absolute tolerance - no monetary rounding is involved on either side.
 - **Idempotency**: `tests/test_warehouse_build.py::TestIdempotency` runs two real, independent builds from the same `run_id` and asserts identical `analytical_fingerprint`, `model_row_counts`, and `included_run_ids`.
+- **Raw source integrity (Phase 6 gate C)**: see [Raw Materialization Trade-off](#raw-materialization-trade-off) above.
+- **Test-root isolation (Phase 6 gate B)**: every test that generates data or builds a warehouse does so under an isolated `tmp_path`-rooted directory, never the shared `data/synthetic/`/`data/warehouse/` roots an official demonstration run/suite/build occupies - see `credlens.generation.testing_support` (`isolated_output_dirs`, `isolated_manifest_dir`, `safe_rmtree`, `delete_exact_run_dir`) and `tests/test_generation_isolated_roots.py`, which proves (among other things) that a test using the exact same `scenario=baseline, scale=smoke, seed=2026` coordinates an official suite occupies never touches that suite's files.
 
 ## Build manifest, analytical fingerprint, and idempotency
 
@@ -275,7 +281,7 @@ Observed on this development machine (see the Phase 5 final report for the autho
 
 ## Demo queries
 
-`credlens warehouse query --build-id <id> --name <NAME>` for any of: `credit_funnel`, `portfolio_monthly`, `delinquency_monthly`, `vintage_cohorts`, `roll_rates`, `cure_and_redefault`, `collections_performance`, `writeoff_recovery`, `scenario_comparison` (see `credlens.warehouse.queries.NAMED_QUERIES`). Two additional ad-hoc analyses live under `warehouse/analyses/` (compiled by `dbt compile`, not materialized): `redefault_rate.sql` and `roll_forward_back_summary.sql`.
+`credlens warehouse query --build-id <id> --name <NAME>` for any of: `credit_funnel`, `portfolio_monthly`, `delinquency_monthly`, `vintage_cohorts`, `roll_rates`, `cure_and_redefault`, `collections_performance`, `writeoff_recovery`, `scenario_comparison` (see `credlens.warehouse.queries.NAMED_QUERIES`). Two additional ad-hoc analyses live under `warehouse/analyses/` (compiled by `dbt compile`, not materialized): `redefault_rate.sql` and `roll_forward_back_summary.sql`. `mart_macro_stress_pre_post` (Phase 6) is queried through `credlens analysis` rather than a named warehouse query - see `docs/analysis_architecture.md`.
 
 ## Limitations
 
@@ -283,8 +289,9 @@ Observed on this development machine (see the Phase 5 final report for the autho
 - `cure_after_collection` (individual-contact-to-cure attribution) is explicitly `not_supported` - the `collections_change` scenario only varies aggregate, scenario-level parameters; the DGP has no per-contact causal link recorded.
 - Vintage/MOB comparisons are only valid within the MOB range every compared cohort actually reached (`max_mob_observed_for_cohort`).
 - Scenario comparisons are only valid within one `suite_id` (shared common random numbers) - never across suites or seeds.
-- `scheduled_amount` (portfolio KPI) and `pre_post_shock_period_comparison` (scenario KPI) are `proposed`, not `implemented` - the underlying data supports them but no mart materializes them yet.
-- Portfolio scale (50,000 customers) has not been rebuilt through this warehouse this phase - see the Phase 5 final report for the explicit scale decision and rationale.
+- `scheduled_amount_due_this_month` (`mart_portfolio_monthly`, Phase 6) is a **period-scoped** figure - installments whose `due_date` falls in that snapshot's own calendar month - never the whole future amortization schedule summed into one row. See the mart's own header comment for the scheduled/due/overdue distinction.
+- `mart_macro_stress_pre_post` (Phase 6) compares baseline vs. `macroeconomic_stress` split at the shock date derived from `fct_macro_monthly.is_synthetic`, not a hardcoded config value - the pre-shock period is asserted identical by `assert_pre_shock_period_identical_across_scenarios.sql`.
+- Portfolio scale (50,000 customers) has not been rebuilt through this warehouse - see the Phase 5 final report for the explicit scale decision and rationale (still true as of Phase 6).
 
 ## Architectural decisions
 

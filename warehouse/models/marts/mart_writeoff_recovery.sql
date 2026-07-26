@@ -1,6 +1,10 @@
 -- Grain: one row per (run_id, write_off_month). Write-off/recovery KPIs.
 select
     run_id,
+    suite_id,
+    scenario,
+    seed,
+    scale,
     date_trunc('month', write_off_date) as write_off_month,
     count(*) as write_off_count,
     sum(write_off_amount) as total_write_off_amount,
@@ -11,4 +15,4 @@ select
     end as recovery_rate,
     avg(days_to_recovery) as avg_days_to_recovery
 from {{ ref('int_write_off_recovery') }}
-group by 1, 2
+group by 1, 2, 3, 4, 5, 6

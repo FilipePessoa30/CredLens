@@ -1,6 +1,6 @@
 # Architecture
 
-This document describes the **target** architecture for the full CredLens project. It states plainly, section by section, what exists today versus what is planned. Nothing described as "planned" below is implemented yet - as of Phase 5, `Transform` and `Warehouse` below have moved from planned to implemented; see `docs/warehouse_architecture.md` for the as-built design.
+This document describes the **target** architecture for the full CredLens project. It states plainly, section by section, what exists today versus what is planned. Nothing described as "planned" below is implemented yet - as of Phase 5, `Transform` and `Warehouse` below have moved from planned to implemented (see `docs/warehouse_architecture.md`); as of Phase 6, the KPI/vintage/roll-rate/scenario-comparison parts of `Analytics` gained a reproducible, versioned analysis layer on top (see `docs/analysis_architecture.md`) - a trained risk model, a policy/cutoff simulator, and `Presentation` (dashboard/demo app) remain planned, explicitly out of scope through Phase 6.
 
 ## Logical architecture
 

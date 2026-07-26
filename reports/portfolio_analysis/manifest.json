@@ -1,0 +1,83 @@
+{
+  "analysis_id": "ANALYSIS_BUILD_kpi_test_20260726T034409Z",
+  "build_id": "BUILD_kpi_test",
+  "contract_version_sets": [
+    "phase5-v1"
+  ],
+  "dbt_version": "=1.12.0",
+  "duckdb_version": "1.5.5",
+  "figures_written": {
+    "credit_funnel": "fcc1d9e8efeeb320bcb573cc97d4f6740f169b787992e27bdea442fc315fdcc2",
+    "cure_and_relapse": "19052170f0fcdd3af02d5667ea2a9b2e5586c8ee0c62933cf8b99e412af75eae",
+    "macro_stress_pre_post": "e45b3dbc406dabda1e8893dca049edb56c95f645b10bd6c041ba447dfe3c639c",
+    "multiseed_stability": "717ff8ad7c4e7c59aae4b56cac4a3faeb245b47a52900d65b1b0b4f6a347a8fd",
+    "outstanding_balance_over_time": "a9a84ba01c7526413426ebcec8d6b83029b0bdced3f045f0abbcd03935d46a12",
+    "par_curves": "a4ac8541d94e30bc3fa576bf58d7037788084d2f602ee2fa9000c71a4658ffff",
+    "policy_scenario_comparison": "026e171244903fa532de8d574a12ee60622c24fc98f82923890a9a116024f732",
+    "public_benchmark_overview": "fef9557678584bce6816daf5b1ef47713f6cdde1476c20e7001e2c1969ff3f07",
+    "quality_provenance_scorecard": "57069f618acde3e09c8ca7ae19f1225e3f53065abc94861f4071d935848bfcac",
+    "roll_rate_heatmap": "7a7cdef6a1796f78140b7b81e1b3781ecb1d949396556eec51459a82d072b8a6",
+    "vintage_curves": "fbc5bff3e0ed49d8cb7edd5ff16269458ca4d9e4aad98f55c95dac7ef363a607",
+    "writeoff_and_recovery": "fd11a5d61383c0b05038b0eaa2fa2c31ef353ccbaf6c1f1eb9e4d84ca54a6ac6"
+  },
+  "final_status": "success",
+  "finished_at": "2026-07-26T03:44:21Z",
+  "generator_version": "0.6.0",
+  "package_version": "0.6.0",
+  "parameters": {
+    "include_benchmark": true,
+    "include_multiseed": true,
+    "multiseed_scale": "smoke",
+    "multiseed_scenario": "macroeconomic_stress",
+    "multiseed_seeds": 5
+  },
+  "python_version": "3.11.9",
+  "queries_executed": [
+    "funnel_monthly",
+    "portfolio_monthly",
+    "delinquency_monthly",
+    "vintage_cohorts",
+    "roll_rates",
+    "cure_and_redefault",
+    "collections_performance",
+    "writeoff_recovery",
+    "scenario_comparison",
+    "macro_stress_pre_post",
+    "funnel_by_channel_and_scenario",
+    "portfolio_by_region_and_channel",
+    "policy_version_comparison"
+  ],
+  "run_ids": [
+    "RUN_baseline_sample_2026_29e3fb70",
+    "RUN_collections_change_sample_2026_7932bc75",
+    "RUN_macroeconomic_stress_sample_2026_c0afa13a",
+    "RUN_policy_expansion_sample_2026_275cb395",
+    "RUN_policy_tightening_sample_2026_4aaa4164"
+  ],
+  "source_hashes": {
+    "RUN_baseline_sample_2026_29e3fb70": "451fea667c0f88c4d27f9ce6c6df9b2374ec4f16fb59708076949e4c4f35267a",
+    "RUN_collections_change_sample_2026_7932bc75": "902810c584feab12336bc075a78142e13c3295e1fb5fd9c4ecdd734e0614846b",
+    "RUN_macroeconomic_stress_sample_2026_c0afa13a": "96aa534282d1651eb9b2b9a31607d8e187e3d6e610ffb6a337bd6a86136c48d5",
+    "RUN_policy_expansion_sample_2026_275cb395": "dba4abf99748c4031bb4c6c1b7ba5e078cdda135bb8a1dd4a1bac6495ad50404",
+    "RUN_policy_tightening_sample_2026_4aaa4164": "4487651aa7ad4aa19502380376330640b8446fc6cc1fbe6ce70a1d5e08e00a39"
+  },
+  "started_at": "2026-07-26T03:44:09Z",
+  "suite_id": "SUITE_sample_2026",
+  "tables_written": {
+    "collections_performance": "fa1eb6e53fc12b94a8d3506982b09d1efe5fa992fe335f0d1c48337651daa277",
+    "cure_and_redefault": "7474cdf0f975064650a59f57f993a235ac4ce1b60671707b06079a11b78f5fc2",
+    "delinquency_monthly": "398ee63e1efedfefb1792a3fe85319bf04d1ce93e909f68d1587602f5c36b2f1",
+    "funnel_by_channel_and_scenario": "8a9193af96887a8fec1db7861880e668d408516ba6ad1256e2360c123e78251b",
+    "funnel_monthly": "ba788e945d2b1097d4a6c6e7cf6fcf1b08ac28df12db1d1a9ef157873fb1a169",
+    "macro_stress_pre_post": "b2f6227f76cb19246302494a57245360f69aa3eff9ccd75dc8d66f43416a6bf3",
+    "policy_version_comparison": "4046a982eeeafba57a4d4a3bf8bca8fd8d241e0869c6137c4e879a84e2eadd02",
+    "portfolio_by_region_and_channel": "e7460dd41efd17ffbf0a4b247f8987d3e0109b791b4af4001918c367341edd20",
+    "portfolio_monthly": "1220cb0fffe782f2fd1a606093163441abf6a3b72cecdd7e0a8fe57b383d5167",
+    "roll_rates": "b242b9d0994cb04bbfd83803de2e6a43cbc9d0a7074bacb9dd88796e103ba8ec",
+    "scenario_comparison": "da1ae001998f6b931ff93116fca580bb2cd2c7dfe902a974139db5b369aa0389",
+    "vintage_cohorts": "85c54e012de6c8e2d32b6099a596cfae9934d5a51ae7d0850b1fd764d0fd51c8",
+    "writeoff_recovery": "8b77407089e61d669dfa03789d4d10e3f1b0a5b29c779a847a73421e6f11a345"
+  },
+  "warehouse_fingerprint": "a891dff7f62b3ff48eba09fbde07acffd075c18273d8cc4ca0fc73f05a8911cd",
+  "warnings": []
+}

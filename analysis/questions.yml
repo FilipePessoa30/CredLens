@@ -1,0 +1,416 @@
+# CredLens Phase 6 - versioned business-question registry (section 9).
+#
+# Every question here is answered by a specific, already-tested function in
+# src/credlens/analysis/ (SQL-first, see section 10) - never by a number typed
+# by hand. `evidence.query_function` is the single source of truth for how the
+# answer is produced; `evidence.table` is where `credlens analysis run` writes
+# the resulting CSV under reports/portfolio_analysis/tables/.
+#
+# status: answered | partially_answered | not_answered
+#   - "answered" means the query executes against a real build and returns a
+#     grain-correct, documented result - not that the result is causally
+#     conclusive (see each question's own `limitations`).
+#
+# Every answer is a DGP (data-generating-process) result on synthetic data,
+# never a claim about a real financial institution - see
+# docs/assumptions_and_limitations.md and each report's own disclaimers.
+
+version: 1
+updated_at: "2026-07-26"
+
+questions:
+  # --- Funil de crédito / Credit funnel --------------------------------------
+  - id: FUN-01
+    category: funil_de_credito
+    question_pt: "Como o volume de solicitações flui por submitted -> decisioned -> approved -> booked, por cenário?"
+    question_en: "How does application volume flow through submitted -> decisioned -> approved -> booked, by scenario?"
+    stakeholder: "Head of Credit Risk / Product"
+    decision_supported: "Where in the funnel volume is lost, and whether a scenario changes that shape."
+    kpis_used: [applications_submitted, decisioned_applications, approved_count, booked_count]
+    models_used: [mart_credit_funnel_monthly]
+    segmentations: [scenario, channel]
+    temporal_window: "Whole suite period, monthly grain, summed for the funnel chart."
+    maturity_criteria: "None - funnel counts require no months-on-book maturity."
+    limitations: "Counts only; no revenue/cost weighting of the funnel stages."
+    status: answered
+    evidence:
+      query_function: credlens.analysis.metrics.funnel_monthly
+      chart_function: credlens.analysis.charts.credit_funnel
+      table: reports/portfolio_analysis/tables/funnel_monthly.csv
+      figure: reports/portfolio_analysis/figures/credit_funnel.png
+
+  - id: FUN-02
+    category: funil_de_credito
+    question_pt: "Em qual canal a maior perda de funil (submitted -> approved) ocorre, e isso muda por cenário?"
+    question_en: "Which channel has the largest funnel loss (submitted -> approved), and does that change by scenario?"
+    stakeholder: "Head of Channel / Product"
+    decision_supported: "Which channel's underwriting funnel would deserve a closer look."
+    kpis_used: [approval_rate, booking_rate_of_approved]
+    models_used: [mart_credit_funnel_monthly, dim_run]
+    segmentations: [channel, scenario]
+    temporal_window: "Whole suite period, summed across months per (run, channel)."
+    maturity_criteria: "None."
+    limitations: "Suppressed/low_sample-flagged below MIN_SEGMENT_OBSERVATIONS=10 decisioned applications."
+    status: answered
+    evidence:
+      query_function: credlens.analysis.metrics.funnel_by_channel_and_scenario
+      table: reports/portfolio_analysis/tables/funnel_by_channel_and_scenario.csv
+
+  - id: FUN-03
+    category: funil_de_credito
+    question_pt: "policy_expansion/policy_tightening muda a approval_rate em relação ao baseline, e por quanto?"
+    question_en: "Does policy_expansion/policy_tightening change the approval rate vs. baseline, and by how much?"
+    stakeholder: "Head of Credit Policy"
+    decision_supported: "Sizing the mechanical effect of a cutoff change before considering it further."
+    kpis_used: [approval_rate, approval_rate_delta_abs, approval_rate_delta_rel]
+    models_used: [mart_scenario_comparison]
+    segmentations: [scenario]
+    temporal_window: "Whole run, single aggregate rate."
+    maturity_criteria: "None."
+    limitations: "Aggregate rate only - see SCN-01 for the composition-vs-performance split."
+    status: answered
+    evidence:
+      query_function: credlens.analysis.metrics.scenario_comparison
+      chart_function: credlens.analysis.charts.policy_scenario_comparison
+      table: reports/portfolio_analysis/tables/scenario_comparison.csv
+      figure: reports/portfolio_analysis/figures/policy_scenario_comparison.png
+
+  # --- Composição da carteira / Portfolio composition ------------------------
+  - id: COMP-01
+    category: composicao_da_carteira
+    question_pt: "Como o saldo em aberto (outstanding balance) evolui ao longo do tempo, por cenário?"
+    question_en: "How does outstanding balance evolve over time, by scenario?"
+    stakeholder: "CFO / Treasury"
+    decision_supported: "Understanding portfolio size trajectory under each counterfactual scenario."
+    kpis_used: [outstanding_balance]
+    models_used: [mart_portfolio_monthly]
+    segmentations: [scenario]
+    temporal_window: "Full observed history, one point per snapshot_date - STOCK, never summed across dates."
+    maturity_criteria: "None."
+    limitations: "Synthetic monetary units; no real BRL purchasing-power context."
+    status: answered
+    evidence:
+      query_function: credlens.analysis.metrics.portfolio_monthly
+      chart_function: credlens.analysis.charts.outstanding_balance_over_time
+      table: reports/portfolio_analysis/tables/portfolio_monthly.csv
+      figure: reports/portfolio_analysis/figures/outstanding_balance_over_time.png
+
+  - id: COMP-02
+    category: composicao_da_carteira
+    question_pt: "Como o saldo em aberto se concentra por região x canal, no snapshot mais recente de cada run?"
+    question_en: "How is outstanding balance concentrated by region x channel, at each run's most recent snapshot?"
+    stakeholder: "Head of Risk / Compliance (aggregate, retrospective audit only)"
+    decision_supported: "Spotting balance concentration, for an aggregate audit view only - never individual targeting."
+    kpis_used: [outstanding_balance, contracts]
+    models_used: [fct_account_monthly, fct_contracts, fct_applications, stg_fairness_attributes]
+    segmentations: [region, channel]
+    temporal_window: "Each run's own final (max) snapshot_date - STOCK."
+    maturity_criteria: "None."
+    limitations: >
+      region is sourced from stg_fairness_attributes, an EVALUATION-ONLY field
+      (docs/fairness_data_design.md); used here strictly as an aggregate audit
+      breakdown, never joined into any decisioning path. Suppressed/flagged
+      below MIN_SEGMENT_OBSERVATIONS=10 contracts.
+    status: answered
+    evidence:
+      query_function: credlens.analysis.metrics.portfolio_by_region_and_channel
+      table: reports/portfolio_analysis/tables/portfolio_by_region_and_channel.csv
+
+  - id: COMP-03
+    category: composicao_da_carteira
+    question_pt: "A approval_rate por policy_version confirma que o cenário realmente mudou o cutoff de decisão?"
+    question_en: "Does approval rate by policy_version confirm the scenario actually changed the decision cutoff?"
+    stakeholder: "Head of Credit Policy / Model Risk"
+    decision_supported: "Verifying the DGP scenario mechanism did what it claims, before trusting downstream deltas."
+    kpis_used: [approval_rate, decisions]
+    models_used: [fct_credit_decisions, dim_policy, dim_run]
+    segmentations: [policy_version_id, scenario]
+    temporal_window: "Whole run."
+    maturity_criteria: "None."
+    limitations: "Suppressed/flagged below MIN_SEGMENT_OBSERVATIONS=10 decisions."
+    status: answered
+    evidence:
+      query_function: credlens.analysis.metrics.policy_version_comparison
+      table: reports/portfolio_analysis/tables/policy_version_comparison.csv
+
+  # --- Inadimplência / Delinquency --------------------------------------------
+  - id: DEL-01
+    category: inadimplencia
+    question_pt: "Qual a evolução de PAR30/60/90 ao longo do tempo, baseline vs. cenários?"
+    question_en: "What is the PAR30/60/90 trend over time, baseline vs. scenarios?"
+    stakeholder: "Head of Credit Risk"
+    decision_supported: "Reading delinquency severity trend under each scenario."
+    kpis_used: [par30, par60, par90]
+    models_used: [mart_delinquency_monthly]
+    segmentations: [scenario]
+    temporal_window: "Full observed history, one point per snapshot_date - balance-weighted STOCK ratio."
+    maturity_criteria: "None."
+    limitations: "Balance-weighted, not contract-count-weighted; see mart_delinquency_monthly docs."
+    status: answered
+    evidence:
+      query_function: credlens.analysis.metrics.delinquency_monthly
+      chart_function: credlens.analysis.charts.par_curves
+      table: reports/portfolio_analysis/tables/delinquency_monthly.csv
+      figure: reports/portfolio_analysis/figures/par_curves.png
+
+  - id: DEL-02
+    category: inadimplencia
+    question_pt: "Qual a matriz de transição de faixas de atraso (roll-rate) mês a mês, para o mesmo contrato?"
+    question_en: "What is the month-over-month DPD bucket transition (roll-rate) matrix, for the same contract?"
+    stakeholder: "Collections / Credit Risk"
+    decision_supported: "Reading how contracts migrate between delinquency buckets - a collections-priority input."
+    kpis_used: [contract_count]
+    models_used: [mart_roll_rates]
+    segmentations: [from_bucket, to_bucket]
+    temporal_window: "Summed across all observed months for one run."
+    maturity_criteria: "None."
+    limitations: "Never cross-contract; only same-contract month-over-month transitions."
+    status: answered
+    evidence:
+      query_function: credlens.analysis.metrics.roll_rates
+      chart_function: credlens.analysis.charts.roll_rate_heatmap
+      table: reports/portfolio_analysis/tables/roll_rates.csv
+      figure: reports/portfolio_analysis/figures/roll_rate_heatmap.png
+
+  - id: DEL-03
+    category: inadimplencia
+    question_pt: "Um choque macroeconômico afeta o PAR90, e apenas após o choque ocorrer (não antes)?"
+    question_en: "Does a macroeconomic shock affect PAR90, and only after it occurs (not before)?"
+    stakeholder: "Head of Credit Risk / CRO"
+    decision_supported: "Confirming the shock's effect is temporally isolated before reading its magnitude."
+    kpis_used: [par90, par90_delta_abs]
+    models_used: [mart_macro_stress_pre_post]
+    segmentations: [period (pre_shock/post_shock)]
+    temporal_window: "Split at the shock date derived from fct_macro_monthly.is_synthetic, per suite."
+    maturity_criteria: "None."
+    limitations: "One suite/seed per build - see SCN-03 for multi-seed robustness."
+    status: answered
+    evidence:
+      query_function: credlens.analysis.metrics.macro_stress_pre_post
+      chart_function: credlens.analysis.charts.macro_stress_pre_post_chart
+      table: reports/portfolio_analysis/tables/macro_stress_pre_post.csv
+      figure: reports/portfolio_analysis/figures/macro_stress_pre_post.png
+
+  # --- Safras / Vintages ------------------------------------------------------
+  - id: VIN-01
+    category: safras_vintages
+    question_pt: "Qual a incidência de 90+ por months-on-book (MOB), para cada safra de originação?"
+    question_en: "What is the 90+ DPD incidence by months-on-book (MOB), for each origination vintage cohort?"
+    stakeholder: "Head of Credit Risk"
+    decision_supported: "Comparing early-life risk shape across origination cohorts."
+    kpis_used: [contracts_90plus, contracts_observed]
+    models_used: [mart_vintage_cohorts]
+    segmentations: [vintage_month, months_on_book]
+    temporal_window: "Per-cohort, up to each cohort's own max_mob_observed_for_cohort."
+    maturity_criteria: >
+      Two cohorts are only compared up to the MOB both have actually reached
+      (max_mob_observed_for_cohort) - never extrapolated past what a younger
+      cohort has had time to show.
+    limitations: "Newer cohorts inherently have fewer observed MOB points."
+    status: answered
+    evidence:
+      query_function: credlens.analysis.metrics.vintage_cohorts
+      chart_function: credlens.analysis.charts.vintage_curves
+      table: reports/portfolio_analysis/tables/vintage_cohorts.csv
+      figure: reports/portfolio_analysis/figures/vintage_curves.png
+
+  - id: VIN-02
+    category: safras_vintages
+    question_pt: "Safras mais recentes mostram desempenho de risco melhor ou pior que safras mais antigas, no MOB comparável?"
+    question_en: "Do more recent vintages show better or worse risk performance than older ones, at comparable MOB?"
+    stakeholder: "Head of Credit Risk"
+    decision_supported: "Whether the origination process's risk profile appears to be drifting over cohorts."
+    kpis_used: [contracts_90plus, contracts_observed]
+    models_used: [mart_vintage_cohorts]
+    segmentations: [vintage_month]
+    temporal_window: "Same MOB across cohorts, per VIN-01's maturity criteria."
+    maturity_criteria: "Same as VIN-01 - comparison capped at max_mob_observed_for_cohort."
+    limitations: "Same DGP config across the suite's period; not a claim about real underwriting drift."
+    status: answered
+    evidence:
+      query_function: credlens.analysis.metrics.vintage_cohorts
+      table: reports/portfolio_analysis/tables/vintage_cohorts.csv
+
+  # --- Cura e reincidência / Cure and relapse ---------------------------------
+  - id: CUR-01
+    category: cura_e_reincidencia
+    question_pt: "Que fração de contratos inadimplentes cura, e dessa fração, quantos posteriormente reincidem (relapse)?"
+    question_en: "What fraction of delinquent contracts cure, and of those, how many later redefault (relapse)?"
+    stakeholder: "Collections / Credit Risk"
+    decision_supported: "Reading how durable a 'cure' event is, by scenario."
+    kpis_used: [was_ever_cured, redefaulted]
+    models_used: [mart_cure_and_redefault]
+    segmentations: [scenario]
+    temporal_window: "Per-contract, whole observed history of that contract."
+    maturity_criteria: "None - counts, not a maturity-dependent rate."
+    limitations: >
+      Aggregate this per-contract table in SQL for a rate, never
+      was_ever_cured.mean() in pandas - see
+      warehouse/analyses/redefault_rate.sql for the correct aggregate query.
+    status: answered
+    evidence:
+      query_function: credlens.analysis.metrics.cure_and_redefault
+      chart_function: credlens.analysis.charts.cure_and_relapse
+      table: reports/portfolio_analysis/tables/cure_and_redefault.csv
+      figure: reports/portfolio_analysis/figures/cure_and_relapse.png
+
+  - id: CUR-02
+    category: cura_e_reincidencia
+    question_pt: "O comportamento de cura/reincidência muda entre baseline e os cenários de política/macro/cobrança?"
+    question_en: "Does cure/relapse behavior differ between baseline and the policy/macro/collections scenarios?"
+    stakeholder: "Collections / Credit Risk"
+    decision_supported: "Whether a scenario's DGP config changes not just delinquency onset but its resolution."
+    kpis_used: [was_ever_cured, redefaulted]
+    models_used: [mart_cure_and_redefault]
+    segmentations: [scenario]
+    temporal_window: "Per-contract, whole observed history."
+    maturity_criteria: "None."
+    limitations: "Same DGP-config caveat as CUR-01."
+    status: answered
+    evidence:
+      query_function: credlens.analysis.metrics.cure_and_redefault
+      chart_function: credlens.analysis.charts.cure_and_relapse
+      table: reports/portfolio_analysis/tables/cure_and_redefault.csv
+
+  # --- Cobrança e recuperação / Collections and recovery ----------------------
+  - id: COL-01
+    category: cobranca_e_recuperacao
+    question_pt: "Qual a atividade de contato de cobrança em relação à população elegível inadimplente, mês a mês?"
+    question_en: "What is collections contact activity relative to the eligible delinquent population, each month?"
+    stakeholder: "Head of Collections"
+    decision_supported: "Reading collections operational coverage over time and by scenario."
+    kpis_used: [contacts_made, eligible_population]
+    models_used: [mart_collections_performance]
+    segmentations: [scenario]
+    temporal_window: "Monthly grain, event_month."
+    maturity_criteria: "None."
+    limitations: "Operational counts, not effectiveness/causal attribution - see COL-03."
+    status: answered
+    evidence:
+      query_function: credlens.analysis.metrics.collections_performance
+      table: reports/portfolio_analysis/tables/collections_performance.csv
+
+  - id: COL-02
+    category: cobranca_e_recuperacao
+    question_pt: "Quanto foi baixado (write-off) vs. recuperado, por cenário?"
+    question_en: "How much was written off vs. recovered, by scenario?"
+    stakeholder: "CFO / Head of Collections"
+    decision_supported: "Reading the shape of a write-off/recovery KPI view."
+    kpis_used: [total_write_off_amount, total_recovery_amount]
+    models_used: [mart_writeoff_recovery]
+    segmentations: [scenario]
+    temporal_window: "Summed across the whole observed period, per run."
+    maturity_criteria: "None."
+    limitations: "No LGD/EAD modeling; recovery_rate is a DGP configuration outcome, not a real estimate."
+    status: answered
+    evidence:
+      query_function: credlens.analysis.metrics.writeoff_recovery
+      chart_function: credlens.analysis.charts.writeoff_and_recovery
+      table: reports/portfolio_analysis/tables/writeoff_recovery.csv
+      figure: reports/portfolio_analysis/figures/writeoff_and_recovery.png
+
+  - id: COL-03
+    category: cobranca_e_recuperacao
+    question_pt: "Intensificar a cobrança (collections_change) muda os resultados, e isso pode ser atribuído a um contato individual?"
+    question_en: "Does intensifying collections (collections_change) change outcomes, and can that be attributed to an individual contact?"
+    stakeholder: "Head of Collections"
+    decision_supported: "Reading the AGGREGATE scenario-level effect only - never an individual-contact causal claim."
+    kpis_used: [write_off_count_delta_abs, approval_rate_delta_abs]
+    models_used: [mart_scenario_comparison]
+    segmentations: [scenario]
+    temporal_window: "Whole run."
+    maturity_criteria: "None."
+    limitations: >
+      collections_change varies AGGREGATE, scenario-level DGP parameters only.
+      There is no per-contact causal attribution recorded. Results represent a
+      synthetic counterfactual, not proof of a real collections strategy's
+      individual effect.
+    status: answered
+    evidence:
+      query_function: credlens.analysis.metrics.scenario_comparison
+      table: reports/portfolio_analysis/tables/scenario_comparison.csv
+
+  # --- Cenários / Scenarios ----------------------------------------------------
+  - id: SCN-01
+    category: cenarios
+    question_pt: "policy_expansion/tightening: qual o efeito mecânico (composição) vs. o efeito de performance na população compartilhada?"
+    question_en: "policy_expansion/tightening: what is the mechanical (composition) effect vs. the performance effect on the shared population?"
+    stakeholder: "Head of Credit Policy"
+    decision_supported: >
+      Separating 'the policy changed who gets approved' from 'the policy
+      changed how the same contracts perform' - never conflating the two.
+    kpis_used: [shared_booked_count, baseline_only_count, scenario_only_count, shared_par90, marginal_par90]
+    models_used: [fct_applications, fct_contracts, fct_account_monthly]
+    segmentations: [scenario]
+    temporal_window: "Each run's own final snapshot_date, matched by application_id (not contract_id)."
+    maturity_criteria: "None; both runs' final snapshot_date used directly."
+    limitations: "low_sample-flagged below MIN_SEGMENT_OBSERVATIONS=10 in either the shared or marginal group."
+    status: answered
+    evidence:
+      query_function: credlens.analysis.scenarios.composition_vs_performance
+      table: (embedded in executive_summary.md / technical_report.md - not a standalone CSV)
+
+  - id: SCN-02
+    category: cenarios
+    question_pt: "O período pré-choque é de fato idêntico entre baseline e macroeconomic_stress, confirmando o desenho de CRN?"
+    question_en: "Is the pre-shock period actually identical between baseline and macroeconomic_stress, confirming the CRN design?"
+    stakeholder: "Model Risk / Analytics Engineering"
+    decision_supported: "Validating the DGP's own CRN guarantee before trusting any post-shock delta."
+    kpis_used: [par90_delta_abs (pre_shock period)]
+    models_used: [mart_macro_stress_pre_post]
+    segmentations: [period]
+    temporal_window: "Pre-shock period only."
+    maturity_criteria: "None."
+    limitations: "Enforced by warehouse/tests/assert_pre_shock_period_identical_across_scenarios.sql."
+    status: answered
+    evidence:
+      query_function: credlens.analysis.metrics.macro_stress_pre_post
+      table: reports/portfolio_analysis/tables/macro_stress_pre_post.csv
+      dbt_test: assert_pre_shock_period_identical_across_scenarios
+
+  - id: SCN-03
+    category: cenarios
+    question_pt: "Quão estáveis são os deltas de cenário entre múltiplas seeds (variabilidade de simulação)?"
+    question_en: "How stable are scenario deltas across multiple seeds (simulation variability)?"
+    stakeholder: "Model Risk / Analytics Engineering"
+    decision_supported: "Reading whether a single-seed delta is directionally robust before citing it."
+    kpis_used: [mean_delta, stdev_delta, fraction_in_expected_direction]
+    models_used: ["credlens.generation.montecarlo.run_monte_carlo (Phase 4B, not a warehouse mart)"]
+    segmentations: [scenario, scale]
+    temporal_window: "Smoke-scale, multiple seeds starting at a non-official start_seed (Phase 6 gate B)."
+    maturity_criteria: "None."
+    limitations: >
+      Explicitly labeled "simulation variability across synthetic DGP seeds" -
+      never a real institution's statistical confidence interval. Optional
+      (--multiseed) - expensive to run, so not part of every analysis run;
+      never run at portfolio scale repeatedly (section 13).
+    status: partially_answered
+    evidence:
+      query_function: credlens.analysis.multiseed.robustness_across_seeds
+      table: reports/portfolio_analysis/tables/ (only present when --multiseed was used)
+      note: >
+        "partially_answered" because this only executes when `credlens
+        analysis run --multiseed` is explicitly requested (it performs real
+        data generation, so it is not run by default or in CI).
+
+  - id: SCN-04
+    category: cenarios
+    question_pt: "Como as taxas sintéticas da CredLens se comparam estruturalmente (não causalmente) a bases públicas de crédito?"
+    question_en: "How do CredLens synthetic rates compare structurally (not causally) to public credit benchmark datasets?"
+    stakeholder: "Model Risk / Analytics Engineering"
+    decision_supported: "Providing external structural context - never a claim of population equivalence."
+    kpis_used: [num_rows, num_columns, missing_value_findings, domain_findings]
+    models_used: ["credlens.analysis.benchmark.profile_public_sources (public data, not a warehouse mart)"]
+    segmentations: [source_id]
+    temporal_window: "Each source's own documented acquisition period (see context.period per source)."
+    maturity_criteria: "None."
+    limitations: >
+      Never mixed with synthetic customers; never treated as a CredLens
+      result; never compared as if the populations were equivalent (Taiwan
+      2005 credit-card clients, Germany 1973-1975 credit applicants, BCB
+      aggregate banking-system series vs. a synthetic Brazilian fintech).
+    status: answered
+    evidence:
+      query_function: credlens.analysis.benchmark.profile_public_sources
+      chart_function: credlens.analysis.charts.public_benchmark_overview
+      figure: reports/portfolio_analysis/figures/public_benchmark_overview.png

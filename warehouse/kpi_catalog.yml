@@ -199,21 +199,72 @@ kpis:
     status: implemented
 
   - id: POR-003
-    name: scheduled_amount
+    name: scheduled_amount_due_this_month
     category: portfolio
-    business_objective: Total amount the amortization schedule calls for in a period (principal+interest+fees due).
-    formula: sum(scheduled_total)
-    numerator: sum of fct_installments.scheduled_total for installments due in the period
+    business_objective: How much the amortization schedule calls for THIS calendar month specifically (principal+interest+fees due) - the basis for paid-to-scheduled tracking.
+    formula: sum(scheduled_total) where date_trunc('month', due_date) = snapshot_date's own month
+    numerator: sum of fct_installments.scheduled_total for installments whose due_date falls in that snapshot's calendar month
     denominator: null
-    grain: would be (run_id, due_month)
-    temporal_dimension: due_date
-    filters: none defined yet
+    grain: (run_id, snapshot_date) - explicitly period-scoped, never a lifetime schedule total
+    temporal_dimension: due_date's own calendar month, joined to snapshot_date's month
+    filters: none - every installment due that month counts, regardless of its current status
     exclusions: none
     unit: brl
-    interpretation: How much the schedule expects to collect in the period.
-    limitations: fct_installments carries every field needed (scheduled_total, due_date) but no mart currently aggregates it by month - the underlying data supports this KPI, it is just not yet materialized as a mart column.
-    source_model: fct_installments (no mart yet)
-    status: proposed
+    interpretation: How much the ORIGINAL schedule called for in this specific month - fixed at schedule-creation time, not revised by later prepayment/write-off (see mart_portfolio_monthly.sql's own header note on the scheduled/due/overdue distinction).
+    limitations: Deliberately NOT the whole future schedule summed into one number - a due-this-month figure only. Sub-components (scheduled_principal_due_this_month/scheduled_interest_due_this_month/scheduled_fees_due_this_month) are the same breakdown, same grain.
+    source_model: mart_portfolio_monthly.scheduled_amount_due_this_month
+    status: implemented
+
+  - id: POR-008
+    name: paid_amount_this_month
+    category: portfolio
+    business_objective: How much was actually collected THIS month - the numerator for paid_to_scheduled_ratio.
+    formula: sum(net_amount) grouped by payment_month
+    numerator: sum of fct_payments.net_amount (already reversal-adjusted) for that snapshot's calendar month
+    denominator: null
+    grain: (run_id, snapshot_date)
+    temporal_dimension: payment_month (date_trunc('month', payment_timestamp))
+    filters: none - net_amount already nets out reversals
+    exclusions: none
+    unit: brl
+    interpretation: Total amount actually paid across the portfolio in this specific month.
+    limitations: FLOW - safe to sum across months (unlike outstanding_balance).
+    source_model: mart_portfolio_monthly.paid_amount_this_month
+    status: implemented
+
+  - id: POR-009
+    name: paid_to_scheduled_ratio
+    category: portfolio
+    business_objective: Collection efficiency for the period - are customers paying what was due, more (prepaying), or less (falling behind)?
+    formula: paid_amount_this_month / scheduled_amount_due_this_month
+    numerator: paid_amount_this_month (POR-008)
+    denominator: scheduled_amount_due_this_month (POR-003)
+    grain: (run_id, snapshot_date)
+    temporal_dimension: same calendar month for both numerator and denominator
+    filters: scheduled_amount_due_this_month > 0
+    exclusions: none
+    unit: ratio
+    interpretation: "Above 1.0 means more was paid than was due that month (prepayment activity); below 1.0 means collections fell short of what was due."
+    limitations: A ratio of two DIFFERENT temporal bases (payment_timestamp vs. due_date) that happen to share a calendar month - not a per-installment match, a portfolio-level comparison.
+    source_model: mart_portfolio_monthly.paid_to_scheduled_ratio
+    status: implemented
+
+  - id: POR-010
+    name: overdue_scheduled_amount
+    category: portfolio
+    business_objective: How much scheduled amount is currently past due and unpaid - the STOCK complement to PAR30/60/90's bucket breakdown.
+    formula: sum(past_due_amount)
+    numerator: sum of fct_account_monthly.past_due_amount at snapshot_date
+    denominator: null
+    grain: (run_id, snapshot_date) - STOCK, never sum across snapshot_date
+    temporal_dimension: snapshot_date
+    filters: none
+    exclusions: none
+    unit: brl
+    interpretation: Total amount past due (already scheduled, due date passed, not yet paid) across the portfolio at this snapshot.
+    limitations: Same figure as fct_account_monthly.past_due_amount, surfaced at portfolio grain for convenience - not a new computation.
+    source_model: mart_portfolio_monthly.overdue_scheduled_amount
+    status: implemented
 
   - id: POR-004
     name: cumulative_paid_total
@@ -852,7 +903,7 @@ kpis:
     exclusions: none
     unit: ratio
     interpretation: How many percentage points the 90+ DPD contract rate moved at the runs' final observed month, vs. baseline.
-    limitations: "Final observed month" is run-relative, not a fixed calendar date - only meaningful within one suite where all runs share the same scale/seed/period.
+    limitations: Final observed month is run-relative, not a fixed calendar date - only meaningful within one suite where all runs share the same scale/seed/period.
     source_model: mart_scenario_comparison.dpd90_rate_delta_abs
     status: implemented
 
@@ -876,19 +927,53 @@ kpis:
   - id: SCN-006
     name: pre_post_shock_period_comparison
     category: scenario
-    business_objective: Compare payment behavior before vs. after a dated macro shock within one run.
-    formula: not yet materialized as a warehouse mart - see limitations
+    business_objective: Compare baseline vs. macroeconomic_stress within the SAME period (pre-shock, post-shock), not just as one whole-run number.
+    formula: "period = case when snapshot_date < shock_date then 'pre_shock' else 'post_shock' end; shock_date = min(reference_date) where fct_macro_monthly.is_synthetic, per run"
+    numerator: n/a (a period classification, not a ratio)
+    denominator: n/a
+    grain: (suite_id, period)
+    temporal_dimension: shock_date-derived period boundary, read from the data itself (not a hardcoded config value)
+    filters: scenario in ('baseline', 'macroeconomic_stress')
+    exclusions: none
+    unit: n/a
+    interpretation: Splits every comparison into "before the shock" and "after the shock" so a reader can see the pre-shock identity check AND the post-shock divergence in the same table.
+    limitations: "Only valid within one suite_id (CRN-shared population) - never compare pre/post periods across different suites or seeds. Empirically verified (SUITE_sample_2026) - pre-shock par90/dpd90_rate/outstanding_balance/write_off_count/write_off_amount are IDENTICAL between baseline and stress (delta_abs = 0 on every metric), proving the DGP's own pre-shock identity guarantee; post-shock shows real divergence (e.g. par90 4.56% baseline vs 10.15% stress in that same build)."
+    source_model: mart_macro_stress_pre_post
+    status: implemented
+
+  - id: SCN-007
+    name: pre_shock_identity_check
+    category: scenario
+    business_objective: Machine-checkable proof that pre-shock behavior really is unaffected by the macroeconomic_stress scenario, not just an assumption.
+    formula: par90_delta_abs, dpd90_rate_delta_abs, write_off_count_delta_abs, write_off_amount_delta_abs all == 0 (or within floating-point noise) when period = 'pre_shock'
     numerator: n/a
     denominator: n/a
-    grain: n/a
-    temporal_dimension: n/a
-    filters: n/a
-    exclusions: n/a
+    grain: (suite_id, period='pre_shock')
+    temporal_dimension: pre-shock period only
+    filters: period = 'pre_shock'
+    exclusions: none
     unit: n/a
-    interpretation: n/a
-    limitations: Phase 4B already proved this directionally in Python (docs/counterfactual_scenarios.md's macroeconomic_stress section - pre-shock payments byte-identical to baseline, post-shock DPD90+ increase confirmed in 10/10 Monte Carlo seeds). The warehouse's macro_context_monthly/fct_macro_monthly carries the shock's own dates and could support a dedicated pre/post mart, but none was built this phase - the data supports it, the model does not exist yet.
-    source_model: fct_macro_monthly (no mart yet)
-    status: proposed
+    interpretation: If any pre-shock delta is materially non-zero, the CRN/shock-timing design has a real bug - this is the automated check for that, not just a documentation claim.
+    limitations: Wired as an actual dbt singular test - warehouse/tests/assert_pre_shock_period_identical_across_scenarios.sql - not just a documentation claim.
+    source_model: mart_macro_stress_pre_post (period='pre_shock' rows)
+    status: implemented
+
+  - id: SCN-008
+    name: post_shock_par90_delta
+    category: scenario
+    business_objective: Magnitude of the shock's effect on severe delinquency, isolated to the period after it actually happened.
+    formula: stress_par90 - baseline_par90, for period = 'post_shock'
+    numerator: n/a (a difference)
+    denominator: n/a
+    grain: (suite_id, period='post_shock')
+    temporal_dimension: post-shock period, averaged across its own observed months
+    filters: period = 'post_shock'
+    exclusions: none
+    unit: ratio
+    interpretation: How many percentage points PAR90 moved, on average, across the months after the shock - isolated from the pre-shock period where no effect should appear.
+    limitations: An average across the post-shock months observed in this run/suite - not a month-by-month curve (see mart_delinquency_monthly for that granularity).
+    source_model: mart_macro_stress_pre_post.par90_delta_abs
+    status: implemented
 
   # ------------------------------------------------------------------
   # Explicitly not supported - would require inventing a number

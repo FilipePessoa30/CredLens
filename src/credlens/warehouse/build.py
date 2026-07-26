@@ -318,15 +318,27 @@ def run_build(
     build_id: str | None = None,
     force: bool = False,
     quiet: bool = False,
+    operational_root: Path | None = None,
+    manifest_dir: Path | None = None,
 ) -> BuildManifest:
     """Resolve sources, run `dbt build`, and write a build manifest. Raises
     BuildError/SourceSelectionError - never returns a partial or silently
-    downgraded result."""
+    downgraded result.
+
+    `operational_root`/`manifest_dir`, if given, are passed straight
+    through to `credlens.warehouse.sources.resolve_sources` - see its own
+    docstring (Phase 6 gate B/C: builds a real warehouse from an isolated
+    tmp_path root)."""
     t_start_total = time.perf_counter()
     step_durations: dict[str, float] = {}
 
     t0 = time.perf_counter()
-    sources = resolve_sources(run_id=run_id, suite_id=suite_id)
+    sources = resolve_sources(
+        run_id=run_id,
+        suite_id=suite_id,
+        operational_root=operational_root,
+        manifest_dir=manifest_dir,
+    )
     step_durations["resolve_sources"] = time.perf_counter() - t0
 
     resolved_build_id = build_id or _build_id_for(run_id, suite_id)

@@ -31,7 +31,7 @@ jobs:
         run: uv python install ${{ matrix.python-version }}
 
       - name: Install dependencies
-        run: uv sync --all-groups --extra warehouse --python ${{ matrix.python-version }}
+        run: uv sync --all-groups --extra warehouse --extra analysis --python ${{ matrix.python-version }}
 
       - name: Lint (ruff check)
         run: uv run ruff check .
@@ -82,3 +82,64 @@ jobs:
           uv run credlens warehouse status --build-id CI_WAREHOUSE_BUILD
           uv run credlens warehouse query --build-id CI_WAREHOUSE_BUILD --name portfolio_monthly
           uv run credlens warehouse docs --build-id CI_WAREHOUSE_BUILD
+
+      # Portfolio analysis layer (Phase 6): the analysis CLI needs a SUITE
+      # (baseline + every CRN scenario), not a single run, to compare
+      # scenarios - a separate smoke-scale suite build from the warehouse
+      # steps above. Multi-seed robustness (--multiseed) is intentionally
+      # NOT run here - it performs real additional data generation and is
+      # explicitly out of scope for CI (Phase 6 section 22); it is proven
+      # once, deterministically, by tests/test_analysis_runner.py instead.
+      # The benchmark appendix is also skipped (--no-benchmark): the public
+      # datasets it profiles live under the gitignored data/raw/ and are
+      # never fetched in CI (no external downloads, Phase 6 section 22) -
+      # tests/test_analysis_benchmark.py already proves the appendix
+      # degrades to "not included" gracefully when its files are absent.
+      - name: Generate a deterministic smoke suite for analysis validation
+        run: uv run credlens synthetic generate-suite --scale smoke --seed 900001 --force
+
+      - name: Analysis warehouse build (dbt build against the smoke suite)
+        run: |
+          uv run credlens warehouse build \
+            --suite-id SUITE_smoke_900001 --build-id CI_ANALYSIS_BUILD --force
+
+      - name: Analysis validate (no full run)
+        run: uv run credlens analysis validate --build-id CI_ANALYSIS_BUILD
+
+      - name: Analysis run (smoke scale, no benchmark, CI-scoped output dir)
+        run: |
+          uv run credlens analysis run --build-id CI_ANALYSIS_BUILD \
+            --output-dir /tmp/ci_portfolio_analysis --no-benchmark
+
+      - name: Validate analysis outputs were really written
+        run: |
+          test -s /tmp/ci_portfolio_analysis/manifest.json
+          test -s /tmp/ci_portfolio_analysis/executive_summary.md
+          test -s /tmp/ci_portfolio_analysis/executive_summary.pt-BR.md
+          test -s /tmp/ci_portfolio_analysis/technical_report.md
+          test -s /tmp/ci_portfolio_analysis/technical_report.pt-BR.md
+          FIGURE_COUNT=$(find /tmp/ci_portfolio_analysis/figures -name '*.png' | wc -l)
+          echo "Generated $FIGURE_COUNT figures"
+          test "$FIGURE_COUNT" -ge 8
+          uv run python -c "
+          import json
+          m = json.load(open('/tmp/ci_portfolio_analysis/manifest.json'))
+          assert m['final_status'] == 'success', m['final_status']
+          assert not m['warnings'], m['warnings']
+          "
+
+      - name: Analysis CLI smoke checks (scenarios/status/benchmark)
+        run: |
+          uv run credlens analysis scenarios --build-id CI_ANALYSIS_BUILD
+          uv run credlens analysis status --output-dir /tmp/ci_portfolio_analysis
+          uv run credlens analysis benchmark
+
+      - name: Analysis reproduce (idempotency proof)
+        run: |
+          uv run credlens analysis reproduce --output-dir /tmp/ci_portfolio_analysis \
+            --reproduce-dir /tmp/ci_portfolio_analysis_reproduce --json
+
+      - name: Prove the official reports/portfolio_analysis/ was never altered
+        run: |
+          git status --porcelain reports/portfolio_analysis/ analysis/ warehouse/ | tee ci_git_status.txt
+          test ! -s ci_git_status.txt

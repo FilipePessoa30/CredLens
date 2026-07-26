@@ -128,7 +128,7 @@ class TestNamedQueries:
     @pytest.mark.parametrize("name", sorted(NAMED_QUERIES))
     def test_every_named_query_runs(self, a_built_warehouse: str, name: str) -> None:
         manifest = load_build_manifest(a_built_warehouse)
-        columns, rows = run_named_query(Path(manifest.db_path), name)
+        columns, rows = run_named_query(Path(manifest.db_path), name, manifest.sources)
         assert columns
         # A single baseline run has no scenario to compare against, so
         # scenario_comparison legitimately returns 0 rows - every other
@@ -139,9 +139,9 @@ class TestNamedQueries:
     def test_unknown_query_name_raises(self, a_built_warehouse: str) -> None:
         manifest = load_build_manifest(a_built_warehouse)
         with pytest.raises(QueryError, match="Unknown query name"):
-            run_named_query(Path(manifest.db_path), "not_a_real_query")
+            run_named_query(Path(manifest.db_path), "not_a_real_query", manifest.sources)
 
     def test_missing_database_raises(self) -> None:
         missing_db = Path("data/warehouse/does_not_exist/warehouse.duckdb")
         with pytest.raises(QueryError, match="No database file"):
-            run_named_query(missing_db, "portfolio_monthly")
+            run_named_query(missing_db, "portfolio_monthly", [])

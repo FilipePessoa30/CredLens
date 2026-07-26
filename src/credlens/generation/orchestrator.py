@@ -104,6 +104,7 @@ def generate_scenario(
     force: bool = False,
     suite_id: str | None = None,
     parent_run_id: str | None = None,
+    config_override: GenerationConfig | None = None,
 ) -> GenerationOutcome:
     """Generate one run of `scenario` at `scale_name` for `seed`. Only
     scenarios in credlens.generation.config.EXECUTABLE_SCENARIOS have a
@@ -113,7 +114,14 @@ def generate_scenario(
     collections_change) are additionally checked against baseline's own
     config on every population/applications-affecting field before
     generating - see credlens.generation.config.assert_crn_compatible and
-    docs/common_random_numbers.md."""
+    docs/common_random_numbers.md.
+
+    `config_override`, if given, is used verbatim instead of loading a
+    config from `config_path`/the scenario's own default config file -
+    the injection point for credlens.generation.config.with_output_dirs
+    (Phase 6 gate B: tests build this from the real scenario config with
+    just operational_dir/truth_dir redirected to an isolated tmp_path, so
+    they never read or write the shared data/synthetic/ root at all)."""
     if scenario not in EXECUTABLE_SCENARIOS:
         raise ScenarioNotCalibratedError(
             f"Scenario '{scenario}' has no executable generation config in Phase 4B - only "
@@ -121,11 +129,14 @@ def generate_scenario(
             "(status: requires_calibration)."
         )
 
-    config = (
-        load_generation_config(config_path)
-        if config_path
-        else load_generation_config(config_path_for_scenario(scenario))
-    )
+    if config_override is not None:
+        config = config_override
+    else:
+        config = (
+            load_generation_config(config_path)
+            if config_path
+            else load_generation_config(config_path_for_scenario(scenario))
+        )
     baseline_config = None
     if scenario in CRN_SCENARIOS:
         baseline_config = load_generation_config()
@@ -400,6 +411,7 @@ def generate_baseline(
     seed: int,
     config_path: Path | None = None,
     force: bool = False,
+    config_override: GenerationConfig | None = None,
 ) -> GenerationOutcome:
     """Phase 4A name, kept for backward compatibility (existing callers/tests) - a thin
     wrapper over generate_scenario(), which is the general Phase 4B entry point."""
@@ -409,6 +421,7 @@ def generate_baseline(
         seed=seed,
         config_path=config_path,
         force=force,
+        config_override=config_override,
     )
 
 

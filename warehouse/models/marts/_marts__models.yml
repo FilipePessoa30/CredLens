@@ -4,7 +4,9 @@ models:
   - name: mart_credit_funnel_monthly
     description: "Grain: one row per (run_id, submitted_month, channel). Funnel KPIs - see warehouse/kpi_catalog.yml."
   - name: mart_portfolio_monthly
-    description: "Grain: one row per (run_id, snapshot_date). Portfolio stock KPIs plus that month's flow payment counts."
+    description: "Grain: one row per (run_id, snapshot_date). Portfolio stock KPIs (outstanding balance, overdue scheduled amount) plus that SAME month's own flow figures: payment counts, amount actually paid, and the schedule's own due amount (never a lifetime schedule total - see the model's own header comment)."
+  - name: mart_macro_stress_pre_post
+    description: "Grain: one row per (suite_id, metric, period) where period is 'pre_shock'/'post_shock'. Baseline vs. macroeconomic_stress compared within each period, and the shock's own pre-shock identity check - see the model's own header comment and docs/warehouse_architecture.md."
   - name: mart_delinquency_monthly
     description: "Grain: one row per (run_id, snapshot_date). PAR30/60/90, bucket counts/balances, new delinquencies, cures."
   - name: mart_vintage_cohorts

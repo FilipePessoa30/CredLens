@@ -256,7 +256,7 @@ class TestStatusQueryTestDocs:
         exit_code = main(["warehouse", "reconcile", "--build-id", a_built_warehouse])
         captured = capsys.readouterr()
         assert exit_code == 0
-        assert "Result: OK (6 check(s))" in captured.out
+        assert "Result: OK (8 check(s))" in captured.out
         assert "approval_rate" in captured.out
         assert "MISMATCH" not in captured.out
 
@@ -267,7 +267,7 @@ class TestStatusQueryTestDocs:
         captured = capsys.readouterr()
         assert exit_code == 0
         payload = json.loads(captured.out)
-        assert len(payload) == 6
+        assert len(payload) == 8
         assert all(check["passed"] for check in payload)
 
     def test_reconcile_unknown_build_id_fails_cleanly(

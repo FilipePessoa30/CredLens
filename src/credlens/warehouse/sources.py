@@ -181,26 +181,38 @@ def resolve_sources(
     *,
     run_id: str | None = None,
     suite_id: str | None = None,
+    operational_root: Path | None = None,
+    manifest_dir: Path | None = None,
 ) -> list[SourceRecord]:
     """Resolves exactly one of `run_id` (a single run) or `suite_id` (a
     baseline + every one of its CRN scenario runs) into a validated list of
     SourceRecord. Raises SourceSelectionError - never returns a partial or
-    best-effort result - if any selected run fails a safety check."""
+    best-effort result - if any selected run fails a safety check.
+
+    `operational_root`/`manifest_dir`, if given, override where runs/the
+    suite manifest are looked up (Phase 6 gate B/C: lets a test build a
+    real warehouse from an isolated tmp_path root instead of the shared
+    data/synthetic/ tree) - the normal call from `credlens warehouse
+    prepare/build` never passes these, and gets the real configured
+    roots exactly as before."""
     if (run_id is None) == (suite_id is None):
         raise SourceSelectionError(
             "Exactly one of run_id or suite_id must be given (they are mutually exclusive) - "
             f"got run_id={run_id!r}, suite_id={suite_id!r}."
         )
 
-    config = load_generation_config()
-    operational_root = Path(config.output.operational_dir).resolve()
+    if operational_root is None:
+        config = load_generation_config()
+        operational_root = Path(config.output.operational_dir).resolve()
+    else:
+        operational_root = operational_root.resolve()
 
     if run_id is not None:
         return [_load_one_run(run_id, operational_root, suite_id=None)]
 
     assert suite_id is not None
     try:
-        suite_manifest = load_suite_manifest(suite_id)
+        suite_manifest = load_suite_manifest(suite_id, manifest_dir=manifest_dir)
     except SuiteError as exc:
         raise SourceSelectionError(str(exc)) from exc
 
