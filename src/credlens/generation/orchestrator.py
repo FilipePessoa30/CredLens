@@ -53,7 +53,15 @@ from credlens.generation.writers import (
     write_truth_tables,
 )
 
-GENERATOR_VERSION = "0.5.0"
+# Phase 5 bump (0.5.0 -> 0.6.0): the cure mechanism's semantics changed - a
+# cure now pays only the overdue backlog, leaving future installments
+# intact and the contract non-terminal, enabling delinquency relapse - see
+# docs/adr/0010-cure-semantics-and-relapse.md. generation_runs.generator_version
+# is the authoritative per-run record of which generator semantics produced
+# it; every *.generation.yaml's own `version` field was also bumped so
+# config_hash (and therefore generation_run_id) changes too, guaranteeing a
+# Phase 5 run is never silently written into a Phase 4 run's directory.
+GENERATOR_VERSION = "0.6.0"
 
 
 class GenerationError(Exception):
@@ -253,7 +261,7 @@ def generate_scenario(
             "period_end": [config.period.end.isoformat()],
             "generated_at": [started_at.strftime("%Y-%m-%dT%H:%M:%SZ")],
             "config_hash": [config_hash],
-            "contract_version_set": ["phase4a-v1"],
+            "contract_version_set": ["phase5-v1"],
             "status": ["completed"],
             "planned_customers": [n_customers],
             "planned_applications": [len(applications)],
@@ -319,7 +327,7 @@ def generate_scenario(
         period_start=config.period.start.isoformat(),
         period_end=config.period.end.isoformat(),
         config_hash=config_hash,
-        contract_version_set="phase4a-v1",
+        contract_version_set="phase5-v1",
         table_row_counts={name: len(df) for name, df in operational_tables.items()},
         table_hashes=table_hashes,
         global_content_hash=global_hash,

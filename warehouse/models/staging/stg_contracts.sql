@@ -1,0 +1,23 @@
+select
+    {{ surrogate_key(['run_id', 'contract_id']) }} as contract_key,
+    {{ surrogate_key(['run_id', 'application_id']) }} as application_key,
+    {{ surrogate_key(['run_id', 'customer_id']) }} as customer_key,
+    run_id,
+    suite_id,
+    scenario,
+    seed,
+    scale,
+    contract_id,
+    application_id,
+    customer_id,
+    cast(contract_date as timestamp) as contract_date,
+    cast(disbursement_date as timestamp) as disbursement_date,
+    {{ money('financed_amount') }} as financed_amount,
+    cast(term_months as integer) as term_months,
+    cast(contract_rate as double) as contract_rate,
+    cast(num_installments as integer) as num_installments,
+    cast(first_due_date as date) as first_due_date,
+    status,
+    currency_unit,
+    cast(closed_date as date) as closed_date
+from {{ ref('raw_contracts') }}

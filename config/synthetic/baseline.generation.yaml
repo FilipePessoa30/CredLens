@@ -11,8 +11,15 @@
 # document config/synthetic/scenarios/baseline.blueprint.yaml - see that
 # file (and docs/synthetic_generation_implementation.md) for why the two
 # are kept separate. Loaded/validated by src/credlens/generation/config.py.
+#
+# version bumped 1 -> 2 in Phase 5: the cure mechanism's semantics changed
+# (a cure now pays only the overdue backlog, not the whole remaining
+# balance - see docs/adr/0010-cure-semantics-and-relapse.md). Every value
+# below is unchanged; this bump exists so config_hash (and therefore
+# generation_run_id) changes even though no parameter value did, so a
+# Phase 5 run is never silently written into a Phase 4 run's directory.
 
-version: 1
+version: 2
 scenario: baseline
 default_seed: 2026
 currency_unit: credlens_synthetic_unit

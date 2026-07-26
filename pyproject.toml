@@ -1,7 +1,7 @@
 [project]
 name = "credlens"
-version = "0.5.0"
-description = "CredLens - Credit Risk & Portfolio Analytics. Project scaffolding, business framing, a CLI, reproducible public-dataset acquisition/audit, conceptual data model, data contracts, and a deterministic, performance-optimized synthetic-portfolio generator with counterfactual scenarios and common random numbers."
+version = "0.6.0"
+description = "CredLens - Credit Risk & Portfolio Analytics. Project scaffolding, business framing, a CLI, reproducible public-dataset acquisition/audit, conceptual data model, data contracts, a deterministic, performance-optimized synthetic-portfolio generator with counterfactual scenarios and common random numbers, and a DuckDB + dbt analytical warehouse with a dimensional schema, SQL KPIs, and quality tests."
 readme = "README.md"
 license = { text = "MIT" }
 requires-python = ">=3.11"
@@ -53,6 +53,22 @@ Repository = "https://github.com/OWNER/credlens-credit-analytics"
 
 [project.scripts]
 credlens = "credlens.cli:main"
+
+# Phase 5's warehouse (DuckDB + dbt) is deliberately an OPTIONAL extra, not
+# a core runtime dependency: nothing in credlens.generation or the contracts
+# layer needs it, only `credlens warehouse ...` and the warehouse/ dbt
+# project do. dbt-core/dbt-duckdb pull in a large, fast-moving dependency
+# tree (jinja2, protobuf, sqlglot, networkx, ...) that would otherwise
+# bloat every install of the base package. Versions were resolved by `uv
+# add --optional warehouse dbt-core dbt-duckdb` (not hand-picked) and are
+# pinned exactly in uv.lock; `dbt-duckdb==1.10.1` itself pulls in
+# `duckdb==1.5.5`, the actual DuckDB engine version this phase was built
+# and tested against. Install with `uv sync --extra warehouse`.
+[project.optional-dependencies]
+warehouse = [
+    "dbt-core>=1.12.0",
+    "dbt-duckdb>=1.10.1",
+]
 
 [dependency-groups]
 dev = [

@@ -31,7 +31,7 @@ jobs:
         run: uv python install ${{ matrix.python-version }}
 
       - name: Install dependencies
-        run: uv sync --all-groups --python ${{ matrix.python-version }}
+        run: uv sync --all-groups --extra warehouse --python ${{ matrix.python-version }}
 
       - name: Lint (ruff check)
         run: uv run ruff check .
@@ -51,3 +51,34 @@ jobs:
 
       - name: CLI smoke check
         run: uv run credlens doctor
+
+      # Warehouse validation (Phase 5): generates a single deterministic
+      # 'smoke'-scale run (a few hundred customers, well under a second -
+      # never 'sample'/'portfolio' scale in CI), then exercises the full
+      # credlens warehouse pipeline against it. `credlens warehouse build`
+      # itself invokes dbt-core's dbtRunner, which parses the project
+      # before running it - a separate `dbt parse` step would be
+      # redundant, so a failed parse surfaces here as a failed build.
+      - name: Generate a deterministic smoke run for warehouse validation
+        run: |
+          uv run credlens synthetic generate --scenario baseline --scale smoke --seed 2026 --force \
+            | tee generate_output.txt
+          RUN_ID=$(grep '^generation_run_id:' generate_output.txt | awk '{print $2}')
+          echo "WAREHOUSE_CI_RUN_ID=$RUN_ID" >> "$GITHUB_ENV"
+
+      - name: Warehouse build (dbt parse + run + generic/singular tests)
+        run: |
+          uv run credlens warehouse build \
+            --run-id "$WAREHOUSE_CI_RUN_ID" --build-id CI_WAREHOUSE_BUILD --force
+
+      - name: Warehouse test (re-run dbt tests, no rebuild)
+        run: uv run credlens warehouse test --build-id CI_WAREHOUSE_BUILD
+
+      - name: Warehouse independent Python reconciliation
+        run: uv run credlens warehouse reconcile --build-id CI_WAREHOUSE_BUILD
+
+      - name: Warehouse CLI smoke checks (status/query/docs)
+        run: |
+          uv run credlens warehouse status --build-id CI_WAREHOUSE_BUILD
+          uv run credlens warehouse query --build-id CI_WAREHOUSE_BUILD --name portfolio_monthly
+          uv run credlens warehouse docs --build-id CI_WAREHOUSE_BUILD

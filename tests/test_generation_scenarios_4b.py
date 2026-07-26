@@ -261,7 +261,26 @@ class TestContractCoverage:
         assert len(collections) > 0, "collections"
         assert payments["reversal_of_payment_id"].notna().any(), "reversal"
 
-        had_delinquency = set(snapshots.loc[snapshots["status"] == "delinquent", "contract_id"])
-        settled = set(snapshots.loc[snapshots["status"] == "settled", "contract_id"])
-        assert len(settled - had_delinquency) > 0, "prepay (settled without ever delinquent)"
-        assert len(settled & had_delinquency) > 0, "cure (settled after delinquency)"
+        # payment_type (Phase 5) is the generator's own explicit
+        # classification - a direct check, not a status-based heuristic.
+        assert (payments["payment_type"] == "cure").any(), "cure"
+        assert (payments["payment_type"] == "prepayment").any(), "prepayment"
+
+        # Relapse (Phase 5): a contract that was delinquent, returned to
+        # active (cured), and later became delinquent again - only
+        # possible now that cure no longer terminates the contract. See
+        # docs/adr/0010-cure-semantics-and-relapse.md.
+        ordered = snapshots.sort_values(["contract_id", "snapshot_date"])
+        relapsed_contracts = []
+        for contract_id, group in ordered.groupby("contract_id"):
+            statuses = group["status"].tolist()
+            cured_since_last_delinquency = False
+            for status in statuses:
+                if status == "delinquent":
+                    if cured_since_last_delinquency:
+                        relapsed_contracts.append(contract_id)
+                        break
+                    cured_since_last_delinquency = False
+                elif status == "active":
+                    cured_since_last_delinquency = True
+        assert len(relapsed_contracts) > 0, "relapse into delinquency"

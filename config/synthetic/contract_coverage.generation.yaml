@@ -11,20 +11,23 @@
 # not a scenario".
 #
 # States this configuration is tuned (and tested, see
-# tests/test_generation_contract_coverage.py) to produce within scale
+# tests/test_generation_scenarios_4b.py::TestContractCoverage and
+# tests/test_generation_cure_semantics.py) to produce within scale
 # 'smoke' at seed 2026: approval, rejection, approval-without-booking,
 # a performing (on-time) contract, delinquency, a partial payment, a
-# cure, a collection event, a write-off, a recovery, a prepayment, and a
-# payment reversal. KNOWN GAP: true delinquency "relapse" (cured, then
-# delinquent again on the SAME still-open contract) cannot occur under
-# ANY configuration of the current generator - see
-# docs/counterfactual_scenarios.md "contract_coverage known gap" for why
-# (credlens.generation.payments' cure branch always pays off the
-# contract's ENTIRE remaining balance, not just its overdue backlog, so a
-# cured contract is always terminal/settled the same month - there is no
-# remaining balance left for it to relapse on).
+# cure (backlog-only, contract stays active - see
+# docs/adr/0010-cure-semantics-and-relapse.md), a collection event, a
+# write-off, a recovery, a prepayment, a payment reversal, AND
+# delinquency RELAPSE (cured, then delinquent again on the same
+# still-open contract) - fixed in Phase 5, previously an architectural
+# gap documented in docs/counterfactual_scenarios.md's Phase 4B version.
+# All 13 target states are covered - see
+# reports/synthetic_validation/contract_coverage.json.
+#
+# version bumped 1 -> 2 in Phase 5 (cure semantics change, the fix that
+# makes relapse possible) - see docs/adr/0010-cure-semantics-and-relapse.md.
 
-version: 1
+version: 2
 scenario: contract_coverage
 default_seed: 2026
 currency_unit: credlens_synthetic_unit

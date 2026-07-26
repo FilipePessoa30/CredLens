@@ -1,9 +1,12 @@
 name: payments
-version: 1
+version: 2
 description: >
   One row per payment transaction. A payment is not automatically a full
   payment of any specific installment - see payment_allocations.yaml and
-  docs/business_rules.md.
+  docs/business_rules.md. Phase 5 adds payment_type, the explicit,
+  generator-assigned classification of WHY a payment happened - never
+  inferred after the fact from amount heuristics. See
+  docs/adr/0010-cure-semantics-and-relapse.md.
 owner: "Finance (conceptual)"
 classification: synthetic_operational
 grain: "one row per payment transaction"
@@ -27,6 +30,7 @@ columns:
   - {name: status, type: categorical, nullable: false, domain: {in_set: [pending, settled, reversed]}, unit: null, temporality: null, sensitivity: synthetic_operational, available_for_modeling: false, description: "Payment status."}
   - {name: settlement_date, type: date, nullable: true, domain: null, unit: null, temporality: settlement_date, sensitivity: synthetic_operational, available_for_modeling: false, description: "When the payment actually settled; null while status=pending."}
   - {name: reversal_of_payment_id, type: string, nullable: true, domain: null, unit: null, temporality: null, sensitivity: synthetic_operational, available_for_modeling: false, description: "If this row is a reversal, the payment_id it reverses; null otherwise."}
+  - {name: payment_type, type: categorical, nullable: false, domain: {in_set: [scheduled, partial, cure, prepayment]}, unit: null, temporality: null, sensitivity: synthetic_operational, available_for_modeling: false, description: "Phase 5: the generator's own classification of why this payment happened - 'scheduled' (on-time, pays exactly what's due), 'partial' (a fraction of what's due), 'cure' (pays off overdue backlog only, contract returns to active with future installments intact - see docs/adr/0010), 'prepayment' (a full early payoff of every remaining installment, including not-yet-due ones). A reversal row carries the same payment_type as the payment it reverses."}
 
 uniqueness_rules: []
 

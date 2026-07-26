@@ -1,0 +1,53 @@
+version: 2
+
+models:
+  - name: dim_date
+    description: "Grain: one row per calendar month. PK: date_key (YYYYMM integer). Natural key: month_date. No SCD (a month's own attributes never change)."
+    columns:
+      - name: date_key
+        tests: [not_null, unique]
+
+  - name: dim_run
+    description: "Grain: one row per generator run. PK/natural key: run_id (globally unique by construction). No SCD (a run's metadata is immutable)."
+    columns:
+      - name: run_id
+        tests: [not_null, unique]
+
+  - name: dim_scenario
+    description: "Grain: one row per distinct scenario name present in the loaded runs. PK/natural key: scenario_key."
+    columns:
+      - name: scenario_key
+        tests: [not_null, unique]
+
+  - name: dim_customer
+    description: "Grain: one row per (run_id, customer_id). PK: customer_key. Natural key: (run_id, customer_id) - NOT customer_id alone. No SCD Type 2: this DGP has no customer attribute that changes over time (see credlens.generation.population)."
+    columns:
+      - name: customer_key
+        tests: [not_null, unique]
+
+  - name: dim_channel
+    description: "Grain: one row per distinct application channel observed. PK/natural key: channel_key."
+    columns:
+      - name: channel_key
+        tests: [not_null, unique]
+
+  - name: dim_region
+    description: "Grain: one row per distinct region observed in fairness_attributes (evaluation-only). PK/natural key: region_key."
+    columns:
+      - name: region_key
+        tests: [not_null, unique]
+
+  - name: dim_policy
+    description: "Grain: one row per (run_id, policy_version_id). PK: policy_version_key. No SCD within a run (every scenario has exactly one policy version)."
+    columns:
+      - name: policy_version_key
+        tests: [not_null, unique]
+
+seeds:
+  - name: dim_dpd_bucket
+    description: "Grain: one row per DPD bucket label (current/1-29/30-59/60-89/90+/write_off). Small, hand-authored reference data - not generator output."
+    columns:
+      - name: dpd_bucket_key
+        tests: [not_null, unique]
+      - name: dpd_bucket
+        tests: [not_null, unique]

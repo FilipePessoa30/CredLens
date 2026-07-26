@@ -1,9 +1,9 @@
 {
-  "baseline_run_id": "RUN_baseline_smoke_606002_5d40b2fc",
-  "dgp_version": "0.5.0",
+  "baseline_run_id": "RUN_baseline_smoke_606002_29e3fb70",
+  "dgp_version": "0.6.0",
   "scale": "smoke",
   "scenario_run_ids": {
-    "collections_change": "RUN_collections_change_smoke_606002_dc17562c"
+    "collections_change": "RUN_collections_change_smoke_606002_7932bc75"
   },
   "scenarios": {
     "collections_change": {
@@ -11,20 +11,20 @@
         "approval_rate": 0.611307,
         "avg_latent_propensity_of_approved": 0.744276,
         "booking_rate": 0.861272,
-        "cure_rate": 0.272727,
-        "dpd30_plus_rate": 0.189427,
-        "dpd60_plus_rate": 0.127753,
-        "dpd90_plus_rate": 0.0837,
-        "generation_run_id": "RUN_baseline_smoke_606002_5d40b2fc",
+        "cure_rate": 0.344828,
+        "dpd30_plus_rate": 0.15102,
+        "dpd60_plus_rate": 0.077551,
+        "dpd90_plus_rate": 0.040816,
+        "generation_run_id": "RUN_baseline_smoke_606002_29e3fb70",
         "n_applications": 294,
         "n_approved": 173,
-        "n_collection_events": 52,
+        "n_collection_events": 61,
         "n_contracts": 149,
         "n_decided": 283,
-        "n_recoveries": 3,
-        "n_snapshots": 227,
-        "n_write_offs": 5,
-        "write_off_rate": 0.033557
+        "n_recoveries": 0,
+        "n_snapshots": 245,
+        "n_write_offs": 0,
+        "write_off_rate": 0.0
       },
       "config_diff": {
         "collections": {
@@ -128,7 +128,7 @@
           "type": "invariant"
         },
         {
-          "detail": "baseline=115 payments, scenario=115 payments",
+          "detail": "baseline=129 payments, scenario=155 payments",
           "name": "payments_exist_both_runs",
           "passed": true,
           "type": "invariant"
@@ -148,70 +148,70 @@
           "metric": "booking_rate"
         },
         {
-          "baseline_value": 0.189427,
-          "candidate_value": 0.072816,
-          "delta": -0.116612,
+          "baseline_value": 0.15102,
+          "candidate_value": 0.087649,
+          "delta": -0.063371,
           "metric": "dpd30_plus_rate"
         },
         {
-          "baseline_value": 0.127753,
-          "candidate_value": 0.014563,
-          "delta": -0.11319,
+          "baseline_value": 0.077551,
+          "candidate_value": 0.027888,
+          "delta": -0.049663,
           "metric": "dpd60_plus_rate"
         },
         {
-          "baseline_value": 0.0837,
-          "candidate_value": 0.004854,
-          "delta": -0.078846,
+          "baseline_value": 0.040816,
+          "candidate_value": 0.011952,
+          "delta": -0.028864,
           "metric": "dpd90_plus_rate"
         },
         {
-          "baseline_value": 0.272727,
-          "candidate_value": 0.72,
-          "delta": 0.447273,
+          "baseline_value": 0.344828,
+          "candidate_value": 0.342857,
+          "delta": -0.00197,
           "metric": "cure_rate"
         },
         {
-          "baseline_value": 0.033557,
-          "candidate_value": 0.0,
-          "delta": -0.033557,
+          "baseline_value": 0.0,
+          "candidate_value": 0.006711,
+          "delta": 0.006711,
           "metric": "write_off_rate"
         }
       ],
       "population_crn_preserved": true,
       "population_hashes": {
         "baseline": {
-          "application_features": "f3221e992b0b2284f7edc974c009f9b9d617a0bfbb51377c845a32798e54828c",
-          "applications": "e5c2781894a1b7399a993588f0703f34322d34e3204023b9a2e4bd82ad5d146e",
-          "customers": "ea6a3433cb46d1e8b4f08d68f2d115b399778b52a3f0d4a281e6e092de08d97d",
-          "fairness_attributes": "e7a0364793c67a1805b57a3cac94aa2b429ccf6148b6560bbd439fc05cb26338"
+          "application_features": "2f4a82c2c81be1eda2fe9b78d990f1770d74b51423547a4db0c36154810f58f1",
+          "applications": "c3317922226967af4d8d635d86deeee135bd3b88b1ae124af479054e6116b1fe",
+          "customers": "25b32ce6ccd7a8695ef6bc93de134ff350984e72c12f8db3e4c33567222e1162",
+          "fairness_attributes": "a4f09dc95b63e0ae8b5bd57059da70fcd9408067e806f2efdea1131956fd1ef5"
         },
         "scenario": {
-          "application_features": "f3221e992b0b2284f7edc974c009f9b9d617a0bfbb51377c845a32798e54828c",
-          "applications": "e5c2781894a1b7399a993588f0703f34322d34e3204023b9a2e4bd82ad5d146e",
-          "customers": "ea6a3433cb46d1e8b4f08d68f2d115b399778b52a3f0d4a281e6e092de08d97d",
-          "fairness_attributes": "e7a0364793c67a1805b57a3cac94aa2b429ccf6148b6560bbd439fc05cb26338"
+          "application_features": "2f4a82c2c81be1eda2fe9b78d990f1770d74b51423547a4db0c36154810f58f1",
+          "applications": "c3317922226967af4d8d635d86deeee135bd3b88b1ae124af479054e6116b1fe",
+          "customers": "25b32ce6ccd7a8695ef6bc93de134ff350984e72c12f8db3e4c33567222e1162",
+          "fairness_attributes": "a4f09dc95b63e0ae8b5bd57059da70fcd9408067e806f2efdea1131956fd1ef5"
         }
       },
-      "run_id": "RUN_collections_change_smoke_606002_dc17562c",
+      "run_id": "RUN_collections_change_smoke_606002_7932bc75",
       "scenario_metrics": {
         "approval_rate": 0.611307,
         "avg_latent_propensity_of_approved": 0.744276,
         "booking_rate": 0.861272,
-        "cure_rate": 0.72,
-        "dpd30_plus_rate": 0.072816,
-        "dpd60_plus_rate": 0.014563,
-        "dpd90_plus_rate": 0.004854,
-        "generation_run_id": "RUN_collections_change_smoke_606002_dc17562c",
+        "cure_rate": 0.342857,
+        "dpd30_plus_rate": 0.087649,
+        "dpd60_plus_rate": 0.027888,
+        "dpd90_plus_rate": 0.011952,
+        "generation_run_id": "RUN_collections_change_smoke_606002_7932bc75",
         "n_applications": 294,
         "n_approved": 173,
-        "n_collection_events": 36,
+        "n_collection_events": 59,
         "n_contracts": 149,
         "n_decided": 283,
-        "n_recoveries": 0,
-        "n_snapshots": 206,
-        "n_write_offs": 0,
-        "write_off_rate": 0.0
+        "n_recoveries": 1,
+        "n_snapshots": 251,
+        "n_write_offs": 1,
+        "write_off_rate": 0.006711
       }
     }
   },

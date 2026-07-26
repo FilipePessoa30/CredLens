@@ -1,0 +1,19 @@
+# Example dbt profile for the CredLens warehouse - COPY this to profiles.yml
+# (git-ignored) or, preferably, let `credlens warehouse build/prepare` render
+# it for you automatically. Never commit a real profiles.yml: even though
+# this one has no credentials (DuckDB is an embedded, file-based engine, not
+# a server), it can end up with a machine-specific absolute path if you
+# render it by hand instead of via the CLI.
+#
+# The `path` below is intentionally NOT a hardcoded absolute path - it reads
+# the CREDLENS_WAREHOUSE_DB_PATH environment variable, which
+# `credlens warehouse` always sets before invoking dbt, pointing at
+# data/warehouse/<build_id>/warehouse.duckdb (git-ignored, like every other
+# data/ subdirectory in this repository).
+credlens_warehouse:
+  target: dev
+  outputs:
+    dev:
+      type: duckdb
+      path: "{{ env_var('CREDLENS_WAREHOUSE_DB_PATH', 'warehouse/target/dev.duckdb') }}"
+      threads: 4

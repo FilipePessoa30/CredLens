@@ -1,0 +1,20 @@
+select
+    run_id,
+    generation_run_id,
+    generator_version,
+    cast(config_version as integer) as config_version,
+    cast(seed as bigint) as seed,
+    scenario,
+    cast(period_start as date) as period_start,
+    cast(period_end as date) as period_end,
+    cast(generated_at as timestamp) as generated_at,
+    config_hash,
+    contract_version_set,
+    status,
+    cast(planned_customers as integer) as planned_customers,
+    cast(planned_applications as integer) as planned_applications,
+    cast(is_synthetic as boolean) as is_synthetic,
+    scale,
+    suite_id,
+    parent_run_id
+from {{ ref('raw_generation_runs') }}

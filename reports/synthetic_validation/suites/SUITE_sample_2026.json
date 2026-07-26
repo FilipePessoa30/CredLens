@@ -1,12 +1,12 @@
 {
-  "baseline_run_id": "RUN_baseline_sample_2026_5d40b2fc",
-  "dgp_version": "0.5.0",
+  "baseline_run_id": "RUN_baseline_sample_2026_29e3fb70",
+  "dgp_version": "0.6.0",
   "scale": "sample",
   "scenario_run_ids": {
-    "collections_change": "RUN_collections_change_sample_2026_dc17562c",
-    "macroeconomic_stress": "RUN_macroeconomic_stress_sample_2026_8e8658d5",
-    "policy_expansion": "RUN_policy_expansion_sample_2026_5a75475d",
-    "policy_tightening": "RUN_policy_tightening_sample_2026_b7b65b2d"
+    "collections_change": "RUN_collections_change_sample_2026_7932bc75",
+    "macroeconomic_stress": "RUN_macroeconomic_stress_sample_2026_c0afa13a",
+    "policy_expansion": "RUN_policy_expansion_sample_2026_275cb395",
+    "policy_tightening": "RUN_policy_tightening_sample_2026_4aaa4164"
   },
   "scenarios": {
     "collections_change": {
@@ -14,20 +14,20 @@
         "approval_rate": 0.574303,
         "avg_latent_propensity_of_approved": 0.750794,
         "booking_rate": 0.852242,
-        "cure_rate": 0.435374,
-        "dpd30_plus_rate": 0.170972,
-        "dpd60_plus_rate": 0.096984,
-        "dpd90_plus_rate": 0.053324,
-        "generation_run_id": "RUN_baseline_sample_2026_5d40b2fc",
+        "cure_rate": 0.118669,
+        "dpd30_plus_rate": 0.166071,
+        "dpd60_plus_rate": 0.09057,
+        "dpd90_plus_rate": 0.046916,
+        "generation_run_id": "RUN_baseline_sample_2026_29e3fb70",
         "n_applications": 7488,
         "n_approved": 4081,
-        "n_collection_events": 1325,
+        "n_collection_events": 1382,
         "n_contracts": 3478,
         "n_decided": 7106,
         "n_recoveries": 3,
-        "n_snapshots": 6001,
-        "n_write_offs": 58,
-        "write_off_rate": 0.016676
+        "n_snapshots": 6437,
+        "n_write_offs": 51,
+        "write_off_rate": 0.014664
       },
       "config_diff": {
         "collections": {
@@ -131,7 +131,7 @@
           "type": "invariant"
         },
         {
-          "detail": "baseline=3028 payments, scenario=3173 payments",
+          "detail": "baseline=3399 payments, scenario=3691 payments",
           "name": "payments_exist_both_runs",
           "passed": true,
           "type": "invariant"
@@ -151,70 +151,70 @@
           "metric": "booking_rate"
         },
         {
-          "baseline_value": 0.170972,
-          "candidate_value": 0.09517,
-          "delta": -0.075801,
+          "baseline_value": 0.166071,
+          "candidate_value": 0.111008,
+          "delta": -0.055063,
           "metric": "dpd30_plus_rate"
         },
         {
-          "baseline_value": 0.096984,
-          "candidate_value": 0.043857,
-          "delta": -0.053127,
+          "baseline_value": 0.09057,
+          "candidate_value": 0.048083,
+          "delta": -0.042487,
           "metric": "dpd60_plus_rate"
         },
         {
-          "baseline_value": 0.053324,
-          "candidate_value": 0.017756,
-          "delta": -0.035569,
+          "baseline_value": 0.046916,
+          "candidate_value": 0.020872,
+          "delta": -0.026044,
           "metric": "dpd90_plus_rate"
         },
         {
-          "baseline_value": 0.435374,
-          "candidate_value": 0.636234,
-          "delta": 0.20086,
+          "baseline_value": 0.118669,
+          "candidate_value": 0.200825,
+          "delta": 0.082157,
           "metric": "cure_rate"
         },
         {
-          "baseline_value": 0.016676,
-          "candidate_value": 0.0023,
-          "delta": -0.014376,
+          "baseline_value": 0.014664,
+          "candidate_value": 0.004888,
+          "delta": -0.009776,
           "metric": "write_off_rate"
         }
       ],
       "population_crn_preserved": true,
       "population_hashes": {
         "baseline": {
-          "application_features": "d63f0a2cb4eba25c8a820c9c6ae1ebb5120f16f0d5104db0666328e561f3339d",
-          "applications": "782c6ed01128b4efbf187600e2f8c97de84b8f83c399e794da8648b07350558a",
-          "customers": "36e3b38c22a6671f57480a38406f6640e3b72ef7ddf76bb80a570d4fc5a730df",
-          "fairness_attributes": "3c098f637977a693dd9b63315f380d620d0b5a4d5c6e9fe47b058704402f21ea"
+          "application_features": "91cb26c5afcf265e80f6db70d2143f0a04701d0c081d5bd4ece169f2f709a553",
+          "applications": "e5f687ad62ea2f131853c4428acdabf8aeea2188088c1ece3d427dff377fd7cb",
+          "customers": "4493360dfca433ba7158a032beb9630f191686074cd2d8037115bed713a65bab",
+          "fairness_attributes": "59415e1070ced7f1ae49a6e80a1065bb2ff5ad149f37af6efa666ae97e07b7ac"
         },
         "scenario": {
-          "application_features": "d63f0a2cb4eba25c8a820c9c6ae1ebb5120f16f0d5104db0666328e561f3339d",
-          "applications": "782c6ed01128b4efbf187600e2f8c97de84b8f83c399e794da8648b07350558a",
-          "customers": "36e3b38c22a6671f57480a38406f6640e3b72ef7ddf76bb80a570d4fc5a730df",
-          "fairness_attributes": "3c098f637977a693dd9b63315f380d620d0b5a4d5c6e9fe47b058704402f21ea"
+          "application_features": "91cb26c5afcf265e80f6db70d2143f0a04701d0c081d5bd4ece169f2f709a553",
+          "applications": "e5f687ad62ea2f131853c4428acdabf8aeea2188088c1ece3d427dff377fd7cb",
+          "customers": "4493360dfca433ba7158a032beb9630f191686074cd2d8037115bed713a65bab",
+          "fairness_attributes": "59415e1070ced7f1ae49a6e80a1065bb2ff5ad149f37af6efa666ae97e07b7ac"
         }
       },
-      "run_id": "RUN_collections_change_sample_2026_dc17562c",
+      "run_id": "RUN_collections_change_sample_2026_7932bc75",
       "scenario_metrics": {
         "approval_rate": 0.574303,
         "avg_latent_propensity_of_approved": 0.750794,
         "booking_rate": 0.852242,
-        "cure_rate": 0.636234,
-        "dpd30_plus_rate": 0.09517,
-        "dpd60_plus_rate": 0.043857,
-        "dpd90_plus_rate": 0.017756,
-        "generation_run_id": "RUN_collections_change_sample_2026_dc17562c",
+        "cure_rate": 0.200825,
+        "dpd30_plus_rate": 0.111008,
+        "dpd60_plus_rate": 0.048083,
+        "dpd90_plus_rate": 0.020872,
+        "generation_run_id": "RUN_collections_change_sample_2026_7932bc75",
         "n_applications": 7488,
         "n_approved": 4081,
-        "n_collection_events": 1041,
+        "n_collection_events": 1350,
         "n_contracts": 3478,
         "n_decided": 7106,
-        "n_recoveries": 2,
-        "n_snapshots": 5632,
-        "n_write_offs": 8,
-        "write_off_rate": 0.0023
+        "n_recoveries": 5,
+        "n_snapshots": 6468,
+        "n_write_offs": 17,
+        "write_off_rate": 0.004888
       }
     },
     "macroeconomic_stress": {
@@ -222,20 +222,20 @@
         "approval_rate": 0.574303,
         "avg_latent_propensity_of_approved": 0.750794,
         "booking_rate": 0.852242,
-        "cure_rate": 0.435374,
-        "dpd30_plus_rate": 0.170972,
-        "dpd60_plus_rate": 0.096984,
-        "dpd90_plus_rate": 0.053324,
-        "generation_run_id": "RUN_baseline_sample_2026_5d40b2fc",
+        "cure_rate": 0.118669,
+        "dpd30_plus_rate": 0.166071,
+        "dpd60_plus_rate": 0.09057,
+        "dpd90_plus_rate": 0.046916,
+        "generation_run_id": "RUN_baseline_sample_2026_29e3fb70",
         "n_applications": 7488,
         "n_approved": 4081,
-        "n_collection_events": 1325,
+        "n_collection_events": 1382,
         "n_contracts": 3478,
         "n_decided": 7106,
         "n_recoveries": 3,
-        "n_snapshots": 6001,
-        "n_write_offs": 58,
-        "write_off_rate": 0.016676
+        "n_snapshots": 6437,
+        "n_write_offs": 51,
+        "write_off_rate": 0.014664
       },
       "config_diff": {
         "macro_shock": {
@@ -288,7 +288,7 @@
       },
       "directional_checks": [
         {
-          "detail": "shock_date=2024-07-01, 459 baseline / 459 stress pre-shock payments",
+          "detail": "shock_date=2024-07-01, 449 baseline / 449 stress pre-shock payments",
           "name": "pre_shock_payments_identical_to_baseline",
           "passed": true,
           "type": "invariant"
@@ -308,70 +308,70 @@
           "metric": "booking_rate"
         },
         {
-          "baseline_value": 0.170972,
-          "candidate_value": 0.322023,
-          "delta": 0.151052,
+          "baseline_value": 0.166071,
+          "candidate_value": 0.327891,
+          "delta": 0.16182,
           "metric": "dpd30_plus_rate"
         },
         {
-          "baseline_value": 0.096984,
-          "candidate_value": 0.203108,
-          "delta": 0.106124,
+          "baseline_value": 0.09057,
+          "candidate_value": 0.202067,
+          "delta": 0.111497,
           "metric": "dpd60_plus_rate"
         },
         {
-          "baseline_value": 0.053324,
-          "candidate_value": 0.11844,
-          "delta": 0.065115,
+          "baseline_value": 0.046916,
+          "candidate_value": 0.114889,
+          "delta": 0.067973,
           "metric": "dpd90_plus_rate"
         },
         {
-          "baseline_value": 0.435374,
-          "candidate_value": 0.251852,
-          "delta": -0.183522,
+          "baseline_value": 0.118669,
+          "candidate_value": 0.071362,
+          "delta": -0.047306,
           "metric": "cure_rate"
         },
         {
-          "baseline_value": 0.016676,
-          "candidate_value": 0.038815,
-          "delta": 0.022139,
+          "baseline_value": 0.014664,
+          "candidate_value": 0.041116,
+          "delta": 0.026452,
           "metric": "write_off_rate"
         }
       ],
       "population_crn_preserved": true,
       "population_hashes": {
         "baseline": {
-          "application_features": "d63f0a2cb4eba25c8a820c9c6ae1ebb5120f16f0d5104db0666328e561f3339d",
-          "applications": "782c6ed01128b4efbf187600e2f8c97de84b8f83c399e794da8648b07350558a",
-          "customers": "36e3b38c22a6671f57480a38406f6640e3b72ef7ddf76bb80a570d4fc5a730df",
-          "fairness_attributes": "3c098f637977a693dd9b63315f380d620d0b5a4d5c6e9fe47b058704402f21ea"
+          "application_features": "91cb26c5afcf265e80f6db70d2143f0a04701d0c081d5bd4ece169f2f709a553",
+          "applications": "e5f687ad62ea2f131853c4428acdabf8aeea2188088c1ece3d427dff377fd7cb",
+          "customers": "4493360dfca433ba7158a032beb9630f191686074cd2d8037115bed713a65bab",
+          "fairness_attributes": "59415e1070ced7f1ae49a6e80a1065bb2ff5ad149f37af6efa666ae97e07b7ac"
         },
         "scenario": {
-          "application_features": "d63f0a2cb4eba25c8a820c9c6ae1ebb5120f16f0d5104db0666328e561f3339d",
-          "applications": "782c6ed01128b4efbf187600e2f8c97de84b8f83c399e794da8648b07350558a",
-          "customers": "36e3b38c22a6671f57480a38406f6640e3b72ef7ddf76bb80a570d4fc5a730df",
-          "fairness_attributes": "3c098f637977a693dd9b63315f380d620d0b5a4d5c6e9fe47b058704402f21ea"
+          "application_features": "91cb26c5afcf265e80f6db70d2143f0a04701d0c081d5bd4ece169f2f709a553",
+          "applications": "e5f687ad62ea2f131853c4428acdabf8aeea2188088c1ece3d427dff377fd7cb",
+          "customers": "4493360dfca433ba7158a032beb9630f191686074cd2d8037115bed713a65bab",
+          "fairness_attributes": "59415e1070ced7f1ae49a6e80a1065bb2ff5ad149f37af6efa666ae97e07b7ac"
         }
       },
-      "run_id": "RUN_macroeconomic_stress_sample_2026_8e8658d5",
+      "run_id": "RUN_macroeconomic_stress_sample_2026_c0afa13a",
       "scenario_metrics": {
         "approval_rate": 0.574303,
         "avg_latent_propensity_of_approved": 0.750794,
         "booking_rate": 0.852242,
-        "cure_rate": 0.251852,
-        "dpd30_plus_rate": 0.322023,
-        "dpd60_plus_rate": 0.203108,
-        "dpd90_plus_rate": 0.11844,
-        "generation_run_id": "RUN_macroeconomic_stress_sample_2026_8e8658d5",
+        "cure_rate": 0.071362,
+        "dpd30_plus_rate": 0.327891,
+        "dpd60_plus_rate": 0.202067,
+        "dpd90_plus_rate": 0.114889,
+        "generation_run_id": "RUN_macroeconomic_stress_sample_2026_c0afa13a",
         "n_applications": 7488,
         "n_approved": 4081,
-        "n_collection_events": 2412,
+        "n_collection_events": 2618,
         "n_contracts": 3478,
         "n_decided": 7106,
         "n_recoveries": 4,
-        "n_snapshots": 6307,
-        "n_write_offs": 135,
-        "write_off_rate": 0.038815
+        "n_snapshots": 6676,
+        "n_write_offs": 143,
+        "write_off_rate": 0.041116
       }
     },
     "policy_expansion": {
@@ -379,20 +379,20 @@
         "approval_rate": 0.574303,
         "avg_latent_propensity_of_approved": 0.750794,
         "booking_rate": 0.852242,
-        "cure_rate": 0.435374,
-        "dpd30_plus_rate": 0.170972,
-        "dpd60_plus_rate": 0.096984,
-        "dpd90_plus_rate": 0.053324,
-        "generation_run_id": "RUN_baseline_sample_2026_5d40b2fc",
+        "cure_rate": 0.118669,
+        "dpd30_plus_rate": 0.166071,
+        "dpd60_plus_rate": 0.09057,
+        "dpd90_plus_rate": 0.046916,
+        "generation_run_id": "RUN_baseline_sample_2026_29e3fb70",
         "n_applications": 7488,
         "n_approved": 4081,
-        "n_collection_events": 1325,
+        "n_collection_events": 1382,
         "n_contracts": 3478,
         "n_decided": 7106,
         "n_recoveries": 3,
-        "n_snapshots": 6001,
-        "n_write_offs": 58,
-        "write_off_rate": 0.016676
+        "n_snapshots": 6437,
+        "n_write_offs": 51,
+        "write_off_rate": 0.014664
       },
       "config_diff": {
         "policy": {
@@ -464,70 +464,70 @@
           "metric": "booking_rate"
         },
         {
-          "baseline_value": 0.170972,
-          "candidate_value": 0.170361,
-          "delta": -0.000611,
+          "baseline_value": 0.166071,
+          "candidate_value": 0.178543,
+          "delta": 0.012472,
           "metric": "dpd30_plus_rate"
         },
         {
-          "baseline_value": 0.096984,
-          "candidate_value": 0.095085,
-          "delta": -0.001899,
+          "baseline_value": 0.09057,
+          "candidate_value": 0.098425,
+          "delta": 0.007855,
           "metric": "dpd60_plus_rate"
         },
         {
-          "baseline_value": 0.053324,
-          "candidate_value": 0.048935,
-          "delta": -0.00439,
+          "baseline_value": 0.046916,
+          "candidate_value": 0.051083,
+          "delta": 0.004166,
           "metric": "dpd90_plus_rate"
         },
         {
-          "baseline_value": 0.435374,
-          "candidate_value": 0.433597,
-          "delta": -0.001777,
+          "baseline_value": 0.118669,
+          "candidate_value": 0.129258,
+          "delta": 0.010589,
           "metric": "cure_rate"
         },
         {
-          "baseline_value": 0.016676,
-          "candidate_value": 0.014476,
-          "delta": -0.0022,
+          "baseline_value": 0.014664,
+          "candidate_value": 0.015416,
+          "delta": 0.000753,
           "metric": "write_off_rate"
         }
       ],
       "population_crn_preserved": true,
       "population_hashes": {
         "baseline": {
-          "application_features": "d63f0a2cb4eba25c8a820c9c6ae1ebb5120f16f0d5104db0666328e561f3339d",
-          "applications": "782c6ed01128b4efbf187600e2f8c97de84b8f83c399e794da8648b07350558a",
-          "customers": "36e3b38c22a6671f57480a38406f6640e3b72ef7ddf76bb80a570d4fc5a730df",
-          "fairness_attributes": "3c098f637977a693dd9b63315f380d620d0b5a4d5c6e9fe47b058704402f21ea"
+          "application_features": "91cb26c5afcf265e80f6db70d2143f0a04701d0c081d5bd4ece169f2f709a553",
+          "applications": "e5f687ad62ea2f131853c4428acdabf8aeea2188088c1ece3d427dff377fd7cb",
+          "customers": "4493360dfca433ba7158a032beb9630f191686074cd2d8037115bed713a65bab",
+          "fairness_attributes": "59415e1070ced7f1ae49a6e80a1065bb2ff5ad149f37af6efa666ae97e07b7ac"
         },
         "scenario": {
-          "application_features": "d63f0a2cb4eba25c8a820c9c6ae1ebb5120f16f0d5104db0666328e561f3339d",
-          "applications": "782c6ed01128b4efbf187600e2f8c97de84b8f83c399e794da8648b07350558a",
-          "customers": "36e3b38c22a6671f57480a38406f6640e3b72ef7ddf76bb80a570d4fc5a730df",
-          "fairness_attributes": "3c098f637977a693dd9b63315f380d620d0b5a4d5c6e9fe47b058704402f21ea"
+          "application_features": "91cb26c5afcf265e80f6db70d2143f0a04701d0c081d5bd4ece169f2f709a553",
+          "applications": "e5f687ad62ea2f131853c4428acdabf8aeea2188088c1ece3d427dff377fd7cb",
+          "customers": "4493360dfca433ba7158a032beb9630f191686074cd2d8037115bed713a65bab",
+          "fairness_attributes": "59415e1070ced7f1ae49a6e80a1065bb2ff5ad149f37af6efa666ae97e07b7ac"
         }
       },
-      "run_id": "RUN_policy_expansion_sample_2026_5a75475d",
+      "run_id": "RUN_policy_expansion_sample_2026_275cb395",
       "scenario_metrics": {
         "approval_rate": 0.883197,
         "avg_latent_propensity_of_approved": 0.751524,
         "booking_rate": 0.847514,
-        "cure_rate": 0.433597,
-        "dpd30_plus_rate": 0.170361,
-        "dpd60_plus_rate": 0.095085,
-        "dpd90_plus_rate": 0.048935,
-        "generation_run_id": "RUN_policy_expansion_sample_2026_5a75475d",
+        "cure_rate": 0.129258,
+        "dpd30_plus_rate": 0.178543,
+        "dpd60_plus_rate": 0.098425,
+        "dpd90_plus_rate": 0.051083,
+        "generation_run_id": "RUN_policy_expansion_sample_2026_275cb395",
         "n_applications": 7488,
         "n_approved": 6276,
-        "n_collection_events": 2054,
+        "n_collection_events": 2337,
         "n_contracts": 5319,
         "n_decided": 7106,
         "n_recoveries": 3,
-        "n_snapshots": 9339,
-        "n_write_offs": 77,
-        "write_off_rate": 0.014476
+        "n_snapshots": 10160,
+        "n_write_offs": 82,
+        "write_off_rate": 0.015416
       }
     },
     "policy_tightening": {
@@ -535,20 +535,20 @@
         "approval_rate": 0.574303,
         "avg_latent_propensity_of_approved": 0.750794,
         "booking_rate": 0.852242,
-        "cure_rate": 0.435374,
-        "dpd30_plus_rate": 0.170972,
-        "dpd60_plus_rate": 0.096984,
-        "dpd90_plus_rate": 0.053324,
-        "generation_run_id": "RUN_baseline_sample_2026_5d40b2fc",
+        "cure_rate": 0.118669,
+        "dpd30_plus_rate": 0.166071,
+        "dpd60_plus_rate": 0.09057,
+        "dpd90_plus_rate": 0.046916,
+        "generation_run_id": "RUN_baseline_sample_2026_29e3fb70",
         "n_applications": 7488,
         "n_approved": 4081,
-        "n_collection_events": 1325,
+        "n_collection_events": 1382,
         "n_contracts": 3478,
         "n_decided": 7106,
         "n_recoveries": 3,
-        "n_snapshots": 6001,
-        "n_write_offs": 58,
-        "write_off_rate": 0.016676
+        "n_snapshots": 6437,
+        "n_write_offs": 51,
+        "write_off_rate": 0.014664
       },
       "config_diff": {
         "policy": {
@@ -620,70 +620,70 @@
           "metric": "booking_rate"
         },
         {
-          "baseline_value": 0.170972,
-          "candidate_value": 0.163912,
-          "delta": -0.00706,
+          "baseline_value": 0.166071,
+          "candidate_value": 0.16869,
+          "delta": 0.002619,
           "metric": "dpd30_plus_rate"
         },
         {
-          "baseline_value": 0.096984,
-          "candidate_value": 0.09045,
-          "delta": -0.006534,
+          "baseline_value": 0.09057,
+          "candidate_value": 0.0946,
+          "delta": 0.00403,
           "metric": "dpd60_plus_rate"
         },
         {
-          "baseline_value": 0.053324,
-          "candidate_value": 0.045455,
-          "delta": -0.00787,
+          "baseline_value": 0.046916,
+          "candidate_value": 0.051905,
+          "delta": 0.004988,
           "metric": "dpd90_plus_rate"
         },
         {
-          "baseline_value": 0.435374,
-          "candidate_value": 0.44403,
-          "delta": 0.008656,
+          "baseline_value": 0.118669,
+          "candidate_value": 0.114068,
+          "delta": -0.0046,
           "metric": "cure_rate"
         },
         {
-          "baseline_value": 0.016676,
-          "candidate_value": 0.012889,
-          "delta": -0.003788,
+          "baseline_value": 0.014664,
+          "candidate_value": 0.016679,
+          "delta": 0.002016,
           "metric": "write_off_rate"
         }
       ],
       "population_crn_preserved": true,
       "population_hashes": {
         "baseline": {
-          "application_features": "d63f0a2cb4eba25c8a820c9c6ae1ebb5120f16f0d5104db0666328e561f3339d",
-          "applications": "782c6ed01128b4efbf187600e2f8c97de84b8f83c399e794da8648b07350558a",
-          "customers": "36e3b38c22a6671f57480a38406f6640e3b72ef7ddf76bb80a570d4fc5a730df",
-          "fairness_attributes": "3c098f637977a693dd9b63315f380d620d0b5a4d5c6e9fe47b058704402f21ea"
+          "application_features": "91cb26c5afcf265e80f6db70d2143f0a04701d0c081d5bd4ece169f2f709a553",
+          "applications": "e5f687ad62ea2f131853c4428acdabf8aeea2188088c1ece3d427dff377fd7cb",
+          "customers": "4493360dfca433ba7158a032beb9630f191686074cd2d8037115bed713a65bab",
+          "fairness_attributes": "59415e1070ced7f1ae49a6e80a1065bb2ff5ad149f37af6efa666ae97e07b7ac"
         },
         "scenario": {
-          "application_features": "d63f0a2cb4eba25c8a820c9c6ae1ebb5120f16f0d5104db0666328e561f3339d",
-          "applications": "782c6ed01128b4efbf187600e2f8c97de84b8f83c399e794da8648b07350558a",
-          "customers": "36e3b38c22a6671f57480a38406f6640e3b72ef7ddf76bb80a570d4fc5a730df",
-          "fairness_attributes": "3c098f637977a693dd9b63315f380d620d0b5a4d5c6e9fe47b058704402f21ea"
+          "application_features": "91cb26c5afcf265e80f6db70d2143f0a04701d0c081d5bd4ece169f2f709a553",
+          "applications": "e5f687ad62ea2f131853c4428acdabf8aeea2188088c1ece3d427dff377fd7cb",
+          "customers": "4493360dfca433ba7158a032beb9630f191686074cd2d8037115bed713a65bab",
+          "fairness_attributes": "59415e1070ced7f1ae49a6e80a1065bb2ff5ad149f37af6efa666ae97e07b7ac"
         }
       },
-      "run_id": "RUN_policy_tightening_sample_2026_b7b65b2d",
+      "run_id": "RUN_policy_tightening_sample_2026_4aaa4164",
       "scenario_metrics": {
         "approval_rate": 0.218407,
         "avg_latent_propensity_of_approved": 0.752338,
         "booking_rate": 0.849871,
-        "cure_rate": 0.44403,
-        "dpd30_plus_rate": 0.163912,
-        "dpd60_plus_rate": 0.09045,
-        "dpd90_plus_rate": 0.045455,
-        "generation_run_id": "RUN_policy_tightening_sample_2026_b7b65b2d",
+        "cure_rate": 0.114068,
+        "dpd30_plus_rate": 0.16869,
+        "dpd60_plus_rate": 0.0946,
+        "dpd90_plus_rate": 0.051905,
+        "generation_run_id": "RUN_policy_tightening_sample_2026_4aaa4164",
         "n_applications": 7488,
         "n_approved": 1552,
-        "n_collection_events": 479,
+        "n_collection_events": 508,
         "n_contracts": 1319,
         "n_decided": 7106,
-        "n_recoveries": 1,
-        "n_snapshots": 2178,
-        "n_write_offs": 17,
-        "write_off_rate": 0.012889
+        "n_recoveries": 2,
+        "n_snapshots": 2389,
+        "n_write_offs": 22,
+        "write_off_rate": 0.016679
       }
     }
   },

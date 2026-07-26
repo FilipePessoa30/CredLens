@@ -1,0 +1,21 @@
+version: 2
+
+models:
+  - name: mart_credit_funnel_monthly
+    description: "Grain: one row per (run_id, submitted_month, channel). Funnel KPIs - see warehouse/kpi_catalog.yml."
+  - name: mart_portfolio_monthly
+    description: "Grain: one row per (run_id, snapshot_date). Portfolio stock KPIs plus that month's flow payment counts."
+  - name: mart_delinquency_monthly
+    description: "Grain: one row per (run_id, snapshot_date). PAR30/60/90, bucket counts/balances, new delinquencies, cures."
+  - name: mart_vintage_cohorts
+    description: "Grain: one row per (run_id, vintage_month, months_on_book). Origination-cohort incidence by MOB - see the model's own header comment for the cross-cohort comparison limitation."
+  - name: mart_roll_rates
+    description: "Grain: one row per (run_id, snapshot_date, from_bucket, to_bucket). Month-over-month DPD bucket transitions for the same contract."
+  - name: mart_cure_and_redefault
+    description: "Grain: one row per (run_id, contract_key). Per-contract cure/relapse summary - aggregate this mart for cure_rate/redefault_rate, see warehouse/kpi_catalog.yml."
+  - name: mart_collections_performance
+    description: "Grain: one row per (run_id, event_month). Collections activity vs. that month's eligible (delinquent) population."
+  - name: mart_writeoff_recovery
+    description: "Grain: one row per (run_id, write_off_month). Write-off/recovery KPIs."
+  - name: mart_scenario_comparison
+    description: "Grain: one row per (suite_id, scenario != 'baseline'). Baseline-vs-scenario deltas - facts about this synthetic DGP only, see docs/counterfactual_scenarios.md."

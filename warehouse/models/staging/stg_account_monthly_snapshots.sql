@@ -1,0 +1,23 @@
+select
+    {{ surrogate_key(['run_id', 'contract_id', 'snapshot_date']) }} as snapshot_key,
+    {{ surrogate_key(['run_id', 'contract_id']) }} as contract_key,
+    run_id,
+    suite_id,
+    scenario,
+    seed,
+    scale,
+    contract_id,
+    cast(snapshot_date as date) as snapshot_date,
+    {{ money('outstanding_principal') }} as outstanding_principal,
+    {{ money('outstanding_interest') }} as outstanding_interest,
+    {{ money('outstanding_fees') }} as outstanding_fees,
+    {{ money('total_balance') }} as total_balance,
+    {{ money('past_due_amount') }} as past_due_amount,
+    cast(next_due_date as date) as next_due_date,
+    cast(dpd as integer) as dpd,
+    delinquency_bucket as dpd_bucket,
+    status as contract_status,
+    {{ money('exposure') }} as exposure,
+    {{ money('cumulative_paid') }} as cumulative_paid,
+    {{ money('cumulative_write_off') }} as cumulative_write_off
+from {{ ref('raw_account_monthly_snapshots') }}

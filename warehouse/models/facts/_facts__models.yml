@@ -1,0 +1,127 @@
+version: 2
+
+models:
+  - name: fct_applications
+    description: "Grain: one row per application. Type: FLOW. Additive measure: requested_amount."
+    columns:
+      - name: application_key
+        tests: [not_null, unique]
+      - name: customer_key
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_customer')
+                field: customer_key
+
+  - name: fct_credit_decisions
+    description: "Grain: one row per decision. Type: FLOW. Additive measure: approved_amount (only when outcome='approved')."
+    columns:
+      - name: decision_key
+        tests: [not_null, unique]
+      - name: application_key
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('fct_applications')
+                field: application_key
+
+  - name: fct_contracts
+    description: "Grain: one row per contract. Type: FLOW (origination). Additive measure: financed_amount. `contract_status` here is the CURRENT status, not a time series - see fct_account_monthly for the monthly stock view."
+    columns:
+      - name: contract_key
+        tests: [not_null, unique]
+      - name: customer_key
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_customer')
+                field: customer_key
+
+  - name: fct_installments
+    description: "Grain: one row per installment. Type: FLOW (schedule). Additive measures: scheduled_principal/interest/fees/total."
+    columns:
+      - name: installment_key
+        tests: [not_null, unique]
+      - name: contract_key
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('fct_contracts')
+                field: contract_key
+
+  - name: fct_payments
+    description: "Grain: one row per payment transaction (including reversals, each their own row). Type: FLOW. Use net_amount, not amount, when summing across reversals."
+    columns:
+      - name: payment_key
+        tests: [not_null, unique]
+      - name: contract_key
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('fct_contracts')
+                field: contract_key
+
+  - name: fct_account_monthly
+    description: >
+      Grain: one row per (contract, snapshot_date). Type: STOCK - never sum
+      total_balance/exposure across snapshot_date for the same contract.
+      Safe to sum across contracts within one snapshot_date.
+    columns:
+      - name: contract_key
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('fct_contracts')
+                field: contract_key
+      - name: snapshot_date
+        tests: [not_null]
+      - name: dpd_bucket
+        tests:
+          - relationships:
+              arguments:
+                to: ref('dim_dpd_bucket')
+                field: dpd_bucket
+
+  - name: fct_collections
+    description: "Grain: one row per collection contact event. Type: FLOW."
+    columns:
+      - name: collection_event_key
+        tests: [not_null, unique]
+
+  - name: fct_writeoffs
+    description: "Grain: one row per write-off event. Type: FLOW, terminal. Additive measure: write_off_amount."
+    columns:
+      - name: write_off_key
+        tests: [not_null, unique]
+      - name: contract_key
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('fct_contracts')
+                field: contract_key
+
+  - name: fct_recoveries
+    description: "Grain: one row per recovery event. Type: FLOW. Additive measure: recovery_amount."
+    columns:
+      - name: recovery_key
+        tests: [not_null, unique]
+      - name: write_off_key
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('fct_writeoffs')
+                field: write_off_key
+
+  - name: fct_macro_monthly
+    description: "Grain: one row per (run_id, source_type, source_id, reference_date). Type: context/STOCK-like."
+    columns:
+      - name: macro_key
+        tests: [not_null, unique]

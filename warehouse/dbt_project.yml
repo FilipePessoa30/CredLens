@@ -1,0 +1,48 @@
+name: "credlens_warehouse"
+version: "1.0.0"
+config-version: 2
+
+profile: "credlens_warehouse"
+
+model-paths: ["models"]
+seed-paths: ["seeds"]
+test-paths: ["tests"]
+analysis-paths: ["analyses"]
+macro-paths: ["macros"]
+
+# dbt's own compiled/run artifacts - never versioned (see warehouse/.gitignore
+# and this project's top-level .gitignore).
+target-path: "target"
+clean-targets:
+  - "target"
+  - "dbt_packages"
+  - "logs"
+
+vars:
+  # The list of selected sources (see credlens.warehouse.sources.SourceRecord)
+  # every raw model unions over - always passed explicitly via
+  # `dbt build --vars` by `credlens warehouse prepare/build`, NEVER
+  # defaulted here, so a bare `dbt build` with no vars fails loudly
+  # instead of silently building an empty warehouse.
+  selected_runs: []
+
+models:
+  credlens_warehouse:
+    raw:
+      +materialized: view
+      +schema: raw
+    staging:
+      +materialized: view
+      +schema: staging
+    intermediate:
+      +materialized: view
+      +schema: intermediate
+    dimensions:
+      +materialized: table
+      +schema: dimensions
+    facts:
+      +materialized: table
+      +schema: facts
+    marts:
+      +materialized: table
+      +schema: marts

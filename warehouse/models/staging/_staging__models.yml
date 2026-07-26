@@ -1,0 +1,197 @@
+version: 2
+
+models:
+  - name: stg_customers
+    description: One row per (run_id, customer_id) - customer arrival, no demographic/behavioral data (see docs/adr/0007-synthetic-truth-isolation.md, unchanged).
+    columns:
+      - name: customer_key
+        description: Surrogate key = md5(run_id, customer_id). Safe to join on across runs that share common random numbers.
+        tests: [not_null, unique]
+      - name: run_id
+        tests: [not_null]
+      - name: customer_id
+        tests: [not_null]
+
+  - name: stg_applications
+    description: One row per (run_id, application_id) - a credit application, frozen at submission.
+    columns:
+      - name: application_key
+        tests: [not_null, unique]
+      - name: customer_key
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_customers')
+                field: customer_key
+      - name: status
+        tests:
+          - accepted_values:
+              arguments:
+                values: ["submitted", "under_review", "approved", "rejected", "cancelled"]
+
+  - name: stg_application_features
+    description: One row per (run_id, application_id) - the frozen-at-proposal features the decision score is allowed to read (see docs/fairness_data_design.md).
+    columns:
+      - name: application_key
+        tests: [not_null, unique]
+
+  - name: stg_fairness_attributes
+    description: One row per (run_id, application_id) - evaluation-only demographic-style attributes, never a modeling input.
+    columns:
+      - name: application_key
+        tests: [not_null, unique]
+
+  - name: stg_policy_versions
+    description: One row per (run_id, policy_version_id).
+    columns:
+      - name: policy_version_key
+        tests: [not_null, unique]
+
+  - name: stg_credit_decisions
+    description: One row per (run_id, decision_id) - the synthetic decision score's outcome for one application.
+    columns:
+      - name: decision_key
+        tests: [not_null, unique]
+      - name: application_key
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_applications')
+                field: application_key
+      - name: outcome
+        tests:
+          - accepted_values:
+              arguments:
+                values: ["approved", "rejected"]
+
+  - name: stg_contracts
+    description: One row per (run_id, contract_id) - a booked contract (an approval never implies a contract).
+    columns:
+      - name: contract_key
+        tests: [not_null, unique]
+      - name: customer_key
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_customers')
+                field: customer_key
+      - name: status
+        tests:
+          - accepted_values:
+              arguments:
+                values: ["active", "settled", "closed", "charged_off"]
+
+  - name: stg_installments
+    description: One row per (run_id, installment_id) - the amortization schedule.
+    columns:
+      - name: installment_key
+        tests: [not_null, unique]
+      - name: contract_key
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_contracts')
+                field: contract_key
+      - name: status
+        tests:
+          - accepted_values:
+              arguments:
+                values: ["scheduled", "due", "overdue", "partially_paid", "paid", "written_off"]
+
+  - name: stg_payments
+    description: One row per (run_id, payment_id) - a payment transaction, explicitly typed (Phase 5) as scheduled/partial/cure/prepayment.
+    columns:
+      - name: payment_key
+        tests: [not_null, unique]
+      - name: contract_key
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_contracts')
+                field: contract_key
+      - name: payment_type
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ["scheduled", "partial", "cure", "prepayment"]
+      - name: amount
+        tests: [not_null]
+
+  - name: stg_payment_allocations
+    description: One row per (run_id, allocation_id) - a payment applied to one installment's fees/interest/principal.
+    columns:
+      - name: allocation_key
+        tests: [not_null, unique]
+      - name: payment_key
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_payments')
+                field: payment_key
+
+  - name: stg_account_monthly_snapshots
+    description: One row per (run_id, contract_id, snapshot_date) - the monthly STOCK snapshot (balance/DPD/status) per contract.
+    columns:
+      - name: snapshot_key
+        tests: [not_null, unique]
+      - name: contract_key
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_contracts')
+                field: contract_key
+      - name: dpd_bucket
+        tests:
+          - accepted_values:
+              arguments:
+                values: ["current", "1-29", "30-59", "60-89", "90+"]
+      - name: contract_status
+        tests:
+          - accepted_values:
+              arguments:
+                values: ["active", "delinquent", "settled", "closed", "charged_off"]
+
+  - name: stg_collection_events
+    description: One row per (run_id, collection_event_id) - a collections contact event.
+    columns:
+      - name: collection_event_key
+        tests: [not_null, unique]
+
+  - name: stg_write_off_events
+    description: One row per (run_id, write_off_id) - a write-off (charge-off) event.
+    columns:
+      - name: write_off_key
+        tests: [not_null, unique]
+
+  - name: stg_recovery_events
+    description: One row per (run_id, recovery_id) - a post-write-off recovery event.
+    columns:
+      - name: recovery_key
+        tests: [not_null, unique]
+      - name: write_off_key
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_write_off_events')
+                field: write_off_key
+
+  - name: stg_macro_context_monthly
+    description: One row per (run_id, source_type, source_id, reference_date) - real BCB observations and (macroeconomic_stress only) synthetic shock rows.
+    columns:
+      - name: macro_key
+        tests: [not_null, unique]
+
+  - name: stg_generation_runs
+    description: One row per run_id - the generator's own self-reported run metadata.
+    columns:
+      - name: run_id
+        tests: [not_null, unique]

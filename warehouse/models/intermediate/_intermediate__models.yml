@@ -1,0 +1,39 @@
+version: 2
+
+models:
+  - name: int_calendar_months
+    description: One row per calendar month spanning every selected run's simulated period - the date spine "as of" filters and gap detection are built on.
+    columns:
+      - name: month_start
+        tests: [not_null, unique]
+
+  - name: int_applications_decisions_contracts
+    description: >
+      One row per application, grain-preserving, left-joined forward
+      through its decision (0 or 1) and resulting contract (0 or 1) - the
+      credit funnel backbone (submitted -> decisioned -> approved ->
+      booked).
+    columns:
+      - name: application_key
+        tests: [not_null, unique]
+
+  - name: int_contract_monthly_enriched
+    description: >
+      One row per (contract, snapshot_date) - the STOCK snapshot enriched
+      with vintage_month, months_on_book, and (via window functions over
+      each contract's own history) is_cure_month/is_relapse_month - see
+      docs/adr/0010-cure-semantics-and-relapse.md for the exact definitions.
+      The backbone for every delinquency/vintage/cure/roll-rate mart.
+    columns:
+      - name: contract_key
+        tests: [not_null]
+      - name: snapshot_date
+        tests: [not_null]
+      - name: months_on_book
+        tests: [not_null]
+
+  - name: int_write_off_recovery
+    description: One row per write-off event, left-joined to its at-most-one recovery event, with days_to_recovery and recovery_rate derived.
+    columns:
+      - name: write_off_key
+        tests: [not_null, unique]

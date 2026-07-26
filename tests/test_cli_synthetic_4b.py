@@ -13,7 +13,11 @@ from pathlib import Path
 import pytest
 
 from credlens.cli import main
-from credlens.generation.config import CRN_SCENARIOS, load_generation_config
+from credlens.generation.config import (
+    CRN_SCENARIOS,
+    config_path_for_scenario,
+    load_generation_config,
+)
 
 _SEED = 555_444_333
 
@@ -124,11 +128,34 @@ def test_monte_carlo_two_seeds(capsys: pytest.CaptureFixture[str]) -> None:
     assert exit_code == 0
     assert "approval_rate" in captured.out
 
+    # Delete ONLY the exact runs this test's own monte-carlo call created
+    # (baseline + policy_tightening, seeds 2026/2027) - NOT a substring
+    # match on "2026"/"2027" in the directory name, which would also
+    # delete any unrelated run that happens to share one of those seeds
+    # (e.g. a demonstration run some other scenario made with seed 2026).
+    # A prior version of this fixture did exactly that and silently swept
+    # up other, unrelated run directories - see docs/adr/0010's Phase 5
+    # report for how this was found.
+    from credlens.generation.manifest import canonical_config_hash
+    from credlens.generation.orchestrator import _compute_generation_run_id
+
+    baseline_hash = canonical_config_hash(load_generation_config())
+    tightening_hash = canonical_config_hash(
+        load_generation_config(config_path_for_scenario("policy_tightening"))
+    )
+    scenario_hashes = (("baseline", baseline_hash), ("policy_tightening", tightening_hash))
+    run_ids = [
+        _compute_generation_run_id(scenario, "smoke", seed, config_hash)
+        for seed in (2026, 2027)
+        for scenario, config_hash in scenario_hashes
+    ]
+
     config = load_generation_config()
     for base in (config.output.operational_dir, config.output.truth_dir):
         base_path = Path(base)
-        for run_dir in base_path.iterdir():
-            if "2026" in run_dir.name or "2027" in run_dir.name:
+        for run_id in run_ids:
+            run_dir = base_path / run_id
+            if run_dir.exists():
                 shutil.rmtree(run_dir, ignore_errors=True)
     mc_report = Path("reports/synthetic_validation/monte_carlo_summary.json")
     if mc_report.is_file():

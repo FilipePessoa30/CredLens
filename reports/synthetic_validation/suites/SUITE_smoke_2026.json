@@ -1,28 +1,552 @@
 {
-  "baseline_run_id": "RUN_baseline_smoke_2026_5d40b2fc",
-  "dgp_version": "0.5.0",
+  "baseline_run_id": "RUN_baseline_smoke_2026_29e3fb70",
+  "dgp_version": "0.6.0",
   "scale": "smoke",
   "scenario_run_ids": {
-    "policy_tightening": "RUN_policy_tightening_smoke_2026_b7b65b2d"
+    "collections_change": "RUN_collections_change_smoke_2026_7932bc75",
+    "macroeconomic_stress": "RUN_macroeconomic_stress_smoke_2026_c0afa13a",
+    "policy_expansion": "RUN_policy_expansion_smoke_2026_275cb395",
+    "policy_tightening": "RUN_policy_tightening_smoke_2026_4aaa4164"
   },
   "scenarios": {
+    "collections_change": {
+      "baseline_metrics": {
+        "approval_rate": 0.567376,
+        "avg_latent_propensity_of_approved": 0.76023,
+        "booking_rate": 0.79375,
+        "cure_rate": 0.130435,
+        "dpd30_plus_rate": 0.13089,
+        "dpd60_plus_rate": 0.036649,
+        "dpd90_plus_rate": 0.0,
+        "generation_run_id": "RUN_baseline_smoke_2026_29e3fb70",
+        "n_applications": 307,
+        "n_approved": 160,
+        "n_collection_events": 37,
+        "n_contracts": 127,
+        "n_decided": 282,
+        "n_recoveries": 0,
+        "n_snapshots": 191,
+        "n_write_offs": 0,
+        "write_off_rate": 0.0
+      },
+      "config_diff": {
+        "collections": {
+          "baseline": {
+            "contact_dpd_thresholds": [
+              15,
+              45,
+              75
+            ],
+            "promise_to_pay_probability": 0.35
+          },
+          "scenario": {
+            "contact_dpd_thresholds": [
+              7,
+              25,
+              55
+            ],
+            "promise_to_pay_probability": 0.55
+          }
+        },
+        "payment_behavior": {
+          "baseline": {
+            "allocation_order": [
+              "fees",
+              "interest",
+              "principal"
+            ],
+            "cure_probability_per_month": 0.2,
+            "on_time_probability": 0.7,
+            "partial_payment_probability": 0.12,
+            "prepayment_probability": 0.05,
+            "reversal_rate": 0.01
+          },
+          "scenario": {
+            "allocation_order": [
+              "fees",
+              "interest",
+              "principal"
+            ],
+            "cure_probability_per_month": 0.38,
+            "on_time_probability": 0.7,
+            "partial_payment_probability": 0.12,
+            "prepayment_probability": 0.05,
+            "reversal_rate": 0.01
+          }
+        },
+        "recovery": {
+          "baseline": {
+            "max_months_after_write_off": 6,
+            "recovery_fraction_max": 0.4,
+            "recovery_fraction_min": 0.05,
+            "recovery_probability": 0.25
+          },
+          "scenario": {
+            "max_months_after_write_off": 6,
+            "recovery_fraction_max": 0.55,
+            "recovery_fraction_min": 0.1,
+            "recovery_probability": 0.45
+          }
+        },
+        "scales": {
+          "baseline": {
+            "portfolio": {
+              "customers": 50000,
+              "description": "Demonstration scale - not executed automatically by tests or CI in Phase 4A; a manual, deliberate invocation only."
+            },
+            "sample": {
+              "customers": 5000,
+              "description": "Development/demo scale - enough longitudinal depth for vintage-style analysis without a long run."
+            },
+            "smoke": {
+              "customers": 200,
+              "description": "Fast, deterministic sanity-check scale - seconds, covers every state (approve/reject/pay/delinquent/cure/write-off/recover)."
+            }
+          },
+          "scenario": {
+            "portfolio": {
+              "customers": 50000,
+              "description": "Same population as baseline's portfolio, per CRN - not executed automatically."
+            },
+            "sample": {
+              "customers": 5000,
+              "description": "Same population as baseline's sample, per CRN."
+            },
+            "smoke": {
+              "customers": 200,
+              "description": "Fast, deterministic sanity-check scale - same population as baseline's smoke, per CRN."
+            }
+          }
+        },
+        "scenario": {
+          "baseline": "baseline",
+          "scenario": "collections_change"
+        }
+      },
+      "directional_checks": [
+        {
+          "detail": "collection_events.parquet exists for this run",
+          "name": "collection_activity_present",
+          "passed": true,
+          "type": "invariant"
+        },
+        {
+          "detail": "baseline=95 payments, scenario=99 payments",
+          "name": "payments_exist_both_runs",
+          "passed": true,
+          "type": "invariant"
+        }
+      ],
+      "metric_comparisons": [
+        {
+          "baseline_value": 0.567376,
+          "candidate_value": 0.567376,
+          "delta": 0.0,
+          "metric": "approval_rate"
+        },
+        {
+          "baseline_value": 0.79375,
+          "candidate_value": 0.79375,
+          "delta": 0.0,
+          "metric": "booking_rate"
+        },
+        {
+          "baseline_value": 0.13089,
+          "candidate_value": 0.104712,
+          "delta": -0.026178,
+          "metric": "dpd30_plus_rate"
+        },
+        {
+          "baseline_value": 0.036649,
+          "candidate_value": 0.036649,
+          "delta": 0.0,
+          "metric": "dpd60_plus_rate"
+        },
+        {
+          "baseline_value": 0.0,
+          "candidate_value": 0.0,
+          "delta": 0.0,
+          "metric": "dpd90_plus_rate"
+        },
+        {
+          "baseline_value": 0.130435,
+          "candidate_value": 0.166667,
+          "delta": 0.036232,
+          "metric": "cure_rate"
+        },
+        {
+          "baseline_value": 0.0,
+          "candidate_value": 0.0,
+          "delta": 0.0,
+          "metric": "write_off_rate"
+        }
+      ],
+      "population_crn_preserved": true,
+      "population_hashes": {
+        "baseline": {
+          "application_features": "09c7ca709edbfc4d9dbef1e49377a46574608409300b98c9360415542cfdf10c",
+          "applications": "134a2a6f50d50446cc2397dbf4ab017cd3b1830618ed28bca8c25e6affbd17e6",
+          "customers": "6b89fe6f19a6b0ea3754dca2ef752b0d83ea32cc873896366856668a961c4643",
+          "fairness_attributes": "6db7f5577798fb478a2ce92f818577f31060d1df58d0a8fd5440e8a9e2c34fa3"
+        },
+        "scenario": {
+          "application_features": "09c7ca709edbfc4d9dbef1e49377a46574608409300b98c9360415542cfdf10c",
+          "applications": "134a2a6f50d50446cc2397dbf4ab017cd3b1830618ed28bca8c25e6affbd17e6",
+          "customers": "6b89fe6f19a6b0ea3754dca2ef752b0d83ea32cc873896366856668a961c4643",
+          "fairness_attributes": "6db7f5577798fb478a2ce92f818577f31060d1df58d0a8fd5440e8a9e2c34fa3"
+        }
+      },
+      "run_id": "RUN_collections_change_smoke_2026_7932bc75",
+      "scenario_metrics": {
+        "approval_rate": 0.567376,
+        "avg_latent_propensity_of_approved": 0.76023,
+        "booking_rate": 0.79375,
+        "cure_rate": 0.166667,
+        "dpd30_plus_rate": 0.104712,
+        "dpd60_plus_rate": 0.036649,
+        "dpd90_plus_rate": 0.0,
+        "generation_run_id": "RUN_collections_change_smoke_2026_7932bc75",
+        "n_applications": 307,
+        "n_approved": 160,
+        "n_collection_events": 44,
+        "n_contracts": 127,
+        "n_decided": 282,
+        "n_recoveries": 0,
+        "n_snapshots": 191,
+        "n_write_offs": 0,
+        "write_off_rate": 0.0
+      }
+    },
+    "macroeconomic_stress": {
+      "baseline_metrics": {
+        "approval_rate": 0.567376,
+        "avg_latent_propensity_of_approved": 0.76023,
+        "booking_rate": 0.79375,
+        "cure_rate": 0.130435,
+        "dpd30_plus_rate": 0.13089,
+        "dpd60_plus_rate": 0.036649,
+        "dpd90_plus_rate": 0.0,
+        "generation_run_id": "RUN_baseline_smoke_2026_29e3fb70",
+        "n_applications": 307,
+        "n_approved": 160,
+        "n_collection_events": 37,
+        "n_contracts": 127,
+        "n_decided": 282,
+        "n_recoveries": 0,
+        "n_snapshots": 191,
+        "n_write_offs": 0,
+        "write_off_rate": 0.0
+      },
+      "config_diff": {
+        "macro_shock": {
+          "baseline": null,
+          "scenario": {
+            "cure_probability_multiplier": 0.5,
+            "on_time_probability_multiplier": 0.65,
+            "partial_payment_probability_multiplier": 1.3,
+            "prepayment_probability_multiplier": 0.4,
+            "shock_date": "2024-07-01",
+            "synthetic_shock_description": "Illustrative synthetic stress index (arbitrary unit, not a real BCB series or macroeconomic indicator) recorded on macro_context_monthly rows with source_type=synthetic_shock for every month from shock_date through the end of the simulated period. Marks the same window used to shock payment_behavior probabilities - not itself read back by the payment simulation (the shock_date field is what the ledger simulation actually branches on).\n",
+            "synthetic_shock_value": 1.0,
+            "synthetic_source_id": "synthetic-stress-shock-v1"
+          }
+        },
+        "scales": {
+          "baseline": {
+            "portfolio": {
+              "customers": 50000,
+              "description": "Demonstration scale - not executed automatically by tests or CI in Phase 4A; a manual, deliberate invocation only."
+            },
+            "sample": {
+              "customers": 5000,
+              "description": "Development/demo scale - enough longitudinal depth for vintage-style analysis without a long run."
+            },
+            "smoke": {
+              "customers": 200,
+              "description": "Fast, deterministic sanity-check scale - seconds, covers every state (approve/reject/pay/delinquent/cure/write-off/recover)."
+            }
+          },
+          "scenario": {
+            "portfolio": {
+              "customers": 50000,
+              "description": "Same population as baseline's portfolio, per CRN - not executed automatically."
+            },
+            "sample": {
+              "customers": 5000,
+              "description": "Same population as baseline's sample, per CRN."
+            },
+            "smoke": {
+              "customers": 200,
+              "description": "Fast, deterministic sanity-check scale - same population as baseline's smoke, per CRN."
+            }
+          }
+        },
+        "scenario": {
+          "baseline": "baseline",
+          "scenario": "macroeconomic_stress"
+        }
+      },
+      "directional_checks": [
+        {
+          "detail": "shock_date=2024-07-01, 6 baseline / 6 stress pre-shock payments",
+          "name": "pre_shock_payments_identical_to_baseline",
+          "passed": true,
+          "type": "invariant"
+        }
+      ],
+      "metric_comparisons": [
+        {
+          "baseline_value": 0.567376,
+          "candidate_value": 0.567376,
+          "delta": 0.0,
+          "metric": "approval_rate"
+        },
+        {
+          "baseline_value": 0.79375,
+          "candidate_value": 0.79375,
+          "delta": 0.0,
+          "metric": "booking_rate"
+        },
+        {
+          "baseline_value": 0.13089,
+          "candidate_value": 0.278351,
+          "delta": 0.14746,
+          "metric": "dpd30_plus_rate"
+        },
+        {
+          "baseline_value": 0.036649,
+          "candidate_value": 0.159794,
+          "delta": 0.123145,
+          "metric": "dpd60_plus_rate"
+        },
+        {
+          "baseline_value": 0.0,
+          "candidate_value": 0.082474,
+          "delta": 0.082474,
+          "metric": "dpd90_plus_rate"
+        },
+        {
+          "baseline_value": 0.130435,
+          "candidate_value": 0.0625,
+          "delta": -0.067935,
+          "metric": "cure_rate"
+        },
+        {
+          "baseline_value": 0.0,
+          "candidate_value": 0.015748,
+          "delta": 0.015748,
+          "metric": "write_off_rate"
+        }
+      ],
+      "population_crn_preserved": true,
+      "population_hashes": {
+        "baseline": {
+          "application_features": "09c7ca709edbfc4d9dbef1e49377a46574608409300b98c9360415542cfdf10c",
+          "applications": "134a2a6f50d50446cc2397dbf4ab017cd3b1830618ed28bca8c25e6affbd17e6",
+          "customers": "6b89fe6f19a6b0ea3754dca2ef752b0d83ea32cc873896366856668a961c4643",
+          "fairness_attributes": "6db7f5577798fb478a2ce92f818577f31060d1df58d0a8fd5440e8a9e2c34fa3"
+        },
+        "scenario": {
+          "application_features": "09c7ca709edbfc4d9dbef1e49377a46574608409300b98c9360415542cfdf10c",
+          "applications": "134a2a6f50d50446cc2397dbf4ab017cd3b1830618ed28bca8c25e6affbd17e6",
+          "customers": "6b89fe6f19a6b0ea3754dca2ef752b0d83ea32cc873896366856668a961c4643",
+          "fairness_attributes": "6db7f5577798fb478a2ce92f818577f31060d1df58d0a8fd5440e8a9e2c34fa3"
+        }
+      },
+      "run_id": "RUN_macroeconomic_stress_smoke_2026_c0afa13a",
+      "scenario_metrics": {
+        "approval_rate": 0.567376,
+        "avg_latent_propensity_of_approved": 0.76023,
+        "booking_rate": 0.79375,
+        "cure_rate": 0.0625,
+        "dpd30_plus_rate": 0.278351,
+        "dpd60_plus_rate": 0.159794,
+        "dpd90_plus_rate": 0.082474,
+        "generation_run_id": "RUN_macroeconomic_stress_smoke_2026_c0afa13a",
+        "n_applications": 307,
+        "n_approved": 160,
+        "n_collection_events": 66,
+        "n_contracts": 127,
+        "n_decided": 282,
+        "n_recoveries": 0,
+        "n_snapshots": 194,
+        "n_write_offs": 2,
+        "write_off_rate": 0.015748
+      }
+    },
+    "policy_expansion": {
+      "baseline_metrics": {
+        "approval_rate": 0.567376,
+        "avg_latent_propensity_of_approved": 0.76023,
+        "booking_rate": 0.79375,
+        "cure_rate": 0.130435,
+        "dpd30_plus_rate": 0.13089,
+        "dpd60_plus_rate": 0.036649,
+        "dpd90_plus_rate": 0.0,
+        "generation_run_id": "RUN_baseline_smoke_2026_29e3fb70",
+        "n_applications": 307,
+        "n_approved": 160,
+        "n_collection_events": 37,
+        "n_contracts": 127,
+        "n_decided": 282,
+        "n_recoveries": 0,
+        "n_snapshots": 191,
+        "n_write_offs": 0,
+        "write_off_rate": 0.0
+      },
+      "config_diff": {
+        "policy": {
+          "baseline": {
+            "approval_score_cutoff": 0.5,
+            "approved_term_months_max": 24,
+            "offered_rate": 0.035
+          },
+          "scenario": {
+            "approval_score_cutoff": 0.35,
+            "approved_term_months_max": 24,
+            "offered_rate": 0.035
+          }
+        },
+        "scales": {
+          "baseline": {
+            "portfolio": {
+              "customers": 50000,
+              "description": "Demonstration scale - not executed automatically by tests or CI in Phase 4A; a manual, deliberate invocation only."
+            },
+            "sample": {
+              "customers": 5000,
+              "description": "Development/demo scale - enough longitudinal depth for vintage-style analysis without a long run."
+            },
+            "smoke": {
+              "customers": 200,
+              "description": "Fast, deterministic sanity-check scale - seconds, covers every state (approve/reject/pay/delinquent/cure/write-off/recover)."
+            }
+          },
+          "scenario": {
+            "portfolio": {
+              "customers": 50000,
+              "description": "Same population as baseline's portfolio, per CRN - not executed automatically."
+            },
+            "sample": {
+              "customers": 5000,
+              "description": "Same population as baseline's sample, per CRN."
+            },
+            "smoke": {
+              "customers": 200,
+              "description": "Fast, deterministic sanity-check scale - same population as baseline's smoke, per CRN."
+            }
+          }
+        },
+        "scenario": {
+          "baseline": "baseline",
+          "scenario": "policy_expansion"
+        }
+      },
+      "directional_checks": [
+        {
+          "detail": "baseline=160 approved, expansion=250 approved",
+          "name": "baseline_approved_subset_of_expansion_approved",
+          "passed": true,
+          "type": "invariant"
+        }
+      ],
+      "metric_comparisons": [
+        {
+          "baseline_value": 0.567376,
+          "candidate_value": 0.886525,
+          "delta": 0.319149,
+          "metric": "approval_rate"
+        },
+        {
+          "baseline_value": 0.79375,
+          "candidate_value": 0.824,
+          "delta": 0.03025,
+          "metric": "booking_rate"
+        },
+        {
+          "baseline_value": 0.13089,
+          "candidate_value": 0.212418,
+          "delta": 0.081528,
+          "metric": "dpd30_plus_rate"
+        },
+        {
+          "baseline_value": 0.036649,
+          "candidate_value": 0.114379,
+          "delta": 0.07773,
+          "metric": "dpd60_plus_rate"
+        },
+        {
+          "baseline_value": 0.0,
+          "candidate_value": 0.04902,
+          "delta": 0.04902,
+          "metric": "dpd90_plus_rate"
+        },
+        {
+          "baseline_value": 0.130435,
+          "candidate_value": 0.114286,
+          "delta": -0.016149,
+          "metric": "cure_rate"
+        },
+        {
+          "baseline_value": 0.0,
+          "candidate_value": 0.014563,
+          "delta": 0.014563,
+          "metric": "write_off_rate"
+        }
+      ],
+      "population_crn_preserved": true,
+      "population_hashes": {
+        "baseline": {
+          "application_features": "09c7ca709edbfc4d9dbef1e49377a46574608409300b98c9360415542cfdf10c",
+          "applications": "134a2a6f50d50446cc2397dbf4ab017cd3b1830618ed28bca8c25e6affbd17e6",
+          "customers": "6b89fe6f19a6b0ea3754dca2ef752b0d83ea32cc873896366856668a961c4643",
+          "fairness_attributes": "6db7f5577798fb478a2ce92f818577f31060d1df58d0a8fd5440e8a9e2c34fa3"
+        },
+        "scenario": {
+          "application_features": "09c7ca709edbfc4d9dbef1e49377a46574608409300b98c9360415542cfdf10c",
+          "applications": "134a2a6f50d50446cc2397dbf4ab017cd3b1830618ed28bca8c25e6affbd17e6",
+          "customers": "6b89fe6f19a6b0ea3754dca2ef752b0d83ea32cc873896366856668a961c4643",
+          "fairness_attributes": "6db7f5577798fb478a2ce92f818577f31060d1df58d0a8fd5440e8a9e2c34fa3"
+        }
+      },
+      "run_id": "RUN_policy_expansion_smoke_2026_275cb395",
+      "scenario_metrics": {
+        "approval_rate": 0.886525,
+        "avg_latent_propensity_of_approved": 0.737545,
+        "booking_rate": 0.824,
+        "cure_rate": 0.114286,
+        "dpd30_plus_rate": 0.212418,
+        "dpd60_plus_rate": 0.114379,
+        "dpd90_plus_rate": 0.04902,
+        "generation_run_id": "RUN_policy_expansion_smoke_2026_275cb395",
+        "n_applications": 307,
+        "n_approved": 250,
+        "n_collection_events": 80,
+        "n_contracts": 206,
+        "n_decided": 282,
+        "n_recoveries": 0,
+        "n_snapshots": 306,
+        "n_write_offs": 3,
+        "write_off_rate": 0.014563
+      }
+    },
     "policy_tightening": {
       "baseline_metrics": {
         "approval_rate": 0.567376,
         "avg_latent_propensity_of_approved": 0.76023,
         "booking_rate": 0.79375,
-        "cure_rate": 0.478261,
-        "dpd30_plus_rate": 0.141304,
-        "dpd60_plus_rate": 0.065217,
-        "dpd90_plus_rate": 0.021739,
-        "generation_run_id": "RUN_baseline_smoke_2026_5d40b2fc",
+        "cure_rate": 0.130435,
+        "dpd30_plus_rate": 0.13089,
+        "dpd60_plus_rate": 0.036649,
+        "dpd90_plus_rate": 0.0,
+        "generation_run_id": "RUN_baseline_smoke_2026_29e3fb70",
         "n_applications": 307,
         "n_approved": 160,
-        "n_collection_events": 34,
+        "n_collection_events": 37,
         "n_contracts": 127,
         "n_decided": 282,
         "n_recoveries": 0,
-        "n_snapshots": 184,
+        "n_snapshots": 191,
         "n_write_offs": 0,
         "write_off_rate": 0.0
       },
@@ -96,27 +620,27 @@
           "metric": "booking_rate"
         },
         {
-          "baseline_value": 0.141304,
-          "candidate_value": 0.244898,
-          "delta": 0.103594,
+          "baseline_value": 0.13089,
+          "candidate_value": 0.254545,
+          "delta": 0.123655,
           "metric": "dpd30_plus_rate"
         },
         {
-          "baseline_value": 0.065217,
-          "candidate_value": 0.142857,
-          "delta": 0.07764,
+          "baseline_value": 0.036649,
+          "candidate_value": 0.145455,
+          "delta": 0.108805,
           "metric": "dpd60_plus_rate"
         },
         {
-          "baseline_value": 0.021739,
-          "candidate_value": 0.102041,
-          "delta": 0.080302,
+          "baseline_value": 0.0,
+          "candidate_value": 0.072727,
+          "delta": 0.072727,
           "metric": "dpd90_plus_rate"
         },
         {
-          "baseline_value": 0.478261,
-          "candidate_value": 0.428571,
-          "delta": -0.049689,
+          "baseline_value": 0.130435,
+          "candidate_value": 0.142857,
+          "delta": 0.012422,
           "metric": "cure_rate"
         },
         {
@@ -129,35 +653,35 @@
       "population_crn_preserved": true,
       "population_hashes": {
         "baseline": {
-          "application_features": "14e679216677da7d3806bac0865bce1cce61ef886824f97a2f44ba0920b4536d",
-          "applications": "4cf90622d08b9a063cade41a0152ef921d90937cb95ca729f412200147dc5a07",
-          "customers": "ad9fafb67c599915ff95dac5c1b921d1d27910266c5a0fbcec422d9ee4f0e282",
-          "fairness_attributes": "33abf58f4170f241f67b00d6f998fc289c06611c7dad77ba62e0b5d65479cd24"
+          "application_features": "09c7ca709edbfc4d9dbef1e49377a46574608409300b98c9360415542cfdf10c",
+          "applications": "134a2a6f50d50446cc2397dbf4ab017cd3b1830618ed28bca8c25e6affbd17e6",
+          "customers": "6b89fe6f19a6b0ea3754dca2ef752b0d83ea32cc873896366856668a961c4643",
+          "fairness_attributes": "6db7f5577798fb478a2ce92f818577f31060d1df58d0a8fd5440e8a9e2c34fa3"
         },
         "scenario": {
-          "application_features": "14e679216677da7d3806bac0865bce1cce61ef886824f97a2f44ba0920b4536d",
-          "applications": "4cf90622d08b9a063cade41a0152ef921d90937cb95ca729f412200147dc5a07",
-          "customers": "ad9fafb67c599915ff95dac5c1b921d1d27910266c5a0fbcec422d9ee4f0e282",
-          "fairness_attributes": "33abf58f4170f241f67b00d6f998fc289c06611c7dad77ba62e0b5d65479cd24"
+          "application_features": "09c7ca709edbfc4d9dbef1e49377a46574608409300b98c9360415542cfdf10c",
+          "applications": "134a2a6f50d50446cc2397dbf4ab017cd3b1830618ed28bca8c25e6affbd17e6",
+          "customers": "6b89fe6f19a6b0ea3754dca2ef752b0d83ea32cc873896366856668a961c4643",
+          "fairness_attributes": "6db7f5577798fb478a2ce92f818577f31060d1df58d0a8fd5440e8a9e2c34fa3"
         }
       },
-      "run_id": "RUN_policy_tightening_smoke_2026_b7b65b2d",
+      "run_id": "RUN_policy_tightening_smoke_2026_4aaa4164",
       "scenario_metrics": {
         "approval_rate": 0.184397,
         "avg_latent_propensity_of_approved": 0.738003,
         "booking_rate": 0.769231,
-        "cure_rate": 0.428571,
-        "dpd30_plus_rate": 0.244898,
-        "dpd60_plus_rate": 0.142857,
-        "dpd90_plus_rate": 0.102041,
-        "generation_run_id": "RUN_policy_tightening_smoke_2026_b7b65b2d",
+        "cure_rate": 0.142857,
+        "dpd30_plus_rate": 0.254545,
+        "dpd60_plus_rate": 0.145455,
+        "dpd90_plus_rate": 0.072727,
+        "generation_run_id": "RUN_policy_tightening_smoke_2026_4aaa4164",
         "n_applications": 307,
         "n_approved": 52,
-        "n_collection_events": 12,
+        "n_collection_events": 14,
         "n_contracts": 40,
         "n_decided": 282,
         "n_recoveries": 0,
-        "n_snapshots": 49,
+        "n_snapshots": 55,
         "n_write_offs": 1,
         "write_off_rate": 0.025
       }

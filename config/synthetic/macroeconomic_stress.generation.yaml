@@ -14,8 +14,12 @@
 #
 # Every field except macro_shock is BYTE-IDENTICAL to
 # baseline.generation.yaml, required for CRN (docs/common_random_numbers.md).
+#
+# version bumped 1 -> 2 in Phase 5 (cure semantics change) - see
+# baseline.generation.yaml's own comment and
+# docs/adr/0010-cure-semantics-and-relapse.md. No parameter value changed.
 
-version: 1
+version: 2
 scenario: macroeconomic_stress
 default_seed: 2026
 currency_unit: credlens_synthetic_unit

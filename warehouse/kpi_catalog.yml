@@ -1,0 +1,979 @@
+# CredLens warehouse KPI catalog (Phase 5).
+#
+# Machine-readable inventory of every KPI evaluated for this layer. Each
+# entry states whether it is `implemented` (a real column/query against a
+# real model, backed by real synthetic data), `proposed` (the data to
+# support it exists, but no model/column implements it yet), or
+# `not_supported` (the DGP has no field for it - implementing it would
+# require inventing a number, which this project will not do; see
+# docs/assumptions_and_limitations.md).
+#
+# EVERY number this catalog describes comes from a synthetic data
+# generation process (DGP) built for this portfolio project. None of it
+# represents a real financial institution, a real borrower, or a
+# real-world base rate - see docs/counterfactual_scenarios.md and
+# docs/synthetic_calibration.md for the DGP's own documented assumptions.
+#
+# Field meaning:
+#   id                  stable identifier - never reused for a different
+#                        formula once published
+#   name                short human label
+#   category            funnel | portfolio | delinquency | vintage |
+#                        collections | scenario
+#   business_objective  what a credit/collections analyst uses this for
+#   formula             the exact expression, in the terms this catalog
+#                        also defines (numerator/denominator)
+#   numerator/denominator  explicit - see the phase brief's "never reuse
+#                        a name for two different formulas" requirement
+#   grain               one row = what
+#   temporal_dimension  the date/period column the KPI is computed over
+#   filters             which rows are included
+#   exclusions          which rows are deliberately excluded, and why
+#   unit                ratio | brl | count | days
+#   interpretation      one sentence, in plain language
+#   limitations          known caveats - vintages/MOB comparability, synthetic
+#                        scope, attribution, etc.
+#   source_model        the dbt model (mart/int/analysis) this KPI is read from
+#   status               implemented | proposed | not_supported
+
+version: 1
+
+kpis:
+  # ------------------------------------------------------------------
+  # Funnel
+  # ------------------------------------------------------------------
+  - id: FUN-001
+    name: applications_submitted
+    category: funnel
+    business_objective: Volume of demand entering the credit funnel.
+    formula: count(applications)
+    numerator: count of application rows
+    denominator: null
+    grain: (run_id, submitted_month, channel)
+    temporal_dimension: submitted_month (date_trunc('month', submitted_at))
+    filters: none - every application counts, regardless of outcome
+    exclusions: none
+    unit: count
+    interpretation: How many credit applications were submitted in the period.
+    limitations: Synthetic portfolio only - not a real demand signal.
+    source_model: mart_credit_funnel_monthly.applications_submitted
+    status: implemented
+
+  - id: FUN-002
+    name: decisioned_applications
+    category: funnel
+    business_objective: How much of submitted demand actually reached a decision.
+    formula: count(applications where a final credit_decision exists)
+    numerator: applications with was_decided = true
+    denominator: null
+    grain: (run_id, submitted_month, channel)
+    temporal_dimension: submitted_month
+    filters: was_decided derived from int_applications_decisions_contracts
+    exclusions: applications still under_review/cancelled with no decision row
+    unit: count
+    interpretation: Applications that received a final approve/reject outcome.
+    limitations: None beyond the synthetic-data disclaimer.
+    source_model: mart_credit_funnel_monthly.decisioned_applications
+    status: implemented
+
+  - id: FUN-003
+    name: approval_rate
+    category: funnel
+    business_objective: Share of decisioned applications approved - the core underwriting-tightness signal.
+    formula: approved_count / decisioned_applications
+    numerator: approved_count (outcome = 'approved')
+    denominator: decisioned_applications
+    grain: (run_id, submitted_month, channel)
+    temporal_dimension: submitted_month
+    filters: decisioned_applications > 0 (else null, never divide by zero)
+    exclusions: undecided applications excluded from both numerator and denominator
+    unit: ratio
+    interpretation: Of applications that got a decision, the fraction approved.
+    limitations: Driven entirely by the synthetic decision score and configured policy.approval_score_cutoff - not a real credit-risk signal.
+    source_model: mart_credit_funnel_monthly.approval_rate
+    status: implemented
+
+  - id: FUN-004
+    name: rejection_rate
+    category: funnel
+    business_objective: Complement of approval_rate - underwriting rejection volume.
+    formula: rejected_count / decisioned_applications
+    numerator: rejected_count (was_decided and outcome != 'approved')
+    denominator: decisioned_applications
+    grain: (run_id, submitted_month, channel)
+    temporal_dimension: submitted_month
+    filters: decisioned_applications > 0
+    exclusions: undecided applications
+    unit: ratio
+    interpretation: Of applications that got a decision, the fraction rejected.
+    limitations: approval_rate + rejection_rate = 1 by construction - always report both from the same row, never mix periods.
+    source_model: mart_credit_funnel_monthly.rejection_rate
+    status: implemented
+
+  - id: FUN-005
+    name: booking_rate_of_approved
+    category: funnel
+    business_objective: How much approved demand actually converts to a booked contract.
+    formula: booked_count / approved_count
+    numerator: booked_count (is_booked = true)
+    denominator: approved_count
+    grain: (run_id, submitted_month, channel)
+    temporal_dimension: submitted_month
+    filters: approved_count > 0
+    exclusions: an approval never implies a contract (see docs/business_rules.md) - unbooked approvals lower this rate
+    unit: ratio
+    interpretation: Of approved applications, the fraction that became a real contract.
+    limitations: None beyond the synthetic-data disclaimer.
+    source_model: mart_credit_funnel_monthly.booking_rate_of_approved
+    status: implemented
+
+  - id: FUN-006
+    name: booking_rate_of_submitted
+    category: funnel
+    business_objective: End-to-end conversion from application to booked contract.
+    formula: booked_count / applications_submitted
+    numerator: booked_count
+    denominator: applications_submitted
+    grain: (run_id, submitted_month, channel)
+    temporal_dimension: submitted_month
+    filters: applications_submitted > 0
+    exclusions: none
+    unit: ratio
+    interpretation: Of every application submitted, the fraction that ends as a contract.
+    limitations: Different denominator from FUN-005 - never compare the two numbers as if they were the same rate.
+    source_model: mart_credit_funnel_monthly.booking_rate_of_submitted
+    status: implemented
+
+  - id: FUN-007
+    name: avg_booked_amount
+    category: funnel
+    business_objective: Average ticket size of newly booked contracts.
+    formula: total_booked_amount / booked_count
+    numerator: sum(financed_amount) where is_booked
+    denominator: booked_count
+    grain: (run_id, submitted_month, channel)
+    temporal_dimension: submitted_month
+    filters: booked_count > 0
+    exclusions: none
+    unit: brl
+    interpretation: Average financed amount among contracts booked that month.
+    limitations: Synthetic amounts, not calibrated to any real product.
+    source_model: mart_credit_funnel_monthly.avg_booked_amount
+    status: implemented
+
+  # ------------------------------------------------------------------
+  # Portfolio
+  # ------------------------------------------------------------------
+  - id: POR-001
+    name: active_contracts
+    category: portfolio
+    business_objective: Size of the live book.
+    formula: count(contracts where contract_status in ('active','delinquent'))
+    numerator: contracts with status active or delinquent that snapshot_date
+    denominator: null
+    grain: (run_id, snapshot_date)
+    temporal_dimension: snapshot_date (STOCK - never sum across snapshot_date)
+    filters: contract_status in ('active','delinquent')
+    exclusions: settled/closed/charged_off contracts excluded (no longer "active" exposure)
+    unit: count
+    interpretation: Contracts still carrying exposure at this snapshot date.
+    limitations: STOCK measure - safe to sum across contracts within one snapshot_date, never across snapshot_date for the same contract.
+    source_model: mart_portfolio_monthly.active_contracts
+    status: implemented
+
+  - id: POR-002
+    name: outstanding_balance
+    category: portfolio
+    business_objective: Total exposure carried by the book.
+    formula: sum(total_balance)
+    numerator: sum of fct_account_monthly.total_balance
+    denominator: null
+    grain: (run_id, snapshot_date)
+    temporal_dimension: snapshot_date (STOCK)
+    filters: none - all contracts at that snapshot_date, any status
+    exclusions: none
+    unit: brl
+    interpretation: Total principal+interest+fees still owed across the portfolio at this snapshot date.
+    limitations: STOCK - never sum across snapshot_date. Computed in DECIMAL(18,2) staging (not DOUBLE) specifically so this sum is exact and thread-order-deterministic - see docs/warehouse_architecture.md#determinism-and-decimal-money.
+    source_model: mart_portfolio_monthly.outstanding_balance
+    status: implemented
+
+  - id: POR-003
+    name: scheduled_amount
+    category: portfolio
+    business_objective: Total amount the amortization schedule calls for in a period (principal+interest+fees due).
+    formula: sum(scheduled_total)
+    numerator: sum of fct_installments.scheduled_total for installments due in the period
+    denominator: null
+    grain: would be (run_id, due_month)
+    temporal_dimension: due_date
+    filters: none defined yet
+    exclusions: none
+    unit: brl
+    interpretation: How much the schedule expects to collect in the period.
+    limitations: fct_installments carries every field needed (scheduled_total, due_date) but no mart currently aggregates it by month - the underlying data supports this KPI, it is just not yet materialized as a mart column.
+    source_model: fct_installments (no mart yet)
+    status: proposed
+
+  - id: POR-004
+    name: cumulative_paid_total
+    category: portfolio
+    business_objective: Total amount actually collected on the book to date.
+    formula: sum(cumulative_paid)
+    numerator: sum of fct_account_monthly.cumulative_paid
+    denominator: null
+    grain: (run_id, snapshot_date)
+    temporal_dimension: snapshot_date (STOCK - cumulative_paid is itself already a running total per contract)
+    filters: none
+    exclusions: none
+    unit: brl
+    interpretation: Total amount collected across the portfolio, as of this snapshot date.
+    limitations: STOCK of an already-cumulative per-contract figure - never sum across snapshot_date (would double-count).
+    source_model: mart_portfolio_monthly.cumulative_paid_total
+    status: implemented
+
+  - id: POR-005
+    name: avg_ticket
+    category: portfolio
+    business_objective: Average original contract size on the book.
+    formula: avg(financed_amount)
+    numerator: sum(financed_amount)
+    denominator: count(contracts)
+    grain: (run_id, snapshot_date)
+    temporal_dimension: snapshot_date
+    filters: none
+    exclusions: none
+    unit: brl
+    interpretation: Average originated amount among contracts present at this snapshot.
+    limitations: Not the same as FUN-007 (that one is booked-this-month only; this one is the whole book at a snapshot).
+    source_model: mart_portfolio_monthly.avg_ticket
+    status: implemented
+
+  - id: POR-006
+    name: partial_payment_count
+    category: portfolio
+    business_objective: How often customers pay less than the full scheduled installment.
+    formula: count(payments where payment_type = 'partial' and not is_reversal)
+    numerator: partial payment rows that month
+    denominator: null
+    grain: (run_id, payment_month)
+    temporal_dimension: payment_month
+    filters: payment_type = 'partial', is_reversal = false
+    exclusions: reversed payments excluded
+    unit: count
+    interpretation: Count of partial-payment events in the period.
+    limitations: FLOW count - safe to sum across months.
+    source_model: mart_portfolio_monthly.partial_payment_count
+    status: implemented
+
+  - id: POR-007
+    name: prepayment_count
+    category: portfolio
+    business_objective: How often customers pay off their entire remaining balance early.
+    formula: count(payments where payment_type = 'prepayment' and not is_reversal)
+    numerator: prepayment rows that month
+    denominator: null
+    grain: (run_id, payment_month)
+    temporal_dimension: payment_month
+    filters: payment_type = 'prepayment', is_reversal = false
+    exclusions: reversed payments excluded; a cure is never counted here (see docs/adr/0010-cure-semantics-and-relapse.md - cure and prepayment are distinct payment_type values by construction)
+    unit: count
+    interpretation: Count of full-payoff events in the period.
+    limitations: FLOW count - safe to sum across months.
+    source_model: mart_portfolio_monthly.prepayment_count
+    status: implemented
+
+  # ------------------------------------------------------------------
+  # Delinquency
+  # ------------------------------------------------------------------
+  - id: DEL-001
+    name: par30
+    category: delinquency
+    business_objective: Balance-weighted delinquency severity, 30+ days past due.
+    formula: balance_30plus / total_balance
+    numerator: sum(total_balance) where dpd_bucket in ('30-59','60-89','90+')
+    denominator: sum(total_balance), all contracts
+    grain: (run_id, snapshot_date)
+    temporal_dimension: snapshot_date
+    filters: none
+    exclusions: write_off (charged_off) contracts are a separate terminal bucket, never mixed into the DPD-bucket sum (see dim_dpd_bucket)
+    unit: ratio
+    interpretation: Fraction of total outstanding balance that is 30+ days past due.
+    limitations: STOCK ratio at one snapshot date - never averaged naively across snapshot_dates without weighting.
+    source_model: mart_delinquency_monthly.par30
+    status: implemented
+
+  - id: DEL-002
+    name: par60
+    category: delinquency
+    business_objective: Balance-weighted delinquency severity, 60+ days past due.
+    formula: balance_60plus / total_balance
+    numerator: sum(total_balance) where dpd_bucket in ('60-89','90+')
+    denominator: sum(total_balance), all contracts
+    grain: (run_id, snapshot_date)
+    temporal_dimension: snapshot_date
+    filters: none
+    exclusions: charged_off contracts excluded from the DPD-bucket sum
+    unit: ratio
+    interpretation: Fraction of total outstanding balance that is 60+ days past due.
+    limitations: Same as DEL-001.
+    source_model: mart_delinquency_monthly.par60
+    status: implemented
+
+  - id: DEL-003
+    name: par90
+    category: delinquency
+    business_objective: Balance-weighted severe delinquency, 90+ days past due.
+    formula: balance_90plus / total_balance
+    numerator: sum(total_balance) where dpd_bucket = '90+'
+    denominator: sum(total_balance), all contracts
+    grain: (run_id, snapshot_date)
+    temporal_dimension: snapshot_date
+    filters: none
+    exclusions: charged_off contracts excluded from the DPD-bucket sum
+    unit: ratio
+    interpretation: Fraction of total outstanding balance that is 90+ days past due.
+    limitations: Same as DEL-001.
+    source_model: mart_delinquency_monthly.par90
+    status: implemented
+
+  - id: DEL-004
+    name: rate_30plus
+    category: delinquency
+    business_objective: Contract-count (not balance) delinquency incidence, 30+ DPD.
+    formula: contracts_30plus / total_contracts
+    numerator: count(contracts) where dpd_bucket in ('30-59','60-89','90+')
+    denominator: total_contracts
+    grain: (run_id, snapshot_date)
+    temporal_dimension: snapshot_date
+    filters: none
+    exclusions: none
+    unit: ratio
+    interpretation: Fraction of contracts (not balance) that are 30+ days past due.
+    limitations: Different denominator basis from PAR30 - never present the two as if interchangeable.
+    source_model: mart_delinquency_monthly.rate_30plus
+    status: implemented
+
+  - id: DEL-005
+    name: rate_60plus
+    category: delinquency
+    business_objective: Contract-count delinquency incidence, 60+ DPD.
+    formula: contracts_60plus / total_contracts
+    numerator: count(contracts) where dpd_bucket in ('60-89','90+')
+    denominator: total_contracts
+    grain: (run_id, snapshot_date)
+    temporal_dimension: snapshot_date
+    filters: none
+    exclusions: none
+    unit: ratio
+    interpretation: Fraction of contracts that are 60+ days past due.
+    limitations: Same as DEL-004.
+    source_model: mart_delinquency_monthly.rate_60plus
+    status: implemented
+
+  - id: DEL-006
+    name: rate_90plus
+    category: delinquency
+    business_objective: Contract-count severe delinquency incidence, 90+ DPD.
+    formula: contracts_90plus / total_contracts
+    numerator: count(contracts) where dpd_bucket = '90+'
+    denominator: total_contracts
+    grain: (run_id, snapshot_date)
+    temporal_dimension: snapshot_date
+    filters: none
+    exclusions: none
+    unit: ratio
+    interpretation: Fraction of contracts that are 90+ days past due.
+    limitations: Same as DEL-004.
+    source_model: mart_delinquency_monthly.rate_90plus
+    status: implemented
+
+  - id: DEL-007
+    name: new_delinquencies
+    category: delinquency
+    business_objective: Fresh entries into delinquency in the period (roll-in from current).
+    formula: count(contracts where contract_status = 'delinquent' and prior_month_status != 'delinquent')
+    numerator: contracts newly delinquent that month
+    denominator: null
+    grain: (run_id, snapshot_date)
+    temporal_dimension: snapshot_date, compared to the SAME contract's prior month
+    filters: prior_month_status is not null (first observed month of a contract is excluded - there is no "prior" to compare against)
+    exclusions: contracts with no prior snapshot (their first month on book)
+    unit: count
+    interpretation: How many contracts became delinquent this month that were not delinquent last month.
+    limitations: Roll rates/entries only ever compare a contract's own consecutive months - never a different contract (see mart_roll_rates's own header comment).
+    source_model: mart_delinquency_monthly.new_delinquencies
+    status: implemented
+
+  - id: DEL-008
+    name: cures
+    category: delinquency
+    business_objective: Count of contracts that cured (paid off their overdue backlog and returned to active) this month.
+    formula: count(contracts where is_cure_month)
+    numerator: is_cure_month = (contract_status='active' and prior_month_status='delinquent')
+    denominator: null
+    grain: (run_id, snapshot_date)
+    temporal_dimension: snapshot_date, compared to the SAME contract's prior month
+    filters: none
+    exclusions: none
+    unit: count
+    interpretation: How many contracts cured (returned to active from delinquent) this month.
+    limitations: A cure pays only the overdue backlog as of the event's own month-end, not the full remaining balance - see docs/adr/0010-cure-semantics-and-relapse.md. Distinct from a prepayment (payment_type='prepayment').
+    source_model: mart_delinquency_monthly.cures
+    status: implemented
+
+  - id: DEL-009
+    name: cure_rate
+    category: delinquency
+    business_objective: Of contracts that were delinquent, the fraction that cured this month.
+    formula: cures / prior_month_delinquent_count
+    numerator: count(contracts where is_cure_month)
+    denominator: count(contracts where prior_month_status = 'delinquent')
+    grain: (run_id, snapshot_date)
+    temporal_dimension: snapshot_date
+    filters: prior_month_delinquent_count > 0
+    exclusions: none
+    unit: ratio
+    interpretation: Of contracts delinquent last month, the fraction that cured this month.
+    limitations: A single-month cure rate - not a cumulative/lifetime cure rate. See DEL-010 for post-cure relapse (redefault).
+    source_model: mart_delinquency_monthly.cure_rate
+    status: implemented
+
+  - id: DEL-010
+    name: redefault_rate
+    category: delinquency
+    business_objective: Of contracts that ever cured, the fraction that later relapsed into delinquency again.
+    formula: count(contracts where redefaulted) / count(contracts where was_ever_cured)
+    numerator: contracts with was_ever_cured = true and ever_relapsed = true (both derived from the contract's own status time series - see int_contract_monthly_enriched)
+    denominator: contracts with was_ever_cured = true
+    grain: one row per suite/scenario/run (aggregate over mart_cure_and_redefault)
+    temporal_dimension: whole observed history of the run (not a single snapshot_date)
+    filters: was_ever_cured = true
+    exclusions: contracts never delinquent (never at risk of this KPI) excluded from the denominator
+    unit: ratio
+    interpretation: Of contracts that were ever cured, how many later became delinquent again (relapse/redefault).
+    limitations: Relapse is derived purely from the status time series (LAG window function over account_monthly_snapshots), never a stored/redundant column - see docs/adr/0010-cure-semantics-and-relapse.md. Requires aggregating mart_cure_and_redefault (a per-contract mart) - see warehouse/analyses/redefault_rate.sql for the exact aggregate query.
+    source_model: mart_cure_and_redefault (aggregated by warehouse/analyses/redefault_rate.sql)
+    status: implemented
+
+  - id: DEL-011
+    name: roll_forward_count
+    category: delinquency
+    business_objective: How many contracts moved to a WORSE DPD bucket month-over-month.
+    formula: sum(contract_count) where to_bucket's dim_dpd_bucket.sort_order > from_bucket's dim_dpd_bucket.sort_order
+    numerator: contract_count from mart_roll_rates, filtered to worsening transitions
+    denominator: null
+    grain: (run_id, snapshot_date)
+    temporal_dimension: snapshot_date, compared to the SAME contract's prior month
+    filters: from_bucket is not null (excludes each contract's first observed month)
+    exclusions: none
+    unit: count
+    interpretation: Count of contracts whose DPD bucket got worse this month vs. last month.
+    limitations: Requires joining mart_roll_rates to dim_dpd_bucket.sort_order to classify direction - see warehouse/analyses/roll_forward_back_summary.sql for the exact query.
+    source_model: mart_roll_rates (aggregated by warehouse/analyses/roll_forward_back_summary.sql)
+    status: implemented
+
+  - id: DEL-012
+    name: roll_back_count
+    category: delinquency
+    business_objective: How many contracts moved to a BETTER DPD bucket month-over-month (includes cures).
+    formula: sum(contract_count) where to_bucket's dim_dpd_bucket.sort_order < from_bucket's dim_dpd_bucket.sort_order
+    numerator: contract_count from mart_roll_rates, filtered to improving transitions
+    denominator: null
+    grain: (run_id, snapshot_date)
+    temporal_dimension: snapshot_date, compared to the SAME contract's prior month
+    filters: from_bucket is not null
+    exclusions: none
+    unit: count
+    interpretation: Count of contracts whose DPD bucket improved this month vs. last month.
+    limitations: Same source query as DEL-011.
+    source_model: mart_roll_rates (aggregated by warehouse/analyses/roll_forward_back_summary.sql)
+    status: implemented
+
+  - id: DEL-013
+    name: bucket_stability_rate
+    category: delinquency
+    business_objective: Of contracts observed in consecutive months, the fraction whose DPD bucket did not change.
+    formula: count(from_bucket = to_bucket) / count(all transitions)
+    numerator: contract_count where from_bucket = to_bucket
+    denominator: sum(contract_count), all transitions
+    grain: (run_id, snapshot_date)
+    temporal_dimension: snapshot_date
+    filters: from_bucket is not null
+    exclusions: none
+    unit: ratio
+    interpretation: Of contracts with a prior-month observation, the fraction whose bucket held steady.
+    limitations: Same source query as DEL-011/DEL-012.
+    source_model: mart_roll_rates (aggregated by warehouse/analyses/roll_forward_back_summary.sql)
+    status: implemented
+
+  # ------------------------------------------------------------------
+  # Vintage / MOB (months on book)
+  # ------------------------------------------------------------------
+  - id: VIN-001
+    name: originations_per_cohort
+    category: vintage
+    business_objective: Cohort size at origination (MOB 0).
+    formula: contracts_observed at months_on_book = 0
+    numerator: count(distinct contract_key) at MOB 0
+    denominator: null
+    grain: (run_id, vintage_month)
+    temporal_dimension: vintage_month (date_trunc('month', disbursement_date))
+    filters: months_on_book = 0
+    exclusions: none
+    unit: count
+    interpretation: How many contracts were originated in this vintage month.
+    limitations: A cohort's MOB-0 count can shrink in later MOBs only through settlement/write-off/closure, never grow (no re-origination into an existing cohort).
+    source_model: mart_vintage_cohorts.contracts_observed
+    status: implemented
+
+  - id: VIN-002
+    name: balance_by_mob
+    category: vintage
+    business_objective: Outstanding exposure by months-on-book, for like-for-like cohort comparison.
+    formula: sum(total_balance)
+    numerator: sum of fct_account_monthly.total_balance for that (vintage_month, months_on_book)
+    denominator: null
+    grain: (run_id, vintage_month, months_on_book)
+    temporal_dimension: months_on_book (MOB, not calendar date)
+    filters: none
+    exclusions: none
+    unit: brl
+    interpretation: Total balance carried by a vintage cohort at a given age (MOB).
+    limitations: More recent vintages have fewer MOB periods observed (max_mob_observed_for_cohort makes this checkable) - never compare cohorts beyond the MOB range BOTH actually reached.
+    source_model: mart_vintage_cohorts.total_balance
+    status: implemented
+
+  - id: VIN-003
+    name: incidence_30plus_by_mob
+    category: vintage
+    business_objective: 30+ DPD incidence at a given cohort age - the standard vintage-curve shape.
+    formula: contracts_30plus / contracts_observed
+    numerator: count(contracts) with dpd_bucket in ('30-59','60-89','90+') at that MOB
+    denominator: contracts_observed at that MOB
+    grain: (run_id, vintage_month, months_on_book)
+    temporal_dimension: months_on_book
+    filters: contracts_observed > 0
+    exclusions: none
+    unit: ratio
+    interpretation: Fraction of a cohort 30+ days past due at MOB n.
+    limitations: Same MOB-comparability limitation as VIN-002.
+    source_model: mart_vintage_cohorts (contracts_30plus / contracts_observed)
+    status: implemented
+
+  - id: VIN-004
+    name: incidence_60plus_by_mob
+    category: vintage
+    business_objective: 60+ DPD incidence at a given cohort age.
+    formula: contracts_60plus / contracts_observed
+    numerator: count(contracts) with dpd_bucket in ('60-89','90+') at that MOB
+    denominator: contracts_observed at that MOB
+    grain: (run_id, vintage_month, months_on_book)
+    temporal_dimension: months_on_book
+    filters: contracts_observed > 0
+    exclusions: none
+    unit: ratio
+    interpretation: Fraction of a cohort 60+ days past due at MOB n.
+    limitations: Same MOB-comparability limitation as VIN-002.
+    source_model: mart_vintage_cohorts (contracts_60plus / contracts_observed)
+    status: implemented
+
+  - id: VIN-005
+    name: incidence_90plus_by_mob
+    category: vintage
+    business_objective: 90+ DPD incidence at a given cohort age.
+    formula: contracts_90plus / contracts_observed
+    numerator: count(contracts) with dpd_bucket = '90+' at that MOB
+    denominator: contracts_observed at that MOB
+    grain: (run_id, vintage_month, months_on_book)
+    temporal_dimension: months_on_book
+    filters: contracts_observed > 0
+    exclusions: none
+    unit: ratio
+    interpretation: Fraction of a cohort 90+ days past due at MOB n.
+    limitations: Same MOB-comparability limitation as VIN-002.
+    source_model: mart_vintage_cohorts (contracts_90plus / contracts_observed)
+    status: implemented
+
+  - id: VIN-006
+    name: cumulative_write_off_by_vintage
+    category: vintage
+    business_objective: Loss emergence by cohort age - the standard vintage loss curve.
+    formula: sum(cumulative_write_off)
+    numerator: sum of fct_account_monthly.cumulative_write_off for that (vintage_month, months_on_book)
+    denominator: null
+    grain: (run_id, vintage_month, months_on_book)
+    temporal_dimension: months_on_book
+    filters: none
+    exclusions: none
+    unit: brl
+    interpretation: Cumulative write-off amount for a cohort, as of a given MOB.
+    limitations: cumulative_write_off is itself already a running total per contract - never sum across months_on_book for the same contract (would double count); summing across contracts within one MOB is safe.
+    source_model: mart_vintage_cohorts.cumulative_write_off
+    status: implemented
+
+  - id: VIN-007
+    name: max_mob_observed_for_cohort
+    category: vintage
+    business_objective: Makes cohort-maturity limitations checkable rather than implicit.
+    formula: max(months_on_book) for that vintage_month
+    numerator: max observed MOB
+    denominator: null
+    grain: (run_id, vintage_month)
+    temporal_dimension: vintage_month
+    filters: none
+    exclusions: none
+    unit: count (months)
+    interpretation: The oldest MOB this cohort has actually reached within the simulated period - use this to bound any cross-cohort comparison.
+    limitations: This IS the limitation-tracking field for VIN-002 through VIN-006 - always check it before comparing two cohorts.
+    source_model: mart_vintage_cohorts.max_mob_observed_for_cohort
+    status: implemented
+
+  # ------------------------------------------------------------------
+  # Collections / Recovery
+  # ------------------------------------------------------------------
+  - id: COL-001
+    name: contracts_eligible
+    category: collections
+    business_objective: Size of the collections-eligible (delinquent) population that month.
+    formula: count(distinct contract_key) where contract_status = 'delinquent'
+    numerator: delinquent contracts that month
+    denominator: null
+    grain: (run_id, event_month)
+    temporal_dimension: event_month
+    filters: contract_status = 'delinquent' (from fct_account_monthly, joined by month)
+    exclusions: none
+    unit: count
+    interpretation: How many contracts were delinquent (collections-eligible) that month.
+    limitations: None beyond the synthetic-data disclaimer.
+    source_model: mart_collections_performance.contracts_eligible
+    status: implemented
+
+  - id: COL-002
+    name: contracts_contacted
+    category: collections
+    business_objective: Collections outreach volume (unique contracts touched).
+    formula: count(distinct contract_key) with a collection_event that month
+    numerator: distinct contacted contracts
+    denominator: null
+    grain: (run_id, event_month)
+    temporal_dimension: event_month
+    filters: none
+    exclusions: none
+    unit: count
+    interpretation: Unique contracts that received at least one collections contact this month.
+    limitations: None beyond the synthetic-data disclaimer.
+    source_model: mart_collections_performance.contracts_contacted
+    status: implemented
+
+  - id: COL-003
+    name: contact_rate
+    category: collections
+    business_objective: Of the eligible (delinquent) population, how much was actually contacted.
+    formula: contracts_contacted / contracts_eligible
+    numerator: contracts_contacted
+    denominator: contracts_eligible
+    grain: (run_id, event_month)
+    temporal_dimension: event_month
+    filters: contracts_eligible > 0
+    exclusions: none
+    unit: ratio
+    interpretation: Collections outreach coverage of the delinquent population.
+    limitations: Denominator is the delinquent population that month, not the whole portfolio.
+    source_model: mart_collections_performance.contact_rate
+    status: implemented
+
+  - id: COL-004
+    name: events_per_contract
+    category: collections
+    business_objective: Contact intensity - average number of collection events per contacted contract.
+    formula: contact_events / contracts_contacted
+    numerator: contact_events (all collection_event rows that month)
+    denominator: contracts_contacted
+    grain: (run_id, event_month)
+    temporal_dimension: event_month
+    filters: contracts_contacted > 0
+    exclusions: none
+    unit: ratio
+    interpretation: Average number of contact attempts per contract actually reached.
+    limitations: A simple ratio of two existing mart_collections_performance columns - not materialized as its own column, compute at query time.
+    source_model: mart_collections_performance (contact_events / contracts_contacted)
+    status: implemented
+
+  - id: COL-005
+    name: cure_after_collection
+    category: collections
+    business_objective: Whether a collections contact caused a subsequent cure.
+    formula: not implemented - see limitations
+    numerator: n/a
+    denominator: n/a
+    grain: n/a
+    temporal_dimension: n/a
+    filters: n/a
+    exclusions: n/a
+    unit: n/a
+    interpretation: n/a
+    limitations: The collections_change scenario only varies aggregate, scenario-level collections parameters (contact intensity/cure-chance uplift) - the DGP has no per-contact, per-contract causal link recorded (see docs/counterfactual_scenarios.md's collections_change section). Any "cure after collection" figure computed by joining timestamps would be a coincidence-of-timing artifact, not a defensible causal attribution. Deliberately not implemented.
+    source_model: null
+    status: not_supported
+
+  - id: COL-006
+    name: write_off_amount
+    category: collections
+    business_objective: Total loss amount charged off in the period.
+    formula: sum(write_off_amount)
+    numerator: sum of int_write_off_recovery.write_off_amount
+    denominator: null
+    grain: (run_id, write_off_month)
+    temporal_dimension: write_off_month
+    filters: none
+    exclusions: none
+    unit: brl
+    interpretation: Total amount written off (charged off) in the period.
+    limitations: FLOW - safe to sum across months.
+    source_model: mart_writeoff_recovery.total_write_off_amount
+    status: implemented
+
+  - id: COL-007
+    name: recovered_amount
+    category: collections
+    business_objective: Total amount recovered post-write-off.
+    formula: sum(coalesce(recovery_amount, 0))
+    numerator: sum of int_write_off_recovery.recovery_amount
+    denominator: null
+    grain: (run_id, write_off_month)
+    temporal_dimension: write_off_month (grouped by the ORIGINAL write-off's month, not the recovery's own month)
+    filters: none
+    exclusions: write-offs with no matching recovery contribute 0, not null
+    unit: brl
+    interpretation: Total amount recovered on contracts written off in this month's cohort.
+    limitations: Grouped by write-off month, not recovery month - a recovery that happens 3 months after write-off is still attributed to the write-off's own month here. See COL-009 for the lag itself.
+    source_model: mart_writeoff_recovery.total_recovery_amount
+    status: implemented
+
+  - id: COL-008
+    name: recovery_rate
+    category: collections
+    business_objective: What fraction of charged-off amount is ultimately recovered.
+    formula: total_recovery_amount / total_write_off_amount
+    numerator: total_recovery_amount
+    denominator: total_write_off_amount
+    grain: (run_id, write_off_month)
+    temporal_dimension: write_off_month
+    filters: total_write_off_amount > 0
+    exclusions: none
+    unit: ratio
+    interpretation: Of every real written off, the fraction eventually recovered.
+    limitations: A DGP-configured probability/amount, not a real recovery-operations outcome - only the rule the generator was configured to apply, per docs/business_rules.md's recovery rule.
+    source_model: mart_writeoff_recovery.recovery_rate
+    status: implemented
+
+  - id: COL-009
+    name: avg_days_to_recovery
+    category: collections
+    business_objective: Typical time lag between charge-off and recovery.
+    formula: avg(days_to_recovery)
+    numerator: sum(datediff('day', write_off_date, recovery_date)) over write-offs with a recovery
+    denominator: count(write-offs with a recovery)
+    grain: (run_id, write_off_month)
+    temporal_dimension: write_off_month
+    filters: has_recovery = true (write-offs with no recovery excluded, not counted as 0 days)
+    exclusions: write-offs with no recovery
+    unit: days
+    interpretation: Average number of days between charge-off and eventual recovery.
+    limitations: Only defined for write-offs that DID recover - not comparable to a headline "average days to recovery across all write-offs" figure.
+    source_model: mart_writeoff_recovery.avg_days_to_recovery
+    status: implemented
+
+  # ------------------------------------------------------------------
+  # Scenario comparison
+  # ------------------------------------------------------------------
+  - id: SCN-001
+    name: approval_rate_delta_abs
+    category: scenario
+    business_objective: Absolute effect of a policy/macro scenario on approval rate, vs. its own CRN baseline.
+    formula: scenario_approval_rate - baseline_approval_rate
+    numerator: n/a (a difference, not a ratio)
+    denominator: n/a
+    grain: (suite_id, scenario)
+    temporal_dimension: whole run (not a single month - each run's own full observed history)
+    filters: scenario != 'baseline' (baseline is the comparison anchor, not compared to itself)
+    exclusions: none
+    unit: ratio (percentage points, as a fraction)
+    interpretation: How many percentage points approval rate moved vs. the same suite's baseline run.
+    limitations: Only comparable within ONE suite_id (baseline and scenario share common random numbers - see docs/common_random_numbers.md) - never diff runs from different suites/seeds.
+    source_model: mart_scenario_comparison.approval_rate_delta_abs
+    status: implemented
+
+  - id: SCN-002
+    name: approval_rate_delta_rel
+    category: scenario
+    business_objective: Relative (percentage) effect of a scenario on approval rate.
+    formula: (scenario_approval_rate - baseline_approval_rate) / baseline_approval_rate
+    numerator: approval_rate_delta_abs
+    denominator: baseline_approval_rate
+    grain: (suite_id, scenario)
+    temporal_dimension: whole run
+    filters: baseline_approval_rate > 0
+    exclusions: none
+    unit: ratio
+    interpretation: Percentage change in approval rate vs. baseline.
+    limitations: Same CRN/suite-scoping limitation as SCN-001.
+    source_model: mart_scenario_comparison.approval_rate_delta_rel
+    status: implemented
+
+  - id: SCN-003
+    name: baseline_vs_scenario_side_by_side
+    category: scenario
+    business_objective: Direct comparison table - approval rate, DPD90 rate, write-off count, baseline and scenario values together.
+    formula: n/a (a row layout, not a single formula)
+    numerator: n/a
+    denominator: n/a
+    grain: (suite_id, scenario)
+    temporal_dimension: whole run
+    filters: scenario != 'baseline'
+    exclusions: none
+    unit: mixed
+    interpretation: One row per scenario, with its own value and its baseline's value side by side, ready for a BI tool without further joins.
+    limitations: Same CRN/suite-scoping limitation as SCN-001.
+    source_model: mart_scenario_comparison
+    status: implemented
+
+  - id: SCN-004
+    name: dpd90_rate_delta_abs
+    category: scenario
+    business_objective: Effect of a scenario on severe delinquency incidence, vs. baseline.
+    formula: scenario_dpd90_rate_final_month - baseline_dpd90_rate
+    numerator: n/a (a difference)
+    denominator: n/a
+    grain: (suite_id, scenario)
+    temporal_dimension: each run's own final observed snapshot_date (not necessarily the same calendar date across scales)
+    filters: scenario != 'baseline'
+    exclusions: none
+    unit: ratio
+    interpretation: How many percentage points the 90+ DPD contract rate moved at the runs' final observed month, vs. baseline.
+    limitations: "Final observed month" is run-relative, not a fixed calendar date - only meaningful within one suite where all runs share the same scale/seed/period.
+    source_model: mart_scenario_comparison.dpd90_rate_delta_abs
+    status: implemented
+
+  - id: SCN-005
+    name: write_off_count_delta_abs
+    category: scenario
+    business_objective: Effect of a scenario on total write-off volume, vs. baseline.
+    formula: scenario_write_off_count - baseline_write_off_count
+    numerator: n/a (a difference)
+    denominator: n/a
+    grain: (suite_id, scenario)
+    temporal_dimension: whole run
+    filters: scenario != 'baseline'
+    exclusions: none
+    unit: count
+    interpretation: How many more (or fewer) write-offs occurred in the scenario vs. baseline.
+    limitations: Same CRN/suite-scoping limitation as SCN-001.
+    source_model: mart_scenario_comparison.write_off_count_delta_abs
+    status: implemented
+
+  - id: SCN-006
+    name: pre_post_shock_period_comparison
+    category: scenario
+    business_objective: Compare payment behavior before vs. after a dated macro shock within one run.
+    formula: not yet materialized as a warehouse mart - see limitations
+    numerator: n/a
+    denominator: n/a
+    grain: n/a
+    temporal_dimension: n/a
+    filters: n/a
+    exclusions: n/a
+    unit: n/a
+    interpretation: n/a
+    limitations: Phase 4B already proved this directionally in Python (docs/counterfactual_scenarios.md's macroeconomic_stress section - pre-shock payments byte-identical to baseline, post-shock DPD90+ increase confirmed in 10/10 Monte Carlo seeds). The warehouse's macro_context_monthly/fct_macro_monthly carries the shock's own dates and could support a dedicated pre/post mart, but none was built this phase - the data supports it, the model does not exist yet.
+    source_model: fct_macro_monthly (no mart yet)
+    status: proposed
+
+  # ------------------------------------------------------------------
+  # Explicitly not supported - would require inventing a number
+  # ------------------------------------------------------------------
+  - id: NSU-001
+    name: revenue
+    category: not_supported
+    business_objective: n/a
+    formula: n/a
+    numerator: n/a
+    denominator: n/a
+    grain: n/a
+    temporal_dimension: n/a
+    filters: n/a
+    exclusions: n/a
+    unit: n/a
+    interpretation: n/a
+    limitations: The DGP has no interest-income/fee-revenue recognition model - contract_rate exists but no revenue-recognition rule was built. Implementing this would require inventing an accounting treatment this project has no basis for.
+    source_model: null
+    status: not_supported
+
+  - id: NSU-002
+    name: cost_of_capital_and_operating_cost
+    category: not_supported
+    business_objective: n/a
+    formula: n/a
+    numerator: n/a
+    denominator: n/a
+    grain: n/a
+    temporal_dimension: n/a
+    filters: n/a
+    exclusions: n/a
+    unit: n/a
+    interpretation: n/a
+    limitations: No field in any contract represents cost of capital or operating cost - this project generates portfolio behavior, not a P&L.
+    source_model: null
+    status: not_supported
+
+  - id: NSU-003
+    name: lgd_ead_pd
+    category: not_supported
+    business_objective: n/a
+    formula: n/a
+    numerator: n/a
+    denominator: n/a
+    grain: n/a
+    temporal_dimension: n/a
+    filters: n/a
+    exclusions: n/a
+    unit: n/a
+    interpretation: n/a
+    limitations: LGD/EAD/PD are regulatory-model outputs requiring a calibrated risk model this project does not build (no trained/predictive score - see docs/roadmap.md's explicit Phase 5 exclusions). recovery_rate (COL-008) is the closest real, implemented analogue, and is NOT the same thing as LGD.
+    source_model: null
+    status: not_supported
+
+  - id: NSU-004
+    name: roi_and_margin
+    category: not_supported
+    business_objective: n/a
+    formula: n/a
+    numerator: n/a
+    denominator: n/a
+    grain: n/a
+    temporal_dimension: n/a
+    filters: n/a
+    exclusions: n/a
+    unit: n/a
+    interpretation: n/a
+    limitations: Depends on revenue and cost, neither of which exists (see NSU-001/NSU-002).
+    source_model: null
+    status: not_supported
+
+  - id: NSU-005
+    name: regulatory_or_market_ideal_thresholds
+    category: not_supported
+    business_objective: n/a
+    formula: n/a
+    numerator: n/a
+    denominator: n/a
+    grain: n/a
+    temporal_dimension: n/a
+    filters: n/a
+    exclusions: n/a
+    unit: n/a
+    interpretation: n/a
+    limitations: This project never claims real-bank representativeness (see docs/counterfactual_scenarios.md) - there is no basis for asserting what an "ideal" or regulator-sanctioned threshold would be for a purely synthetic portfolio.
+    source_model: null
+    status: not_supported

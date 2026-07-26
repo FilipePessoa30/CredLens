@@ -99,3 +99,15 @@ Thumbs.db
 # --- Logs ---
 *.log
 logs/
+
+# --- Warehouse (Phase 5: DuckDB + dbt) ---
+# warehouse/ itself (SQL/YAML/macros/seeds/analyses/tests) IS versioned -
+# only dbt's own generated/compiled artifacts and the rendered profile
+# (which credlens.warehouse renders from profiles.example.yml at build
+# time) are excluded. The actual .duckdb database files are already
+# covered by the global *.duckdb rule above and are written under
+# data/warehouse/ (already covered by data/* above), never under warehouse/.
+warehouse/target/
+warehouse/dbt_packages/
+warehouse/profiles.yml
+warehouse/.user.yml

@@ -103,23 +103,29 @@ extreme-parameter fixture whose only purpose is to force every rare state this
 phase's tests need to see within a `smoke`-scale run in well under a second. See
 `config/synthetic/contract_coverage.generation.yaml`'s own docstring for the
 full list and `reports/synthetic_validation/contract_coverage.json` for which
-states a real run actually produced (12 of 13 - see the gap below).
+states a real run actually produced.
 
-### `contract_coverage` known gap
+### `contract_coverage` known gap - FIXED in Phase 5
 
-The current cure mechanism (`_decide_payment_amount`'s `has_backlog` branch)
-pays off a contract's **entire remaining balance** on cure, not just its
+Phase 4B's cure mechanism (`_decide_payment_amount`'s `has_backlog` branch)
+paid off a contract's **entire remaining balance** on cure, not just its
 overdue backlog - a deliberate Phase 4A simplification ("full cure: pay
-everything open"). This means a cured contract has nothing left to become
-delinquent on again, so true relapse (delinquent → current → delinquent again,
-on the same still-open contract) is architecturally impossible under **any**
-configuration of the current generator, not just a `contract_coverage` tuning
-gap. A concrete, scoped fix for a future phase: change the `has_backlog` branch
-to pay only the sum of `payable` installments with `due_date < month_start`
-(the actual backlog), leaving future not-yet-due installments open - this would
-also need re-verifying the baseline canonical hash and, per section 2.3 of this
-phase's own instructions, a DGP version bump with a documented migration test,
-since it changes real baseline behavior.
+everything open"). This made every cure terminal, so true relapse (delinquent
+→ current → delinquent again, on the same still-open contract) was
+architecturally impossible under any configuration of the generator, and
+`contract_coverage` covered only 12 of its 13 target states.
+
+**Phase 5 fixed this** - see `docs/adr/0010-cure-semantics-and-relapse.md`. A
+cure now pays only the installments overdue as of the cure month
+(`due_date < month_end`), leaving future not-yet-due installments untouched
+and the contract non-terminal. `contract_coverage` now produces all 13 of 13
+target states in a single real run, including relapse - proven, not just
+configured, in `tests/test_generation_cure_semantics.py` and
+`tests/test_generation_scenarios_4b.py::TestContractCoverage`. This was a
+genuine DGP semantic change: `GENERATOR_VERSION` moved `"0.5.0"` →
+`"0.6.0"`, every `*.generation.yaml`'s `version` field moved `1` → `2`, and
+every scenario's canonical content hash changed - no attempt was made to
+preserve the old (Phase 4A/4B) hashes, per this phase's own instructions.
 
 ## What was intentionally NOT built this phase
 

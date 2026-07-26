@@ -1,0 +1,49 @@
+version: 2
+
+models:
+  - name: raw_customers
+    description: >
+      Every selected run's customers.parquet, unioned, tagged with
+      run_id/suite_id/scenario/seed/scale/generator_version. No business
+      rules applied - values are exactly what the generator produced.
+      Materialized as a VIEW (see docs/warehouse_architecture.md
+      "raw materialization trade-off"): always reflects the current parquet
+      files on disk, at the cost of re-reading them on every query.
+    columns:
+      - name: run_id
+        description: Which generator run this row came from - part of every surrogate key downstream.
+      - name: customer_id
+        description: The generator's own customer_id - NOT globally unique across runs, only unique within (run_id, customer_id).
+  - name: raw_applications
+    description: Every selected run's applications.parquet, unioned and tagged - see raw_customers.
+  - name: raw_application_features
+    description: Every selected run's application_features.parquet, unioned and tagged - see raw_customers.
+  - name: raw_fairness_attributes
+    description: Every selected run's fairness_attributes.parquet, unioned and tagged - evaluation-only, never joined into a modeling feature set (see docs/fairness_data_design.md, unchanged in the warehouse).
+  - name: raw_policy_versions
+    description: Every selected run's policy_versions.parquet, unioned and tagged - see raw_customers.
+  - name: raw_credit_decisions
+    description: Every selected run's credit_decisions.parquet, unioned and tagged - see raw_customers.
+  - name: raw_contracts
+    description: Every selected run's contracts.parquet, unioned and tagged - see raw_customers.
+  - name: raw_installments
+    description: Every selected run's installments.parquet, unioned and tagged - see raw_customers.
+  - name: raw_payments
+    description: >
+      Every selected run's payments.parquet, unioned and tagged - includes
+      payment_type (Phase 5: scheduled/partial/cure/prepayment), the
+      generator's own explicit classification of each payment event.
+  - name: raw_payment_allocations
+    description: Every selected run's payment_allocations.parquet, unioned and tagged - see raw_customers.
+  - name: raw_account_monthly_snapshots
+    description: Every selected run's account_monthly_snapshots.parquet, unioned and tagged - the monthly stock (balance/DPD/status) snapshot per contract.
+  - name: raw_collection_events
+    description: Every selected run's collection_events.parquet, unioned and tagged - see raw_customers.
+  - name: raw_write_off_events
+    description: Every selected run's write_off_events.parquet, unioned and tagged - see raw_customers.
+  - name: raw_recovery_events
+    description: Every selected run's recovery_events.parquet, unioned and tagged - see raw_customers.
+  - name: raw_macro_context_monthly
+    description: Every selected run's macro_context_monthly.parquet, unioned and tagged - real BCB rows and (macroeconomic_stress only) synthetic_shock rows, distinguished by source_type/is_synthetic.
+  - name: raw_generation_runs
+    description: Every selected run's own generation_runs.parquet, unioned and tagged - one row per run, the generator's own self-reported metadata (redundant with, but independent of, credlens.warehouse.sources' Python-side audit trail - see fct_run_audit).

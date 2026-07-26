@@ -1,6 +1,6 @@
 # Architecture
 
-This document describes the **target** architecture for the full CredLens project. It states plainly, section by section, what exists today versus what is planned. Nothing described as "planned" below is implemented yet.
+This document describes the **target** architecture for the full CredLens project. It states plainly, section by section, what exists today versus what is planned. Nothing described as "planned" below is implemented yet - as of Phase 5, `Transform` and `Warehouse` below have moved from planned to implemented; see `docs/warehouse_architecture.md` for the as-built design.
 
 ## Logical architecture
 
@@ -22,19 +22,19 @@ flowchart TB
         CON[credlens contracts validate: audit/strict modes, 20 contracts]
     end
 
-    subgraph Transform["Transformation (planned)"]
-        DBT[dbt models: staging to marts]
+    subgraph Transform["Transformation (implemented: dbt raw to marts)"]
+        DBT[63 dbt models: raw, staging, intermediate, dimensions, facts, marts]
     end
 
-    subgraph Warehouse["Warehouse (planned)"]
-        DW[(DuckDB / optionally Postgres)]
+    subgraph Warehouse["Warehouse (implemented: DuckDB)"]
+        DW[(DuckDB, one file per credlens warehouse build)]
     end
 
-    subgraph Analytics["Analytics layer (planned)"]
-        KPI[KPI / semantic layer]
-        VIN[Vintage and roll-rate analysis]
-        RISK[PD / EAD / LGD / EL model]
-        SIM[Policy / cutoff simulator]
+    subgraph Analytics["Analytics layer (KPI/vintage/roll-rate implemented; risk model/simulator planned)"]
+        KPI[KPI / semantic layer - warehouse/kpi_catalog.yml]
+        VIN[Vintage and roll-rate analysis - mart_vintage_cohorts, mart_roll_rates]
+        RISK[PD / EAD / LGD / EL model - planned]
+        SIM[Policy / cutoff simulator - planned]
     end
 
     subgraph Presentation["Presentation (planned)"]
@@ -69,7 +69,7 @@ flowchart TB
     KPI --> APP
 ```
 
-The `Foundation` subgraph (CLI, config, logging, tests, CI) and the `Ingestion`/`Quality` subgraphs (acquisition, provenance, structural audit, and - as of Phase 3 - formal data contracts with two validation modes: `credlens data fetch|verify|audit` and `credlens contracts list|show|validate`, see `src/credlens/data/` and `src/credlens/contracts/`) are implemented. The synthetic operational layer itself (`SYN` above) is implemented for `baseline`, `policy_expansion`, `policy_tightening`, `macroeconomic_stress`, `collections_change`, and the `contract_coverage` test fixture as of Phase 4B: `credlens synthetic generate --scenario <name> --scale {smoke,sample,portfolio} --seed N` (`src/credlens/generation/`) produces a real, deterministic, contract-valid portfolio, written to `data/synthetic/<run_id>/` - see `docs/synthetic_generation_implementation.md` and `docs/counterfactual_scenarios.md`. `policy_expansion`/`policy_tightening`/`macroeconomic_stress`/`collections_change` share common random numbers with `baseline` (`docs/common_random_numbers.md`) and can be generated together with `credlens synthetic generate-suite`, compared with `credlens synthetic compare`, and tested across seeds with `credlens synthetic monte-carlo`. `data_quality_incident` remains specification-only as a *generation config* - it is instead a post-hoc corruption of an already-valid run, handled by `credlens.generation.quarantine` (`docs/data_quality_incident.md`), writing to `data/quarantine/`, never `data/synthetic/`. `Transform` (dbt), `Warehouse` (DuckDB), `Analytics`, and `Presentation` remain planned, not implemented - the generator's output is not yet consumed by anything downstream of `data/synthetic/`.
+The `Foundation` subgraph (CLI, config, logging, tests, CI) and the `Ingestion`/`Quality` subgraphs (acquisition, provenance, structural audit, and - as of Phase 3 - formal data contracts with two validation modes: `credlens data fetch|verify|audit` and `credlens contracts list|show|validate`, see `src/credlens/data/` and `src/credlens/contracts/`) are implemented. The synthetic operational layer itself (`SYN` above) is implemented for `baseline`, `policy_expansion`, `policy_tightening`, `macroeconomic_stress`, `collections_change`, and the `contract_coverage` test fixture as of Phase 4B: `credlens synthetic generate --scenario <name> --scale {smoke,sample,portfolio} --seed N` (`src/credlens/generation/`) produces a real, deterministic, contract-valid portfolio, written to `data/synthetic/<run_id>/` - see `docs/synthetic_generation_implementation.md` and `docs/counterfactual_scenarios.md`. `policy_expansion`/`policy_tightening`/`macroeconomic_stress`/`collections_change` share common random numbers with `baseline` (`docs/common_random_numbers.md`) and can be generated together with `credlens synthetic generate-suite`, compared with `credlens synthetic compare`, and tested across seeds with `credlens synthetic monte-carlo`. `data_quality_incident` remains specification-only as a *generation config* - it is instead a post-hoc corruption of an already-valid run, handled by `credlens.generation.quarantine` (`docs/data_quality_incident.md`), writing to `data/quarantine/`, never `data/synthetic/`. As of Phase 5, `Transform` (63 dbt models) and `Warehouse` (DuckDB) are implemented - `credlens warehouse build --run-id|--suite-id` safely loads validated, non-quarantined runs from `data/synthetic/` into a DuckDB warehouse; see `docs/warehouse_architecture.md`. The KPI/semantic and vintage/roll-rate parts of `Analytics` are implemented (`warehouse/kpi_catalog.yml`, `mart_vintage_cohorts`, `mart_roll_rates`); a trained risk model, a policy/cutoff simulator, and `Presentation` (dashboard/demo app) remain planned.
 
 ## Layer responsibilities
 
@@ -84,14 +84,14 @@ The `Foundation` subgraph (CLI, config, logging, tests, CI) and the `Ingestion`/
 
 ## Data flow
 
-1. **(Implemented)** Ingestion pulls the selected public dataset(s) via `credlens data fetch`, writing immutable files to `data/raw/` (git-ignored) plus a versioned manifest entry. The synthetic generator is not built yet - only its conceptual model, contracts, and blueprints exist (Phase 3).
-2. **(Implemented, diagnostic only)** `credlens data audit` computes structural findings against `data/raw/` and writes `reports/data_audit/quality_metrics.json`. `credlens contracts validate --mode audit` runs the same kind of diagnostic pass against any contract-declared table. Neither gates whether transformation proceeds, because transformation doesn't exist yet either.
-2a. **(Implemented, gating - not yet wired to real generated data)** `credlens contracts validate --mode strict` fails (exit 1) on any error-severity finding. Exercised today only against `tests/fixtures/contracts/` (1 valid + 11 purpose-built invalid scenarios) - there is no real synthetic operational data yet for it to gate.
-3. **(Planned)** dbt models transform validated raw data into staging and mart tables inside the DuckDB warehouse.
-4. **(Planned)** The analytics layer queries the warehouse to compute KPIs, vintage curves, roll rates, and (eventually) risk model features/outputs.
-5. **(Planned)** Power BI and the demo app read from the analytics layer's outputs — never directly from raw files.
+1. **(Implemented)** Ingestion pulls the selected public dataset(s) via `credlens data fetch`, writing immutable files to `data/raw/` (git-ignored) plus a versioned manifest entry. Separately, `credlens synthetic generate --scenario ... --scale ... --seed N` (Phase 4A/4B) produces a deterministic synthetic operational portfolio under `data/synthetic/<run_id>/`.
+2. **(Implemented, diagnostic only)** `credlens data audit` computes structural findings against `data/raw/` and writes `reports/data_audit/quality_metrics.json`. `credlens contracts validate --mode audit` runs the same kind of diagnostic pass against any contract-declared table.
+2a. **(Implemented, gating)** `credlens contracts validate --mode strict` fails (exit 1) on any error-severity finding. Wired as a real gate in two places: `credlens synthetic generate` validates its own output in strict mode before promoting a run out of staging, and `credlens.warehouse.sources.resolve_sources` (Phase 5) refuses to load any run whose manifest does not record `validation_passed = true`.
+3. **(Implemented, Phase 5)** `credlens warehouse build --run-id|--suite-id` loads validated runs and transforms them through 63 dbt models (raw → staging → intermediate → dimensions/facts → marts) into a DuckDB warehouse - see `docs/warehouse_architecture.md`.
+4. **(Implemented for KPI/vintage/roll-rate; planned for a trained risk model)** The marts layer computes funnel, portfolio, delinquency, vintage, roll-rate, cure/redefault, collections, write-off/recovery, and scenario-comparison KPIs (`warehouse/kpi_catalog.yml`). A trained PD/EAD/LGD model and its features remain planned - see `docs/roadmap.md`.
+5. **(Planned)** Power BI and the demo app read from the warehouse marts — never directly from raw files.
 
-Steps 3-5 remain planned interfaces, not built ones. When each phase in `docs/roadmap.md` lands, this section will be updated further.
+Step 5 remains a planned interface, not a built one. When each phase in `docs/roadmap.md` lands, this section will be updated further.
 
 ## Technology choices and rationale (planned)
 

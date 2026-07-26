@@ -53,6 +53,7 @@ _PAYMENT_COLUMNS = (
     "status",
     "settlement_date",
     "reversal_of_payment_id",
+    "payment_type",
 )
 _ALLOCATION_COLUMNS = (
     "allocation_id",
@@ -204,16 +205,37 @@ def _decide_payment_amount(
     propensity: float,
     behavior: PaymentBehaviorConfig,
     rng: np.random.Generator,
-) -> Decimal:
-    # active_installments is already pruned to remaining_total > 0 by the
-    # caller (state.open_installments[state.head_index:]) - no need to
-    # re-check that here. `behavior` is config.payment_behavior for every
-    # month before a configured macro_shock's shock_date (or always, if no
-    # shock is configured) and a shocked copy for every month at/after it
-    # - see _effective_payment_behavior below.
+) -> tuple[Decimal, str]:
+    """Returns (amount, payment_type). payment_type is one of "scheduled"
+    (on-time - pays exactly what's due), "partial" (a fraction of what's
+    due), "cure" (pays off the overdue backlog ONLY - see below), or
+    "prepayment" (a full early payoff of every remaining installment,
+    including not-yet-due ones). amount == 0 means no payment this month;
+    payment_type is meaningless in that case and never written to a row.
+
+    active_installments is already pruned to remaining_total > 0 by the
+    caller (state.open_installments[state.head_index:]) - no need to
+    re-check that here. `behavior` is config.payment_behavior for every
+    month before a configured macro_shock's shock_date (or always, if no
+    shock is configured) and a shocked copy for every month at/after it
+    - see _effective_payment_behavior below.
+
+    CURE SEMANTICS (Phase 5, docs/adr/0010-cure-semantics-and-relapse.md):
+    a cure pays exactly enough to eliminate every installment that is
+    overdue AS OF THIS SNAPSHOT (due_date < month_end - the same strict
+    boundary credlens.generation.snapshots.compute_dpd and
+    derive_snapshot_row's past_due_amount already use), and NOTHING more -
+    installments due later (due_date >= month_end) are left untouched,
+    still scheduled, still able to be paid, missed, or become delinquent
+    again in a later month. This is deliberately NOT "pay off the whole
+    remaining balance" (that was Phase 4A/4B's behavior, and made cure
+    always terminal - see the ADR for why that made delinquency relapse
+    architecturally impossible). A cure that happens to be the contract's
+    very last installment still naturally completes the loan - that is a
+    legitimate coincidence, not a special case this function handles."""
     payable = [i for i in active_installments if due_dates[i.installment_id] <= month_end]
     if not payable:
-        return Decimal("0")
+        return Decimal("0"), "scheduled"
 
     has_backlog = any(due_dates[i.installment_id] < month_start for i in payable)
     total_open = sum((i.remaining_total for i in active_installments), Decimal("0"))
@@ -221,8 +243,12 @@ def _decide_payment_amount(
     if has_backlog:
         cure_chance = min(0.95, behavior.cure_probability_per_month * (0.5 + propensity))
         if rng.random() < cure_chance:
-            return min(total_open, total_open)  # full cure: pay everything open
-        return Decimal("0")
+            overdue_now = [
+                i for i in active_installments if due_dates[i.installment_id] < month_end
+            ]
+            cure_amount = sum((i.remaining_total for i in overdue_now), Decimal("0"))
+            return cure_amount, "cure"
+        return Decimal("0"), "cure"
 
     due_amount = sum((i.remaining_total for i in payable), Decimal("0"))
     scale = propensity / 0.75
@@ -236,15 +262,19 @@ def _decide_payment_amount(
 
     if outcome == "on_time":
         amount = due_amount
+        payment_type = "scheduled"
     elif outcome == "partial":
         fraction = Decimal(str(round(float(rng.uniform(0.3, 0.8)), 4)))
         amount = _quantize(due_amount * fraction)
+        payment_type = "partial"
     elif outcome == "prepay":
-        amount = total_open  # a full early payoff
+        amount = total_open  # a full early payoff - distinct from cure, see docstring
+        payment_type = "prepayment"
     else:
         amount = Decimal("0")
+        payment_type = "scheduled"
 
-    return min(amount, total_open)
+    return min(amount, total_open), payment_type
 
 
 def simulate_portfolio_ledger(
@@ -347,7 +377,7 @@ def simulate_portfolio_ledger(
 
             active = state.open_installments[state.head_index :]
             propensity = float(propensity_by_contract.get(contract_id, 0.75))
-            amount = _decide_payment_amount(
+            amount, payment_type = _decide_payment_amount(
                 active, due_dates, month_start, month_end, propensity, behavior, payments_rng
             )
 
@@ -374,6 +404,7 @@ def simulate_portfolio_ledger(
                         "status": "settled",
                         "settlement_date": payment_ts.strftime("%Y-%m-%d"),
                         "reversal_of_payment_id": None,
+                        "payment_type": payment_type,
                     }
                 )
                 by_id = {i.installment_id: i for i in active}
@@ -427,6 +458,7 @@ def simulate_portfolio_ledger(
                                 "status": "settled",
                                 "settlement_date": reversal_ts.strftime("%Y-%m-%d"),
                                 "reversal_of_payment_id": payment_id,
+                                "payment_type": payment_type,
                             }
                         )
                         for installment_id, principal, interest, fees in allocations:

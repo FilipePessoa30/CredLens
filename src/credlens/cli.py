@@ -282,6 +282,78 @@ def _build_parser() -> argparse.ArgumentParser:
         "--scenario", default="baseline", help="Scenario name (default: baseline)."
     )
 
+    warehouse_parser = subparsers.add_parser(
+        "warehouse",
+        help="DuckDB + dbt analytical warehouse commands (Phase 5).",
+    )
+    warehouse_subparsers = warehouse_parser.add_subparsers(dest="warehouse_command")
+
+    def _add_selection_args(p: argparse.ArgumentParser) -> None:
+        group = p.add_mutually_exclusive_group(required=True)
+        group.add_argument("--run-id", default=None, help="A single generation_run_id to load.")
+        group.add_argument(
+            "--suite-id", default=None, help="A suite_id (baseline + every CRN scenario) to load."
+        )
+        p.add_argument("--json", action="store_true", help="Emit machine-readable JSON output.")
+
+    prepare_parser = warehouse_subparsers.add_parser(
+        "prepare",
+        help="Validate a run/suite is safe to load (manifest, hashes, quarantine, "
+        "contract version) without invoking dbt.",
+    )
+    _add_selection_args(prepare_parser)
+
+    build_parser = warehouse_subparsers.add_parser(
+        "build", help="Resolve sources and run a full `dbt build` (raw..marts + all tests)."
+    )
+    _add_selection_args(build_parser)
+    build_parser.add_argument(
+        "--build-id", default=None, help="Explicit build id (default: auto-generated)."
+    )
+    build_parser.add_argument(
+        "--force", action="store_true", help="Overwrite an existing build with the same build id."
+    )
+
+    test_parser = warehouse_subparsers.add_parser(
+        "test", help="Re-run dbt tests (no rebuild) against an already-built warehouse."
+    )
+    test_parser.add_argument("--build-id", required=True, help="build_id from a prior build.")
+    test_parser.add_argument(
+        "--json", action="store_true", help="Emit machine-readable JSON output."
+    )
+
+    status_parser = warehouse_subparsers.add_parser(
+        "status", help="Show a prior build's manifest (versions, counts, tests, fingerprint)."
+    )
+    status_parser.add_argument("--build-id", required=True, help="build_id from a prior build.")
+    status_parser.add_argument(
+        "--json", action="store_true", help="Emit machine-readable JSON output."
+    )
+
+    query_parser = warehouse_subparsers.add_parser(
+        "query", help="Run one named demo analytical query against a built warehouse."
+    )
+    query_parser.add_argument("--build-id", required=True, help="build_id from a prior build.")
+    query_parser.add_argument("--name", required=True, help="Named query - see --help for options.")
+    query_parser.add_argument(
+        "--json", action="store_true", help="Emit machine-readable JSON output."
+    )
+
+    docs_parser = warehouse_subparsers.add_parser(
+        "docs", help="Generate (not serve) the dbt docs static site for a build."
+    )
+    docs_parser.add_argument("--build-id", required=True, help="build_id from a prior build.")
+
+    reconcile_parser = warehouse_subparsers.add_parser(
+        "reconcile",
+        help="Independently re-verify a sample of critical KPIs in Python, "
+        "reading raw source parquet directly (never through dbt/SQL).",
+    )
+    reconcile_parser.add_argument("--build-id", required=True, help="build_id from a prior build.")
+    reconcile_parser.add_argument(
+        "--json", action="store_true", help="Emit machine-readable JSON output."
+    )
+
     return parser
 
 
@@ -1263,6 +1335,211 @@ def _cmd_synthetic_profile(scenario: str, scale: str, seed: int) -> int:
     return 0
 
 
+# --- warehouse (Phase 5) ------------------------------------------------------
+
+
+def _cmd_warehouse_prepare(run_id: str | None, suite_id: str | None, as_json: bool) -> int:
+    from credlens.warehouse.sources import SourceSelectionError, resolve_sources
+
+    try:
+        sources = resolve_sources(run_id=run_id, suite_id=suite_id)
+    except SourceSelectionError as exc:
+        print(f"Error: {exc}")
+        return 1
+
+    if as_json:
+        print(json.dumps([s.to_dict() for s in sources], indent=2))
+        return 0
+
+    print("CredLens warehouse prepare")
+    print("=" * 26)
+    for s in sources:
+        print(f"run_id:              {s.run_id}")
+        print(f"  suite_id:          {s.suite_id or '(none)'}")
+        print(f"  scenario:          {s.scenario}")
+        print(f"  seed / scale:      {s.seed} / {s.scale}")
+        print(f"  generator_version: {s.generator_version}")
+        print(f"  config_hash:       {s.config_hash[:16]}...")
+        print(f"  global_content_hash: {s.global_content_hash[:16]}...")
+        print(f"  source_path:       {s.source_path}")
+        print(f"  tables:            {len(s.row_counts)}")
+    print()
+    print(f"Result: OK ({len(sources)} run(s) safe to load)")
+    return 0
+
+
+def _cmd_warehouse_build(
+    run_id: str | None, suite_id: str | None, build_id: str | None, force: bool, as_json: bool
+) -> int:
+    from credlens.warehouse.build import BuildError, run_build
+    from credlens.warehouse.sources import SourceSelectionError
+
+    try:
+        manifest = run_build(
+            run_id=run_id, suite_id=suite_id, build_id=build_id, force=force, quiet=as_json
+        )
+    except SourceSelectionError as exc:
+        print(f"Error: {exc}")
+        return 1
+    except BuildError as exc:
+        print(f"Error: {exc}")
+        return 1
+    except Exception as exc:
+        logger.exception("Unhandled error during warehouse build")
+        print(f"Error: warehouse build failed unexpectedly ({type(exc).__name__}). See logs.")
+        return 1
+
+    if as_json:
+        print(json.dumps(manifest.to_dict(), indent=2))
+    else:
+        print(f"build_id:               {manifest.build_id}")
+        print(f"db_path:                {manifest.db_path}")
+        print(f"included_run_ids:       {', '.join(manifest.included_run_ids)}")
+        print(f"dbt_version:            {manifest.dbt_version}")
+        print(f"duckdb_version:         {manifest.duckdb_version}")
+        print(
+            f"tests:                  {manifest.test_results.get('passed')} passed, "
+            f"{manifest.test_results.get('failed')} failed, "
+            f"{manifest.test_results.get('errored')} errored, "
+            f"{manifest.test_results.get('skipped')} skipped"
+        )
+        print(f"analytical_fingerprint: {manifest.analytical_fingerprint}")
+        print(f"total_duration_seconds: {manifest.step_durations.get('total', 0):.2f}")
+        print(f"final_status:           {manifest.final_status}")
+
+    return 0 if manifest.final_status == "success" else 1
+
+
+def _cmd_warehouse_test(build_id: str, as_json: bool) -> int:
+    from credlens.warehouse.build import BuildError, run_tests
+
+    try:
+        results = run_tests(build_id, quiet=as_json)
+    except BuildError as exc:
+        print(f"Error: {exc}")
+        return 1
+
+    if as_json:
+        print(json.dumps(results, indent=2))
+    else:
+        print(f"CredLens warehouse test: {build_id}")
+        print("=" * (26 + len(build_id)))
+        print(f"passed:  {results['passed']}")
+        print(f"failed:  {results['failed']}")
+        print(f"errored: {results['errored']}")
+        print(f"skipped: {results['skipped']}")
+        if results["failures"]:
+            print("failures:")
+            for name in results["failures"]:
+                print(f"  - {name}")
+
+    return 0 if results.get("success") else 1
+
+
+def _cmd_warehouse_status(build_id: str, as_json: bool) -> int:
+    from credlens.warehouse.build import BuildError, load_build_manifest
+
+    try:
+        manifest = load_build_manifest(build_id)
+    except BuildError as exc:
+        print(f"Error: {exc}")
+        return 1
+
+    if as_json:
+        print(json.dumps(manifest.to_dict(), indent=2))
+        return 0
+
+    print(f"CredLens warehouse status: {build_id}")
+    print("=" * (27 + len(build_id)))
+    print(f"final_status:           {manifest.final_status}")
+    print(f"built_at:                {manifest.built_at}")
+    print(f"db_path:                {manifest.db_path}")
+    print(f"run_id / suite_id:      {manifest.run_id} / {manifest.suite_id}")
+    print(f"included_run_ids:       {', '.join(manifest.included_run_ids)}")
+    print(f"code_version:           {manifest.code_version}")
+    print(f"dbt_version:            {manifest.dbt_version}")
+    print(f"duckdb_version:         {manifest.duckdb_version}")
+    print(f"model_row_counts:       {len(manifest.model_row_counts)} materialized table(s)")
+    print(
+        f"tests:                  {manifest.test_results.get('passed')} passed / "
+        f"{manifest.test_results.get('failed')} failed / "
+        f"{manifest.test_results.get('errored')} errored"
+    )
+    print(f"analytical_fingerprint: {manifest.analytical_fingerprint}")
+    return 0 if manifest.final_status == "success" else 1
+
+
+def _cmd_warehouse_query(build_id: str, name: str, as_json: bool) -> int:
+    from credlens.warehouse.build import BuildError, load_build_manifest
+    from credlens.warehouse.queries import QueryError, run_named_query
+
+    try:
+        manifest = load_build_manifest(build_id)
+    except BuildError as exc:
+        print(f"Error: {exc}")
+        return 1
+
+    try:
+        columns, rows = run_named_query(Path(manifest.db_path), name)
+    except QueryError as exc:
+        print(f"Error: {exc}")
+        return 1
+
+    if as_json:
+        payload = [dict(zip(columns, row, strict=True)) for row in rows]
+        print(json.dumps(payload, indent=2, default=str))
+        return 0
+
+    print(f"CredLens warehouse query: {name} (build {build_id})")
+    print("=" * 40)
+    print(" | ".join(columns))
+    for row in rows:
+        print(" | ".join(str(v) for v in row))
+    print(f"\n{len(rows)} row(s).")
+    return 0
+
+
+def _cmd_warehouse_reconcile(build_id: str, as_json: bool) -> int:
+    from credlens.warehouse.build import BuildError, load_build_manifest
+    from credlens.warehouse.reconciliation import run_reconciliation
+
+    try:
+        manifest = load_build_manifest(build_id)
+    except BuildError as exc:
+        print(f"Error: {exc}")
+        return 1
+
+    results = run_reconciliation(Path(manifest.db_path), manifest.sources)
+    any_failed = any(not r.passed for r in results)
+
+    if as_json:
+        print(json.dumps([r.to_dict() for r in results], indent=2))
+        return 1 if any_failed else 0
+
+    print(f"CredLens warehouse reconcile: {build_id}")
+    print("=" * (29 + len(build_id)))
+    for r in results:
+        status = "OK" if r.passed else "MISMATCH"
+        print(f"[{status:>8}] {r.name:<20} {r.run_id:<40} {r.detail}")
+    print()
+    print(f"Result: {'FAIL' if any_failed else 'OK'} ({len(results)} check(s))")
+    return 1 if any_failed else 0
+
+
+def _cmd_warehouse_docs(build_id: str) -> int:
+    from credlens.warehouse.build import BuildError, generate_docs
+
+    try:
+        index_path = generate_docs(build_id)
+    except BuildError as exc:
+        print(f"Error: {exc}")
+        return 1
+
+    print(f"dbt docs generated: {index_path}")
+    print("Open that file in a browser to view the static docs site (not served by this CLI).")
+    return 0
+
+
 # --- main --------------------------------------------------------------------
 
 
@@ -1286,9 +1563,34 @@ def main(argv: list[str] | None = None) -> int:
         return _dispatch_contracts_command(args)
     if args.command == "synthetic":
         return _dispatch_synthetic_command(args)
+    if args.command == "warehouse":
+        return _dispatch_warehouse_command(args)
 
     parser.print_help()
     return 0
+
+
+def _dispatch_warehouse_command(args: argparse.Namespace) -> int:
+    if args.warehouse_command == "prepare":
+        return _cmd_warehouse_prepare(args.run_id, args.suite_id, args.json)
+    if args.warehouse_command == "build":
+        return _cmd_warehouse_build(
+            args.run_id, args.suite_id, args.build_id, args.force, args.json
+        )
+    if args.warehouse_command == "test":
+        return _cmd_warehouse_test(args.build_id, args.json)
+    if args.warehouse_command == "status":
+        return _cmd_warehouse_status(args.build_id, args.json)
+    if args.warehouse_command == "query":
+        return _cmd_warehouse_query(args.build_id, args.name, args.json)
+    if args.warehouse_command == "docs":
+        return _cmd_warehouse_docs(args.build_id)
+    if args.warehouse_command == "reconcile":
+        return _cmd_warehouse_reconcile(args.build_id, args.json)
+
+    print("usage: credlens warehouse {prepare,build,test,status,query,docs,reconcile} ...")
+    print("Run 'credlens warehouse <command> --help' for details.")
+    return 1
 
 
 def _dispatch_contracts_command(args: argparse.Namespace) -> int:
