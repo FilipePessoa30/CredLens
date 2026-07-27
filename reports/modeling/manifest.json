@@ -1,9 +1,9 @@
 {
-  "content_fingerprint": "50a5d0f3616d66feaf7589529f4b33fa0341d215f95cb271f01595c8b5125b9d",
+  "content_fingerprint": "14f7aafcce676f1a90d4d2c3b889146265ddd29cb47388c3506e759be446212e",
   "experiment_id": "EXP_behavioral_default_v1",
-  "generated_at_utc": "2026-07-27T21:56:56.542563+00:00",
+  "generated_at_utc": "2026-07-27T22:13:17.091595+00:00",
   "model_id": "MODEL_behavioral_default_v1",
-  "package_version": "0.8.0",
+  "package_version": "0.9.0",
   "reports_written": [
     "model_card.md",
     "model_card.pt-BR.md",
