@@ -105,6 +105,23 @@ dashboard = [
     "plotly>=6.0.0",
     "kaleido>=0.2.1",
 ]
+# Phase 8's behavioral-default modeling layer (credlens.modeling) needs a
+# real modeling stack - scikit-learn (estimators, preprocessing, model
+# selection, calibration, permutation importance/partial dependence) and
+# threadpoolctl (recording the actual thread count HistGradientBoosting-
+# Classifier's OpenMP backend uses, since it exposes no n_jobs parameter
+# of its own - see credlens.modeling.tuning). scipy/joblib arrive
+# transitively via scikit-learn and are not pinned separately. No
+# MLflow/Optuna/XGBoost/LightGBM/SHAP: HistGradientBoostingClassifier
+# (already in scikit-learn) is the challenger, permutation importance +
+# partial dependence (also already in scikit-learn) stand in for SHAP -
+# see reports/modeling/technical_report.md for why. Version resolved via
+# `uv add --optional modeling scikit-learn threadpoolctl`, pinned in
+# uv.lock. Install with `uv sync --extra analysis --extra modeling`.
+modeling = [
+    "scikit-learn>=1.5.0",
+    "threadpoolctl>=3.5.0",
+]
 
 [dependency-groups]
 dev = [
@@ -131,6 +148,9 @@ packages = ["src/credlens"]
 minversion = "8.0"
 testpaths = ["tests"]
 addopts = "-ra --cov=credlens --cov-report=term-missing --cov-report=xml"
+markers = [
+    "slow: exercises the full Phase 8 modeling pipeline on the real 30k-row UCI benchmark (tuning/bootstrap/robustness) - deselect with -m 'not slow' for a fast smoke path; CI's main job runs the full suite regardless.",
+]
 
 [tool.coverage.run]
 source = ["src/credlens"]
@@ -186,4 +206,9 @@ disallow_untyped_defs = false
 # still checked itself, only the third-party call boundary is silenced.
 [[tool.mypy.overrides]]
 module = ["plotly.*", "streamlit.*"]
+ignore_missing_imports = true
+
+# scikit-learn (Phase 8 modeling extra) ships no py.typed marker either.
+[[tool.mypy.overrides]]
+module = ["sklearn.*", "threadpoolctl.*", "scipy.*", "joblib.*"]
 ignore_missing_imports = true

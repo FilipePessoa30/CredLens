@@ -1,0 +1,13 @@
+{
+  "content_fingerprint": "50a5d0f3616d66feaf7589529f4b33fa0341d215f95cb271f01595c8b5125b9d",
+  "experiment_id": "EXP_behavioral_default_v1",
+  "generated_at_utc": "2026-07-27T21:56:56.542563+00:00",
+  "model_id": "MODEL_behavioral_default_v1",
+  "package_version": "0.8.0",
+  "reports_written": [
+    "model_card.md",
+    "model_card.pt-BR.md",
+    "technical_report.md",
+    "technical_report.pt-BR.md"
+  ]
+}

@@ -1,0 +1,89 @@
+# CredLens - Phase 8 evaluation protocol configuration.
+#
+# Every numeric knob a future re-run needs (split proportions, seeds,
+# scoring metric, bootstrap resamples) lives here, not hardcoded in
+# Python, so a re-run/audit can see exactly what was configured -
+# see credlens.modeling.contracts.load_evaluation_config.
+
+config_version: "1.0.0"
+
+split:
+  train_fraction: 0.60
+  validation_fraction: 0.20
+  test_fraction: 0.20
+  seed: 42
+  stratify_by: "Y"
+
+tuning:
+  cv_folds: 5
+  scoring: "average_precision"
+  secondary_scoring: "roc_auc"
+  seed: 42
+  logistic_regression:
+    C: [0.01, 0.1, 1.0, 10.0]
+  hist_gradient_boosting:
+    max_leaf_nodes: [15, 31]
+    learning_rate: [0.05, 0.1]
+    cv_folds: 3
+
+calibration:
+  methods: ["none", "sigmoid", "isotonic"]
+  isotonic_minimum_positive_count: 1000
+  cv_folds: 5
+  selection_metric: "brier_score"
+
+thresholds:
+  illustrative_operating_points:
+    - {name: "top_5_pct", type: "population_share", value: 0.05}
+    - {name: "top_10_pct", type: "population_share", value: 0.10}
+    - {name: "top_20_pct", type: "population_share", value: 0.20}
+    - {name: "recall_50", type: "recall", value: 0.50}
+    - {name: "recall_70", type: "recall", value: 0.70}
+    - {name: "recall_80", type: "recall", value: 0.80}
+  label_en: "Illustrative review-capacity scenario"
+  label_pt_br: "Cenário ilustrativo de capacidade de revisão"
+
+uncertainty:
+  bootstrap:
+    n_resamples: 1000
+    seed: 20260727
+    method: "stratified_resample_with_replacement"
+    metrics: ["roc_auc", "pr_auc", "brier", "ks", "recall_at_top_10_pct", "precision_at_top_10_pct"]
+    percentiles: [2.5, 50, 97.5]
+  split_stability:
+    seeds: [42, 43, 44, 45, 46]
+    note: "Each seed builds its OWN fresh train/validation/test split and its own official test set - never reuses another seed's test set for tuning or selection."
+
+robustness:
+  missingness_extra_fraction: 0.10
+  outlier_fraction: 0.01
+  outlier_multiplier: 10.0
+  utilization_shift_multiplier: 1.5
+  delinquency_worsening_steps: 1
+  payment_to_bill_shrink_factor: 0.5
+  prevalence_drift_targets: [0.10, 0.35]
+  gaussian_noise_std_fraction: 0.05
+  out_of_domain_delinquency_code: 15
+  seed: 20260727
+
+negative_controls:
+  shuffled_target_seed: 20260727
+  near_perfect_leakage_column: "Y_leak_copy"
+  # "Near random" means CLOSE TO 0.5 in EITHER direction - a symmetric
+  # tolerance band, not a one-sided upper bound (a one-sided check would
+  # wrongly wave through a strongly INVERTED fit, e.g. AUC 0.10, as
+  # "passing"). Chosen from repeated empirical runs of the shuffled-target
+  # fit on the real UCI benchmark, which showed deviations of ~0.08-0.09
+  # from 0.5 - see reports/modeling/technical_report.md.
+  max_deviation_from_random_roc_auc: 0.12
+  min_expected_near_perfect_leakage_roc_auc: 0.97
+
+subgroup_audit:
+  attributes: ["X2", "X3", "X4", "X5_bucket"]
+  age_buckets: [[18, 30], [30, 40], [40, 50], [50, 100]]
+
+gates:
+  min_pr_auc_uplift_over_dummy: 0.03
+  min_pr_auc_uplift_over_simple_rule: 0.0
+  max_split_stability_roc_auc_stdev: 0.02
+  min_test_roc_auc: 0.60

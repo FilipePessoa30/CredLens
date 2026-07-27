@@ -1,0 +1,46 @@
+{
+  "gates": [
+    {
+      "name": "beats_dummy_baseline_pr_auc",
+      "passed": true,
+      "detail": "candidate PR-AUC 0.5019 vs. dummy 0.2212"
+    },
+    {
+      "name": "beats_simple_rule_baseline_pr_auc",
+      "passed": true,
+      "detail": "candidate PR-AUC 0.5019 vs. simple rule 0.3869"
+    },
+    {
+      "name": "meets_minimum_test_roc_auc",
+      "passed": true,
+      "detail": "candidate ROC-AUC 0.7451 vs. minimum 0.6"
+    },
+    {
+      "name": "no_leakage_detected",
+      "passed": true,
+      "detail": "static + negative-control checks"
+    },
+    {
+      "name": "calibration_acceptable",
+      "passed": true,
+      "detail": "calibration comparison completed"
+    },
+    {
+      "name": "stable_across_split_seeds",
+      "passed": true,
+      "detail": "ROC-AUC stdev across seeds 0.0088 vs. max 0.02"
+    },
+    {
+      "name": "subgroup_audit_completed",
+      "passed": true,
+      "detail": "post-hoc subgroup audit ran"
+    },
+    {
+      "name": "artifact_validated",
+      "passed": true,
+      "detail": "input/output schema validation"
+    }
+  ],
+  "eligible": true,
+  "reason": "All gates passed - eligible for candidate registration."
+}

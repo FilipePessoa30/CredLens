@@ -33,7 +33,7 @@ jobs:
       - name: Install dependencies
         run: |
           uv sync --all-groups --extra warehouse --extra analysis --extra dashboard \
-            --extra notebook --python ${{ matrix.python-version }}
+            --extra notebook --extra modeling --python ${{ matrix.python-version }}
 
       - name: Lint (ruff check)
         run: uv run ruff check .
@@ -48,6 +48,15 @@ jobs:
       # (a few hundred customers, well under a second) or, for Monte Carlo
       # tests, 2 seeds at 'smoke' scale - 'sample'/'portfolio' scale and any
       # wide Monte Carlo sweep are never run in CI (Phase 4B section 19).
+      # Phase 8's `slow`-marked tests (tests/test_modeling_reporting.py,
+      # test_cli_model.py) run the full staged modeling pipeline on the
+      # real 30,000-row UCI benchmark and are NOT excluded here - unlike
+      # the synthetic generator, this pipeline's tuning grid (4 + 4
+      # combinations) and bootstrap (1,000 resamples on a 6,000-row test
+      # set) were sized to be CI-appropriate from the start (Phase 8
+      # section 12: "não execute busca enorme"), so there is no separate
+      # reduced-scale mode to switch to - running the real thing here IS
+      # the smoke path. Combined they add well under two minutes.
       - name: Test with coverage (pytest)
         run: uv run pytest --cov=credlens --cov-report=term-missing
 
@@ -178,10 +187,61 @@ jobs:
           CREDLENS_TEST_BUILD_ID: CI_ANALYSIS_BUILD
         run: uv run pytest tests/test_dashboard_apptest.py -q
 
-      # Runs LAST so it also covers every step above (notebook execution,
-      # dashboard demo export/validate/AppTest) - none of them may modify
-      # a tracked, official artifact.
-      - name: Prove the official reports/portfolio_analysis/ was never altered
+      # Behavioral early-warning model (Phase 8): the same staged CLI a
+      # human operator runs, on the real acquired UCI benchmark (already
+      # on disk, never downloaded here), under a CI-only experiment_id/
+      # model_id so it can never collide with or overwrite the official
+      # EXP_behavioral_default_v1/MODEL_behavioral_default_v1 committed to
+      # the repo. `report`/figure generation is intentionally skipped here
+      # - those write to the single, top-level reports/modeling/model_card
+      # .md et al., which the official experiment already owns; the
+      # pytest step above already proves report/figure generation works,
+      # on its own isolated repo copy.
+      - name: Model - data audit and feature validation
         run: |
-          git status --porcelain reports/portfolio_analysis/ analysis/ warehouse/ | tee ci_git_status.txt
+          uv run credlens model data-audit
+          uv run credlens model validate-features
+
+      - name: Model - train/evaluate/explain/audit-groups/stress-test (CI-scoped)
+        run: |
+          uv run credlens model create-split --experiment-id CI_MODEL_SMOKE --seed 42
+          uv run credlens model train --experiment-id CI_MODEL_SMOKE --seed 42
+          uv run credlens model evaluate --experiment-id CI_MODEL_SMOKE
+          uv run credlens model compare --experiment-id CI_MODEL_SMOKE
+          uv run credlens model explain --experiment-id CI_MODEL_SMOKE
+          uv run credlens model audit-groups --experiment-id CI_MODEL_SMOKE
+          uv run credlens model stress-test --experiment-id CI_MODEL_SMOKE
+
+      - name: Model - register a candidate and validate it (leakage/gate checks)
+        run: |
+          uv run credlens model register --experiment-id CI_MODEL_SMOKE --model-id CI_MODEL_SMOKE_v1
+          uv run credlens model validate --model-id CI_MODEL_SMOKE_v1
+
+      - name: Model - batch scoring on a small sample of the real UCI schema
+        run: |
+          uv run python -c "
+          import pandas as pd
+          pd.read_csv('data/raw/uci_default_credit/default_of_credit_card_clients.csv').head(20).to_csv('/tmp/ci_model_batch_sample.csv', index=False)
+          "
+          uv run credlens model predict-batch --model-id CI_MODEL_SMOKE_v1 \
+            --input /tmp/ci_model_batch_sample.csv --output /tmp/ci_model_batch_scored.csv
+          test -s /tmp/ci_model_batch_scored.csv
+
+      - name: Model Lab - AppTest execution of the 9th dashboard page
+        run: uv run pytest tests/test_dashboard_model_lab.py -q
+
+      - name: Model - clean up the CI-scoped experiment/model (never committed)
+        run: |
+          rm -rf reports/modeling/experiments/CI_MODEL_SMOKE* \
+                 reports/modeling/models/CI_MODEL_SMOKE_v1* \
+                 reports/modeling/tables/CI_MODEL_SMOKE__* \
+                 reports/modeling/figures/CI_MODEL_SMOKE__*
+
+      # Runs LAST so it also covers every step above (notebook execution,
+      # dashboard demo export/validate/AppTest, the modeling CLI smoke
+      # sequence) - none of them may modify a tracked, official artifact.
+      - name: Prove no official artifact was ever altered
+        run: |
+          git status --porcelain reports/portfolio_analysis/ reports/modeling/ analysis/ warehouse/ \
+            | tee ci_git_status.txt
           test ! -s ci_git_status.txt

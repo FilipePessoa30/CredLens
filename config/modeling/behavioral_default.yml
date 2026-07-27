@@ -1,0 +1,83 @@
+# CredLens - Phase 8 problem/target contract for the behavioral
+# early-warning default model.
+#
+# This is a VERSIONED CONTRACT, not a config knob to be casually edited -
+# a version bump here requires re-running the whole modeling pipeline and
+# re-registering any experiment/candidate that used the previous version
+# (see credlens.modeling.contracts.load_target_contract and
+# credlens.modeling.registry). It never mixes with the synthetic
+# operational contracts under contracts/ - this is a separate, PUBLIC
+# BENCHMARK problem definition.
+#
+# See docs/target_and_leakage_audit.md and docs/sensitive_attributes.md,
+# both written in Phase 3, which this contract implements almost verbatim:
+# uci-default-credit is structurally a BEHAVIORAL/early-warning dataset
+# (18 of 23 predictors only exist because the account already has 6
+# months of history), never an origination/credit-granting dataset.
+
+contract_version: "1.0.0"
+
+problem_framing:
+  name_en: "Behavioral early-warning model for next-month default"
+  name_pt_br: "Modelo comportamental de alerta antecipado para inadimplência no mês seguinte"
+  forbidden_framings:
+    - "origination score"
+    - "point-of-application approval score"
+    - "score de concessao"
+    - "regulatory PD model"
+    - "production-ready credit decision system"
+  # Restated at every surface this contract is quoted from (model cards,
+  # technical reports, dashboard, CLI --help text).
+  not_suitable_for_real_lending_decisions: true
+
+source:
+  source_id: "uci-default-credit"
+  loaded_via: "credlens.data.manifest (data/metadata/file_manifest.csv) - never re-downloaded by the modeling layer"
+  acquired_hash_sha256: "45bcf4df62ff2e237a74eb155cabfb4bbbc171219a0637daef44fdad07503dd0"
+  country: "Taiwan"
+  period: "April 2005 - September 2005 (6 months of repayment history)"
+
+unit_of_analysis: "one anonymized credit card client of the UCI benchmark (row keyed by ID)"
+
+target:
+  column: "Y"
+  description_en: "Default payment in the month immediately following the 6-month observation window (September 2005)."
+  description_pt_br: "Inadimplencia no mes imediatamente seguinte a janela de observacao de 6 meses (setembro de 2005)."
+  positive_label: 1
+  positive_meaning: "default"
+  negative_label: 0
+  negative_meaning: "no default"
+  horizon: "1 month ahead of the source's own 6-month observation window, per UCI's dataset design - UCI does not publish an explicit calendar reference date for Y beyond 'the month after' the observed window."
+  reference_date_caveat: "The exact calendar reference date for Y is implied, not documented by UCI with a literal date stamp - stated here as a limitation, not filled in with an assumption."
+  expected_prevalence: 0.2212
+  expected_prevalence_source: "docs/data_quality_audit.md (6,636 / 30,000 rows = 22.1%), reproduced by credlens.modeling.data.audit_source()"
+
+identifier_column: "ID"
+
+excluded_columns:
+  - column: "ID"
+    reason: "excluded_identifier"
+  - column: "X2"
+    reason: "excluded_sensitive"
+    note: "SEX - demographic, evaluation/audit only, never a training feature - see docs/sensitive_attributes.md."
+  - column: "X3"
+    reason: "excluded_sensitive"
+    note: "EDUCATION - demographic/socioeconomic proxy, evaluation/audit only."
+  - column: "X4"
+    reason: "excluded_sensitive"
+    note: "MARRIAGE - demographic, evaluation/audit only."
+  - column: "X5"
+    reason: "excluded_sensitive"
+    note: "AGE - demographic, evaluation/audit only."
+
+separation_rules:
+  - "Never merged with synthetic operational records, synthetic contracts, or the truth layer."
+  - "Never merged row-for-row with south-german-credit - different population, era, target definition, and feature set; no technically defensible harmonization has been implemented (see reports/modeling/README.md)."
+  - "BCB SGS series are never added as model features - no defensible temporal/individual alignment exists between a national monthly aggregate and a 2005 Taiwanese client record."
+
+out_of_scope:
+  - "Predictive scorecard sold or presented as production-ready."
+  - "Cutoff optimization by profit/loss."
+  - "Regulatory PD, LGD, EAD."
+  - "Any approve/reject decision, automated or recommended."
+  - "Causal claims of any kind."

@@ -65,3 +65,10 @@ what already lived here, and still no dashboard. The dashboard itself
 (`src/credlens/dashboard/`, `dashboard/`) is a separate, presentation-only
 layer that reuses everything in this package rather than duplicating it -
 see `dashboard/README.md`.
+
+Phase 8 (`credlens.modeling`, `reports/modeling/`) is a further separate
+layer: a trained model now exists, but only on the real, public UCI
+benchmark, never on the synthetic portfolio this package analyzes -
+`credlens.modeling` does not import from or write into `credlens.analysis`
+or this directory, and this directory's own "no trained model" scope
+statement above still describes the SYNTHETIC portfolio accurately.

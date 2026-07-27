@@ -1,0 +1,70 @@
+{
+  "seed": 20260727,
+  "method": "stratified_resample_with_replacement",
+  "n_resamples": 1000,
+  "effective_n_test": 6000,
+  "label_en": "Resampling variability on this benchmark's test set - not generalization to any real institution",
+  "label_pt_br": "Variabilidade de reamostragem no conjunto de teste deste benchmark - n\u00e3o \u00e9 generaliza\u00e7\u00e3o para nenhuma institui\u00e7\u00e3o real",
+  "metrics": {
+    "roc_auc": {
+      "metric": "roc_auc",
+      "point_estimate": 0.745123,
+      "mean": 0.745266,
+      "p2_5": 0.729581,
+      "p50": 0.745173,
+      "p97_5": 0.761098,
+      "n_resamples": 1000,
+      "n_failures": 0
+    },
+    "pr_auc": {
+      "metric": "pr_auc",
+      "point_estimate": 0.501927,
+      "mean": 0.503144,
+      "p2_5": 0.475752,
+      "p50": 0.503331,
+      "p97_5": 0.528683,
+      "n_resamples": 1000,
+      "n_failures": 0
+    },
+    "brier": {
+      "metric": "brier",
+      "point_estimate": 0.142587,
+      "mean": 0.142577,
+      "p2_5": 0.138632,
+      "p50": 0.142526,
+      "p97_5": 0.146465,
+      "n_resamples": 1000,
+      "n_failures": 0
+    },
+    "ks": {
+      "metric": "ks",
+      "point_estimate": 0.386644,
+      "mean": 0.390082,
+      "p2_5": 0.361761,
+      "p50": 0.389852,
+      "p97_5": 0.417319,
+      "n_resamples": 1000,
+      "n_failures": 0
+    },
+    "recall_at_top_10_pct": {
+      "metric": "recall_at_top_10_pct",
+      "point_estimate": 0.303693,
+      "mean": 0.303849,
+      "p2_5": 0.279578,
+      "p50": 0.303693,
+      "p97_5": 0.329333,
+      "n_resamples": 1000,
+      "n_failures": 0
+    },
+    "precision_at_top_10_pct": {
+      "metric": "precision_at_top_10_pct",
+      "point_estimate": 0.648953,
+      "mean": 0.64905,
+      "p2_5": 0.614317,
+      "p50": 0.649236,
+      "p97_5": 0.683719,
+      "n_resamples": 1000,
+      "n_failures": 0
+    }
+  }
+}

@@ -1,0 +1,181 @@
+{
+  "model_id": "MODEL_behavioral_default_v1",
+  "status": "candidate",
+  "experiment_id": "EXP_behavioral_default_v1",
+  "artifact_relative_path": "MODEL_behavioral_default_v1.joblib",
+  "artifact_sha256": "ecb699b474e06541f3cf59b1df67064104d7140b8adb31d7fe4b2ceb1ecad5c3",
+  "input_schema": {
+    "max_delinquency_status": "float64",
+    "months_delinquent_count": "float64",
+    "most_recent_delinquency_status": "float64",
+    "delinquency_trend": "float64",
+    "consecutive_months_delinquent": "float64",
+    "total_bill_amount": "float64",
+    "avg_bill_amount": "float64",
+    "bill_trend": "float64",
+    "bill_variability": "float64",
+    "utilization_ratio": "float64",
+    "total_payment_amount": "float64",
+    "avg_payment_amount": "float64",
+    "payment_to_bill_ratio": "float64",
+    "months_without_payment": "float64",
+    "payment_coverage_rate": "float64",
+    "payment_variation": "float64",
+    "worst_payment_to_bill_ratio": "float64",
+    "limit_exposure_distance": "float64"
+  },
+  "output_schema": {
+    "pseudonymous_record_id": "string",
+    "predicted_default_probability": "float64",
+    "risk_band": "string",
+    "model_version": "string",
+    "scoring_timestamp": "string",
+    "input_schema_version": "string"
+  },
+  "benchmark_source_id": "uci-default-credit",
+  "feature_registry_version": "1.0.0",
+  "test_metrics": {
+    "calibration": {
+      "brier_score": 0.142587,
+      "calibration_intercept": -0.045965,
+      "calibration_slope": 0.947505,
+      "expected_calibration_error": 0.011331,
+      "log_loss": 0.451642
+    },
+    "discrimination": {
+      "ks_statistic": 0.386644,
+      "pr_auc": 0.501927,
+      "roc_auc": 0.745123
+    },
+    "prevalence": 0.221167,
+    "ranking": {
+      "decile_table": [
+        {
+          "capture_rate": 0.292389,
+          "cumulative_capture_rate": 0.292389,
+          "cumulative_population_share": 0.1,
+          "decile": 1,
+          "event_rate": 0.646667,
+          "lift": 2.923888,
+          "n": 600,
+          "n_positive": 388
+        },
+        {
+          "capture_rate": 0.190656,
+          "cumulative_capture_rate": 0.483044,
+          "cumulative_population_share": 0.2,
+          "decile": 2,
+          "event_rate": 0.421667,
+          "lift": 1.906556,
+          "n": 600,
+          "n_positive": 253
+        },
+        {
+          "capture_rate": 0.114544,
+          "cumulative_capture_rate": 0.597589,
+          "cumulative_population_share": 0.3,
+          "decile": 3,
+          "event_rate": 0.253333,
+          "lift": 1.145441,
+          "n": 600,
+          "n_positive": 152
+        },
+        {
+          "capture_rate": 0.09043,
+          "cumulative_capture_rate": 0.688018,
+          "cumulative_population_share": 0.4,
+          "decile": 4,
+          "event_rate": 0.2,
+          "lift": 0.904295,
+          "n": 600,
+          "n_positive": 120
+        },
+        {
+          "capture_rate": 0.061794,
+          "cumulative_capture_rate": 0.749812,
+          "cumulative_population_share": 0.5,
+          "decile": 5,
+          "event_rate": 0.136667,
+          "lift": 0.617935,
+          "n": 600,
+          "n_positive": 82
+        },
+        {
+          "capture_rate": 0.061794,
+          "cumulative_capture_rate": 0.811605,
+          "cumulative_population_share": 0.6,
+          "decile": 6,
+          "event_rate": 0.136667,
+          "lift": 0.617935,
+          "n": 600,
+          "n_positive": 82
+        },
+        {
+          "capture_rate": 0.062547,
+          "cumulative_capture_rate": 0.874152,
+          "cumulative_population_share": 0.7,
+          "decile": 7,
+          "event_rate": 0.138333,
+          "lift": 0.625471,
+          "n": 600,
+          "n_positive": 83
+        },
+        {
+          "capture_rate": 0.047476,
+          "cumulative_capture_rate": 0.921628,
+          "cumulative_population_share": 0.8,
+          "decile": 8,
+          "event_rate": 0.105,
+          "lift": 0.474755,
+          "n": 600,
+          "n_positive": 63
+        },
+        {
+          "capture_rate": 0.0422,
+          "cumulative_capture_rate": 0.963828,
+          "cumulative_population_share": 0.9,
+          "decile": 9,
+          "event_rate": 0.093333,
+          "lift": 0.422005,
+          "n": 600,
+          "n_positive": 56
+        },
+        {
+          "capture_rate": 0.036172,
+          "cumulative_capture_rate": 1.0,
+          "cumulative_population_share": 1.0,
+          "decile": 10,
+          "event_rate": 0.08,
+          "lift": 0.361718,
+          "n": 600,
+          "n_positive": 48
+        }
+      ]
+    },
+    "threshold_dependent": {
+      "balanced_accuracy": 0.623674,
+      "f1": 0.403109,
+      "false_negative": 938,
+      "false_positive": 214,
+      "n_flagged": 603,
+      "n_total": 6000,
+      "precision": 0.645108,
+      "recall": 0.293142,
+      "specificity": 0.954205,
+      "threshold": 0.5,
+      "true_negative": 4459,
+      "true_positive": 389
+    }
+  },
+  "limitations": [
+    "Historical public benchmark (UCI, Taiwan, 2005) - not a Brazilian population.",
+    "Behavioral early-warning model for an existing account - not an origination score.",
+    "Not suitable for real lending decisions."
+  ],
+  "risk_band_cuts": [
+    0.10957032309136859,
+    0.14216256129774166,
+    0.26575635618891486
+  ],
+  "created_at_utc": "2026-07-27T21:36:10.202089+00:00"
+}

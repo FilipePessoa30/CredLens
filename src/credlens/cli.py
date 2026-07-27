@@ -575,6 +575,108 @@ def _build_parser() -> argparse.ArgumentParser:
         "--json", action="store_true", help="Emit machine-readable JSON output."
     )
 
+    model_parser = subparsers.add_parser(
+        "model",
+        help="Interpretable behavioral early-warning default model on the UCI public "
+        "benchmark (Phase 8) - never an origination score, never a real lending decision.",
+    )
+    model_subparsers = model_parser.add_subparsers(dest="model_command")
+
+    model_subparsers.add_parser(
+        "data-audit", help="Audit the acquired UCI benchmark (hash, prevalence, domains)."
+    ).add_argument("--json", action="store_true", help="Emit machine-readable JSON output.")
+
+    model_subparsers.add_parser(
+        "validate-features",
+        help="Engineer features from the real source and re-run every static leakage control.",
+    ).add_argument("--json", action="store_true", help="Emit machine-readable JSON output.")
+
+    model_create_split_parser = model_subparsers.add_parser(
+        "create-split", help="Create and lock the stratified 60/20/20 split for an experiment."
+    )
+    model_create_split_parser.add_argument("--experiment-id", required=True)
+    model_create_split_parser.add_argument("--seed", type=int, default=42)
+    model_create_split_parser.add_argument("--json", action="store_true")
+
+    model_train_parser = model_subparsers.add_parser(
+        "train",
+        help="Fit Dummy/simple-rule baselines and tune the logistic regression + "
+        "HistGradientBoosting challenger, train-only.",
+    )
+    model_train_parser.add_argument("--experiment-id", required=True)
+    model_train_parser.add_argument("--seed", type=int, default=42)
+    model_train_parser.add_argument("--json", action="store_true")
+
+    model_evaluate_parser = model_subparsers.add_parser(
+        "evaluate", help="Compute the full metrics suite, operating points, and uncertainty."
+    )
+    model_evaluate_parser.add_argument("--experiment-id", required=True)
+    model_evaluate_parser.add_argument("--json", action="store_true")
+
+    model_compare_parser = model_subparsers.add_parser(
+        "compare", help="Champion/challenger comparison table for an evaluated experiment."
+    )
+    model_compare_parser.add_argument("--experiment-id", required=True)
+    model_compare_parser.add_argument("--json", action="store_true")
+
+    model_explain_parser = model_subparsers.add_parser(
+        "explain",
+        help="Global/feature-response/local interpretability for the main interpretable model.",
+    )
+    model_explain_parser.add_argument("--experiment-id", required=True)
+    model_explain_parser.add_argument("--json", action="store_true")
+
+    model_audit_groups_parser = model_subparsers.add_parser(
+        "audit-groups",
+        help="Post-hoc subgroup diagnostics - not a fairness certification or compliance check.",
+    )
+    model_audit_groups_parser.add_argument("--experiment-id", required=True)
+    model_audit_groups_parser.add_argument("--json", action="store_true")
+
+    model_stress_test_parser = model_subparsers.add_parser(
+        "stress-test", help="Perturbation robustness suite - technical, not a crisis forecast."
+    )
+    model_stress_test_parser.add_argument("--experiment-id", required=True)
+    model_stress_test_parser.add_argument("--json", action="store_true")
+
+    model_register_parser = model_subparsers.add_parser(
+        "register",
+        help="Evaluate promotion gates and, if eligible, register a 'candidate' model "
+        "(never 'production', never auto-promoted).",
+    )
+    model_register_parser.add_argument("--experiment-id", required=True)
+    model_register_parser.add_argument("--model-id", required=True)
+    model_register_parser.add_argument("--json", action="store_true")
+
+    model_validate_parser = model_subparsers.add_parser(
+        "validate", help="Hash-verify and schema-validate a registered model candidate."
+    )
+    model_validate_parser.add_argument("--model-id", required=True)
+    model_validate_parser.add_argument("--json", action="store_true")
+
+    model_predict_batch_parser = model_subparsers.add_parser(
+        "predict-batch",
+        help="Batch-score a UCI-schema-shaped CSV - never an approve/reject decision.",
+    )
+    model_predict_batch_parser.add_argument("--model-id", required=True)
+    model_predict_batch_parser.add_argument(
+        "--input", required=True, help="CSV shaped like the raw UCI benchmark (ID, X1..X23)."
+    )
+    model_predict_batch_parser.add_argument(
+        "--output", default=None, help="Where to write the scored CSV (default: stdout summary)."
+    )
+    model_predict_batch_parser.add_argument("--json", action="store_true")
+
+    model_report_parser = model_subparsers.add_parser(
+        "report", help="Generate bilingual model card + technical report + figures + manifest."
+    )
+    model_report_parser.add_argument("--experiment-id", required=True)
+    model_report_parser.add_argument("--model-id", default=None)
+    model_report_parser.add_argument(
+        "--no-figures", action="store_true", help="Skip figure generation (matplotlib not needed)."
+    )
+    model_report_parser.add_argument("--json", action="store_true")
+
     return parser
 
 
@@ -2106,6 +2208,8 @@ def main(argv: list[str] | None = None) -> int:
         return _dispatch_analysis_command(args)
     if args.command == "dashboard":
         return _dispatch_dashboard_command(args)
+    if args.command == "model":
+        return _dispatch_model_command(args)
 
     parser.print_help()
     return 0
@@ -2350,6 +2454,355 @@ def _dispatch_dashboard_command(args: argparse.Namespace) -> int:
 
     print("usage: credlens dashboard {validate,export-demo,run,status} ...")
     print("Run 'credlens dashboard <command> --help' for details.")
+    return 1
+
+
+def _model_error_types() -> tuple[type[Exception], ...]:
+    from credlens.modeling.contracts import ContractError
+    from credlens.modeling.data import DataAcquisitionError
+    from credlens.modeling.leakage import LeakageError
+    from credlens.modeling.registry import RegistryError
+    from credlens.modeling.reporting import ReportingError
+    from credlens.modeling.splitting import SplitError
+
+    return (
+        ContractError,
+        DataAcquisitionError,
+        LeakageError,
+        RegistryError,
+        ReportingError,
+        SplitError,
+    )
+
+
+def _cmd_model_data_audit(as_json: bool) -> int:
+    try:
+        from credlens.modeling.reporting import data_audit_report
+
+        report = data_audit_report()
+    except _model_error_types() as exc:
+        print(f"Error: {exc}")
+        return 1
+
+    if as_json:
+        print(json.dumps(report, indent=2))
+    else:
+        print("CredLens model data-audit (uci-default-credit)")
+        print("=" * 40)
+        for key, value in report.items():
+            print(f"{key}: {value}")
+    return 0
+
+
+def _cmd_model_validate_features(as_json: bool) -> int:
+    try:
+        from credlens.modeling.reporting import validate_features_report
+
+        report = validate_features_report()
+    except _model_error_types() as exc:
+        print(f"Error: {exc}")
+        return 1
+
+    if as_json:
+        print(json.dumps(report, indent=2))
+    else:
+        print("CredLens model validate-features")
+        print("=" * 40)
+        print(f"feature_registry_version: {report['feature_registry_version']}")
+        print(f"feature_count:             {report['feature_count']}")
+        print(f"all_finite:                {report['all_finite']}")
+        print("Result: OK (static leakage controls passed)")
+    return 0
+
+
+def _cmd_model_create_split(experiment_id: str, seed: int, as_json: bool) -> int:
+    try:
+        from credlens.modeling.reporting import create_official_split
+
+        assignment = create_official_split(experiment_id, seed=seed)
+    except _model_error_types() as exc:
+        print(f"Error: {exc}")
+        return 1
+
+    manifest = assignment.manifest.to_dict()
+    if as_json:
+        print(json.dumps(manifest, indent=2))
+    else:
+        print(f"CredLens model create-split: {experiment_id}")
+        print("=" * 40)
+        train_val_test = f"{manifest['n_train']}/{manifest['n_validation']}/{manifest['n_test']}"
+        print(f"train/val/test: {train_val_test}")
+        print(f"seed:           {manifest['seed']}")
+    return 0
+
+
+def _cmd_model_train(experiment_id: str, seed: int, as_json: bool) -> int:
+    try:
+        from credlens.modeling.reporting import train_experiment
+
+        experiment = train_experiment(experiment_id, seed=seed)
+    except _model_error_types() as exc:
+        print(f"Error: {exc}")
+        return 1
+
+    if as_json:
+        print(json.dumps(experiment.to_dict(), indent=2))
+    else:
+        print(f"CredLens model train: {experiment_id}")
+        print("=" * 40)
+        print(f"status:   {experiment.status}")
+        print(f"warnings: {experiment.warnings or '(none)'}")
+    return 0
+
+
+def _cmd_model_evaluate(experiment_id: str, as_json: bool) -> int:
+    try:
+        from credlens.modeling.reporting import evaluate_experiment
+
+        experiment = evaluate_experiment(experiment_id)
+    except _model_error_types() as exc:
+        print(f"Error: {exc}")
+        return 1
+
+    if as_json:
+        print(json.dumps(experiment.to_dict(), indent=2))
+    else:
+        main_test = experiment.metrics["test"]["logistic_regression"]
+        print(f"CredLens model evaluate: {experiment_id}")
+        print("=" * 40)
+        print(f"test ROC-AUC: {main_test['discrimination']['roc_auc']}")
+        print(f"test PR-AUC:  {main_test['discrimination']['pr_auc']}")
+        print(f"test Brier:   {main_test['calibration']['brier_score']}")
+    return 0
+
+
+def _cmd_model_compare(experiment_id: str, as_json: bool) -> int:
+    try:
+        from credlens.modeling.reporting import compare_models
+
+        table = compare_models(experiment_id)
+    except _model_error_types() as exc:
+        print(f"Error: {exc}")
+        return 1
+
+    if as_json:
+        print(json.dumps(table.to_dict(orient="records"), indent=2))
+    else:
+        print(f"CredLens model compare: {experiment_id}")
+        print("=" * 40)
+        print(table.to_string(index=False))
+    return 0
+
+
+def _cmd_model_explain(experiment_id: str, as_json: bool) -> int:
+    try:
+        from credlens.modeling.reporting import explain_experiment
+
+        explain_experiment(experiment_id)
+    except _model_error_types() as exc:
+        print(f"Error: {exc}")
+        return 1
+
+    result = {"experiment_id": experiment_id, "status": "explained"}
+    if as_json:
+        print(json.dumps(result, indent=2))
+    else:
+        print(f"CredLens model explain: {experiment_id}")
+        print("=" * 40)
+        print("Wrote coefficients/permutation_importance/partial_dependence/local_explanations.")
+    return 0
+
+
+def _cmd_model_audit_groups(experiment_id: str, as_json: bool) -> int:
+    try:
+        from credlens.modeling.reporting import audit_groups_experiment
+
+        experiment = audit_groups_experiment(experiment_id)
+    except _model_error_types() as exc:
+        print(f"Error: {exc}")
+        return 1
+
+    summary = experiment.subgroup_audit_summary
+    if as_json:
+        print(json.dumps(summary, indent=2))
+    else:
+        print(f"CredLens model audit-groups: {experiment_id}")
+        print("=" * 40)
+        print(f"max selection-rate gap: {summary.get('max_selection_rate_gap')}")
+        print(f"max TPR gap:            {summary.get('max_tpr_gap')}")
+        print(f"excluded (insufficient n): {summary.get('excluded_insufficient_groups')}")
+        print("Note: not a fairness certification, not a compliance assessment.")
+    return 0
+
+
+def _cmd_model_stress_test(experiment_id: str, as_json: bool) -> int:
+    try:
+        from credlens.modeling.reporting import stress_test_experiment
+
+        experiment = stress_test_experiment(experiment_id)
+    except _model_error_types() as exc:
+        print(f"Error: {exc}")
+        return 1
+
+    perturbations = experiment.robustness_summary.get("perturbations", [])
+    if as_json:
+        print(json.dumps(perturbations, indent=2))
+    else:
+        print(f"CredLens model stress-test: {experiment_id}")
+        print("=" * 40)
+        for row in perturbations:
+            print(f"{row['kind']}: PR-AUC degradation={row['pr_auc_degradation']}")
+    return 0
+
+
+def _cmd_model_register(experiment_id: str, model_id: str, as_json: bool) -> int:
+    try:
+        from credlens.modeling.reporting import register_experiment_model
+
+        gate_report, manifest = register_experiment_model(experiment_id, model_id)
+    except _model_error_types() as exc:
+        print(f"Error: {exc}")
+        return 1
+
+    result = {
+        "gate_report": gate_report.to_dict(),
+        "model_manifest": manifest.to_dict() if manifest else None,
+    }
+    if as_json:
+        print(json.dumps(result, indent=2))
+    else:
+        print(f"CredLens model register: {experiment_id} -> {model_id}")
+        print("=" * 40)
+        for gate in gate_report.gates:
+            print(f"[{'PASS' if gate.passed else 'FAIL'}] {gate.name}: {gate.detail}")
+        print(f"Result: {gate_report.reason}")
+    return 0
+
+
+def _cmd_model_validate(model_id: str, as_json: bool) -> int:
+    try:
+        from credlens.modeling.registry import validate_model_candidate
+
+        ok = validate_model_candidate(model_id, Path("reports/modeling/models"))
+    except _model_error_types() as exc:
+        print(f"Error: {exc}")
+        return 1
+
+    if as_json:
+        print(json.dumps({"model_id": model_id, "valid": ok}, indent=2))
+    else:
+        print(f"CredLens model validate: {model_id}")
+        print("=" * 40)
+        print(f"Result: {'OK' if ok else 'FAILED'}")
+    return 0 if ok else 1
+
+
+def _cmd_model_predict_batch(
+    model_id: str, input_path: str, output_path: str | None, as_json: bool
+) -> int:
+    try:
+        from credlens.modeling.features import engineer_features
+        from credlens.modeling.interpretability import pseudonymize_id
+        from credlens.modeling.registry import load_model_candidate, score_batch
+
+        source = Path(input_path)
+        if not source.is_file():
+            print(f"Error: input file '{source}' not found.")
+            return 1
+        raw = pd.read_csv(source)
+        if "ID" not in raw.columns:
+            print("Error: input CSV must contain an 'ID' column, per the UCI schema.")
+            return 1
+
+        pipeline, manifest = load_model_candidate(model_id, Path("reports/modeling/models"))
+        features = engineer_features(raw)
+        features["pseudonymous_record_id"] = raw["ID"].map(pseudonymize_id)
+        scored = score_batch(pipeline, manifest, features)
+    except _model_error_types() as exc:
+        print(f"Error: {exc}")
+        return 1
+
+    if output_path:
+        scored.to_csv(output_path, index=False)
+
+    if as_json:
+        print(json.dumps(scored.to_dict(orient="records"), indent=2))
+    else:
+        print(f"CredLens model predict-batch: {model_id}")
+        print("=" * 40)
+        print(f"rows scored: {len(scored)}")
+        if output_path:
+            print(f"written to:  {output_path}")
+        else:
+            print(scored.head(10).to_string(index=False))
+    return 0
+
+
+def _cmd_model_report(
+    experiment_id: str, model_id: str | None, no_figures: bool, as_json: bool
+) -> int:
+    try:
+        from credlens.modeling.reporting import generate_figures, write_reports
+
+        written = write_reports(experiment_id, model_id)
+        figure_paths: list[Path] = []
+        if not no_figures:
+            try:
+                figure_paths = generate_figures(experiment_id)
+            except Exception as exc:  # matplotlib optional - report text still stands
+                print(f"Warning: figures not generated ({exc}).")
+    except _model_error_types() as exc:
+        print(f"Error: {exc}")
+        return 1
+
+    result = {
+        "reports_written": {k: str(v) for k, v in written.items()},
+        "figures_written": [str(p) for p in figure_paths],
+    }
+    if as_json:
+        print(json.dumps(result, indent=2))
+    else:
+        print(f"CredLens model report: {experiment_id}")
+        print("=" * 40)
+        for name, path in written.items():
+            print(f"{name}: {path}")
+        print(f"figures: {len(figure_paths)}")
+    return 0
+
+
+def _dispatch_model_command(args: argparse.Namespace) -> int:
+    if args.model_command == "data-audit":
+        return _cmd_model_data_audit(args.json)
+    if args.model_command == "validate-features":
+        return _cmd_model_validate_features(args.json)
+    if args.model_command == "create-split":
+        return _cmd_model_create_split(args.experiment_id, args.seed, args.json)
+    if args.model_command == "train":
+        return _cmd_model_train(args.experiment_id, args.seed, args.json)
+    if args.model_command == "evaluate":
+        return _cmd_model_evaluate(args.experiment_id, args.json)
+    if args.model_command == "compare":
+        return _cmd_model_compare(args.experiment_id, args.json)
+    if args.model_command == "explain":
+        return _cmd_model_explain(args.experiment_id, args.json)
+    if args.model_command == "audit-groups":
+        return _cmd_model_audit_groups(args.experiment_id, args.json)
+    if args.model_command == "stress-test":
+        return _cmd_model_stress_test(args.experiment_id, args.json)
+    if args.model_command == "register":
+        return _cmd_model_register(args.experiment_id, args.model_id, args.json)
+    if args.model_command == "validate":
+        return _cmd_model_validate(args.model_id, args.json)
+    if args.model_command == "predict-batch":
+        return _cmd_model_predict_batch(args.model_id, args.input, args.output, args.json)
+    if args.model_command == "report":
+        return _cmd_model_report(args.experiment_id, args.model_id, args.no_figures, args.json)
+
+    print(
+        "usage: credlens model {data-audit,validate-features,create-split,train,evaluate,"
+        "compare,explain,audit-groups,stress-test,register,validate,predict-batch,report} ..."
+    )
+    print("Run 'credlens model <command> --help' for details.")
     return 1
 
 

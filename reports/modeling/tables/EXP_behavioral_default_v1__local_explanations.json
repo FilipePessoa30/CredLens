@@ -1,0 +1,177 @@
+[
+  {
+    "case_label": "true_positive",
+    "pseudonymous_id": "CASE-e753559bf5",
+    "predicted_probability": 0.979803,
+    "actual_label": 1,
+    "reason_codes": [
+      {
+        "feature": "months_delinquent_count",
+        "contribution": 3.614288,
+        "direction": "increases_risk"
+      },
+      {
+        "feature": "consecutive_months_delinquent",
+        "contribution": -1.903556,
+        "direction": "decreases_risk"
+      },
+      {
+        "feature": "most_recent_delinquency_status",
+        "contribution": 1.262041,
+        "direction": "increases_risk"
+      }
+    ],
+    "note_en": "Descriptive only - never a regulatory reason-code and never used for an automated decision.",
+    "note_pt_br": "Apenas descritivo - nunca um reason code regulat\u00f3rio, nunca usado para decis\u00e3o automatizada."
+  },
+  {
+    "case_label": "true_negative",
+    "pseudonymous_id": "CASE-1e19e076f5",
+    "predicted_probability": 4.1e-05,
+    "actual_label": 0,
+    "reason_codes": [
+      {
+        "feature": "avg_payment_amount",
+        "contribution": -4.137918,
+        "direction": "decreases_risk"
+      },
+      {
+        "feature": "total_payment_amount",
+        "contribution": -4.137918,
+        "direction": "decreases_risk"
+      },
+      {
+        "feature": "months_delinquent_count",
+        "contribution": -0.589549,
+        "direction": "decreases_risk"
+      }
+    ],
+    "note_en": "Descriptive only - never a regulatory reason-code and never used for an automated decision.",
+    "note_pt_br": "Apenas descritivo - nunca um reason code regulat\u00f3rio, nunca usado para decis\u00e3o automatizada."
+  },
+  {
+    "case_label": "false_positive",
+    "pseudonymous_id": "CASE-619124f354",
+    "predicted_probability": 0.942454,
+    "actual_label": 0,
+    "reason_codes": [
+      {
+        "feature": "months_delinquent_count",
+        "contribution": 2.913649,
+        "direction": "increases_risk"
+      },
+      {
+        "feature": "consecutive_months_delinquent",
+        "contribution": -1.537468,
+        "direction": "decreases_risk"
+      },
+      {
+        "feature": "most_recent_delinquency_status",
+        "contribution": 0.789419,
+        "direction": "increases_risk"
+      }
+    ],
+    "note_en": "Descriptive only - never a regulatory reason-code and never used for an automated decision.",
+    "note_pt_br": "Apenas descritivo - nunca um reason code regulat\u00f3rio, nunca usado para decis\u00e3o automatizada."
+  },
+  {
+    "case_label": "false_negative",
+    "pseudonymous_id": "CASE-e2fa281fb5",
+    "predicted_probability": 0.488559,
+    "actual_label": 1,
+    "reason_codes": [
+      {
+        "feature": "months_delinquent_count",
+        "contribution": 1.51237,
+        "direction": "increases_risk"
+      },
+      {
+        "feature": "consecutive_months_delinquent",
+        "contribution": -0.805292,
+        "direction": "decreases_risk"
+      },
+      {
+        "feature": "most_recent_delinquency_status",
+        "contribution": 0.316797,
+        "direction": "increases_risk"
+      }
+    ],
+    "note_en": "Descriptive only - never a regulatory reason-code and never used for an automated decision.",
+    "note_pt_br": "Apenas descritivo - nunca um reason code regulat\u00f3rio, nunca usado para decis\u00e3o automatizada."
+  },
+  {
+    "case_label": "high_risk",
+    "pseudonymous_id": "CASE-e753559bf5",
+    "predicted_probability": 0.979803,
+    "actual_label": 1,
+    "reason_codes": [
+      {
+        "feature": "months_delinquent_count",
+        "contribution": 3.614288,
+        "direction": "increases_risk"
+      },
+      {
+        "feature": "consecutive_months_delinquent",
+        "contribution": -1.903556,
+        "direction": "decreases_risk"
+      },
+      {
+        "feature": "most_recent_delinquency_status",
+        "contribution": 1.262041,
+        "direction": "increases_risk"
+      }
+    ],
+    "note_en": "Descriptive only - never a regulatory reason-code and never used for an automated decision.",
+    "note_pt_br": "Apenas descritivo - nunca um reason code regulat\u00f3rio, nunca usado para decis\u00e3o automatizada."
+  },
+  {
+    "case_label": "low_risk",
+    "pseudonymous_id": "CASE-1e19e076f5",
+    "predicted_probability": 4.1e-05,
+    "actual_label": 0,
+    "reason_codes": [
+      {
+        "feature": "avg_payment_amount",
+        "contribution": -4.137918,
+        "direction": "decreases_risk"
+      },
+      {
+        "feature": "total_payment_amount",
+        "contribution": -4.137918,
+        "direction": "decreases_risk"
+      },
+      {
+        "feature": "months_delinquent_count",
+        "contribution": -0.589549,
+        "direction": "decreases_risk"
+      }
+    ],
+    "note_en": "Descriptive only - never a regulatory reason-code and never used for an automated decision.",
+    "note_pt_br": "Apenas descritivo - nunca um reason code regulat\u00f3rio, nunca usado para decis\u00e3o automatizada."
+  },
+  {
+    "case_label": "intermediate_risk",
+    "pseudonymous_id": "CASE-4c0233563b",
+    "predicted_probability": 0.139908,
+    "actual_label": 0,
+    "reason_codes": [
+      {
+        "feature": "months_delinquent_count",
+        "contribution": -0.589549,
+        "direction": "decreases_risk"
+      },
+      {
+        "feature": "consecutive_months_delinquent",
+        "contribution": 0.292972,
+        "direction": "increases_risk"
+      },
+      {
+        "feature": "payment_coverage_rate",
+        "contribution": -0.100474,
+        "direction": "decreases_risk"
+      }
+    ],
+    "note_en": "Descriptive only - never a regulatory reason-code and never used for an automated decision.",
+    "note_pt_br": "Apenas descritivo - nunca um reason code regulat\u00f3rio, nunca usado para decis\u00e3o automatizada."
+  }
+]

@@ -107,6 +107,16 @@ logs/
 .ipynb_checkpoints/
 *_executed.ipynb
 
+# --- Modeling (Phase 8: behavioral early-warning model) ---
+# Per-experiment working model artifacts (one .joblib per model kind per
+# `credlens model train` run) are fully reproducible from the same
+# --experiment-id/--seed (see reports/modeling/README.md) and grow with
+# every experiment - never versioned. Only the curated, gate-passed
+# candidate under reports/modeling/models/*.joblib (+ its .manifest.json)
+# is versioned - small, deliberate, analogous to a champion reference
+# artifact, not a scratch directory.
+reports/modeling/experiments/*/models/
+
 # --- Warehouse (Phase 5: DuckDB + dbt) ---
 # warehouse/ itself (SQL/YAML/macros/seeds/analyses/tests) IS versioned -
 # only dbt's own generated/compiled artifacts and the rendered profile

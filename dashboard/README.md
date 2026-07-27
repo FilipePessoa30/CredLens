@@ -1,11 +1,13 @@
-# CredLens Dashboard (Phase 7)
+# CredLens Dashboard (Phase 7-8)
 
 A Streamlit **presentation layer** over the already-validated CredLens warehouse/analysis
 outputs. No business rule is computed here — every KPI comes from a dbt mart
 (`warehouse/models/marts/*.sql`) queried through `credlens.analysis.metrics`/`scenarios`, every
 sample-size label comes from `credlens.analysis.sample_policy`, every provenance label comes
 from `credlens.analysis.data_provenance`. The dashboard's own code (`src/credlens/dashboard/`)
-only loads, filters, formats, and renders.
+only loads, filters, formats, and renders. Phase 8 adds a 9th page, **Model Lab**, which reads
+from `reports/modeling/` (`credlens.modeling`) instead - a historical public benchmark, always
+visually and structurally separate from the synthetic-portfolio pages above.
 
 ## Quick start
 
@@ -73,6 +75,9 @@ src/credlens/dashboard/            # Installable, testable support package
 | Scenario Lab | synthetic_scenario | Baseline vs. every scenario, composition-vs-performance, pre/post-shock, multi-seed variability (never a confidence interval) |
 | Data Quality & Methodology | synthetic_operational | Build/analysis/fingerprint, full provenance registry, documentation links, limitations |
 | Public Benchmarks | mixed_context | UCI / South German Credit / BCB SGS — real public data, visually separate, empty state if unavailable |
+| Model Lab | public_benchmark | Behavioral early-warning model (UCI, Taiwan, 2005) — champion/challenger comparison, ROC/PR/calibration, lift/gains/decile event rate, an illustrative capacity simulator, coefficients/permutation importance/partial dependence, pseudonymized local explanations, subgroup diagnostics, robustness/seed-stability, and the model card — never connected to the synthetic portfolio above |
+
+Model Lab (Phase 8) reads exclusively from `reports/modeling/` (an experiment record + tables `credlens model evaluate/explain/audit-groups/stress-test` already wrote) - it never retrains, never recomputes a metric, and never accepts an uploaded file. If no experiment has been run yet (`credlens model train --experiment-id <ID>` ...), it shows an empty state, not an error. See the [Model Lab section of the main README](../README.md#model-lab--behavioral-early-warning-model) for how to generate one.
 
 ## Filter dictionary
 
@@ -126,6 +131,8 @@ credlens dashboard run --demo --port 8600 --no-browser
 credlens dashboard status
 ```
 
+Model Lab (Phase 8) is populated by a separate CLI group, `credlens model {data-audit,validate-features,create-split,train,evaluate,compare,explain,audit-groups,stress-test,register,validate,predict-batch,report}` - see the [Model Lab section of the main README](../README.md#model-lab--behavioral-early-warning-model) for the full sequence.
+
 ## Troubleshooting
 
 - **"Both a demo package and at least one warehouse build are available"**: pass `--build-id`
@@ -143,6 +150,7 @@ credlens dashboard status
   omitted.
 - `collections_change` results are never causal evidence for an individual collections action.
 - Scenario comparisons are only valid within the same `suite_id`.
+- Model Lab's underlying model is a historical-benchmark case study (UCI, Taiwan, 2005) - not an origination score, not a regulatory PD/LGD/EAD model, not a fairness certification, and not connected to the synthetic portfolio above. See `reports/modeling/model_card.md` for the full, mandatory disclosure.
 - No revenue/cost/LGD/EAD/regulatory PD data exists anywhere in this project.
 - No pixel-level visual QA (contrast, clipping, tooltips) was performed in the environment this
   dashboard was built in — no browser automation tool was available; verification instead used

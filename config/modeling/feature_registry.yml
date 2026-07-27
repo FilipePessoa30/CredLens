@@ -1,0 +1,313 @@
+# CredLens - Phase 8 feature governance registry.
+#
+# Every column that could conceivably reach the training matrix is listed
+# here with an explicit status. credlens.modeling.leakage builds its
+# static allowlist directly from this file - a feature with no entry
+# here, or with a status other than `allowed`/`engineered_allowed`, can
+# never enter the main training pipeline (see
+# tests/test_modeling_leakage.py).
+#
+# Status values (Phase 8 section 6): allowed | engineered_allowed |
+# audit_only | excluded_identifier | excluded_target | excluded_sensitive
+# | excluded_leakage | unsupported.
+
+registry_version: "1.0.0"
+
+raw_columns:
+  - name: ID
+    origin: uci-default-credit
+    description: "UCI row identifier."
+    type: integer
+    unit: null
+    window: null
+    available_at_prediction_time: true
+    transformation: none
+    missing_policy: none
+    domain: "positive integer, unique per row"
+    monotonicity: null
+    status: excluded_identifier
+    reason: "Row identifier - carries no behavioral signal and would let a model memorize rows."
+    sensitivity: none
+    leakage_risk: high_if_used
+
+  - name: Y
+    origin: uci-default-credit
+    description: "Target: default payment next month."
+    type: binary
+    unit: null
+    window: null
+    available_at_prediction_time: false
+    transformation: none
+    missing_policy: none
+    domain: "{0, 1}"
+    monotonicity: null
+    status: excluded_target
+    reason: "This is the label being predicted, not a feature."
+    sensitivity: none
+    leakage_risk: certain_if_used
+
+  - name: X1
+    origin: uci-default-credit
+    description: "LIMIT_BAL - credit limit in effect during the 6-month observation window."
+    type: numeric
+    unit: "NT dollar"
+    window: "as of the observation window (a state variable, not a per-month value)"
+    available_at_prediction_time: true
+    transformation: "used directly, and as the denominator of utilization_ratio/limit_exposure_distance"
+    missing_policy: median_impute
+    domain: "min 0"
+    monotonicity: "higher limit -> generally lower relative risk (more headroom), direction not enforced"
+    status: allowed
+    reason: "A pre-target-month state variable for an existing account - legitimate for a BEHAVIORAL model (unlike an origination model, where it would be circular; see docs/target_and_leakage_audit.md)."
+    sensitivity: possible_socioeconomic_proxy
+    leakage_risk: none
+
+  - name: X2
+    origin: uci-default-credit
+    description: "SEX."
+    type: categorical
+    unit: null
+    window: null
+    available_at_prediction_time: true
+    transformation: none
+    missing_policy: none
+    domain: "{1, 2}"
+    monotonicity: null
+    status: excluded_sensitive
+    reason: "Explicit demographic attribute - conservative governance decision of this project, not used to train the main model. Audit-only (credlens.modeling.subgroup_audit)."
+    sensitivity: sensitive_demographic
+    leakage_risk: none
+
+  - name: X3
+    origin: uci-default-credit
+    description: "EDUCATION."
+    type: categorical
+    unit: null
+    window: null
+    available_at_prediction_time: true
+    transformation: none
+    missing_policy: none
+    domain: "{1,2,3,4} documented; {0,5,6} present in the acquired file - see docs/data_quality_audit.md"
+    monotonicity: null
+    status: excluded_sensitive
+    reason: "Demographic/socioeconomic proxy - audit-only."
+    sensitivity: sensitive_demographic
+    leakage_risk: none
+
+  - name: X4
+    origin: uci-default-credit
+    description: "MARRIAGE."
+    type: categorical
+    unit: null
+    window: null
+    available_at_prediction_time: true
+    transformation: none
+    missing_policy: none
+    domain: "{1,2,3} documented; {0} present in the acquired file"
+    monotonicity: null
+    status: excluded_sensitive
+    reason: "Demographic attribute - audit-only."
+    sensitivity: sensitive_demographic
+    leakage_risk: none
+
+  - name: X5
+    origin: uci-default-credit
+    description: "AGE."
+    type: numeric
+    unit: years
+    window: null
+    available_at_prediction_time: true
+    transformation: none
+    missing_policy: none
+    domain: "18-100 (per contracts/raw/uci_default_credit.yaml)"
+    monotonicity: null
+    status: excluded_sensitive
+    reason: "Demographic attribute - audit-only."
+    sensitivity: sensitive_demographic
+    leakage_risk: none
+
+  - name: X6..X11
+    origin: uci-default-credit
+    description: "PAY_0 (most recent) through PAY_6 (oldest) - monthly repayment status, -2..9 scale (higher = worse delinquency)."
+    type: ordinal_numeric
+    unit: "months delinquent (coded scale)"
+    window: "6 months preceding the target month"
+    available_at_prediction_time: true
+    transformation: "aggregated into max_delinquency_status, months_delinquent_count, most_recent_delinquency_status, delinquency_trend, consecutive_months_delinquent - see credlens.modeling.features"
+    missing_policy: median_impute
+    domain: "-2 to 9 documented; engineered features do not assume this range is exhaustive (robustness.py tests an out-of-domain code)"
+    monotonicity: "higher (more delinquent) status -> higher predicted default risk, expected"
+    status: engineered_allowed
+    reason: "Raw PAY_x columns are never fed directly to the estimator - only the 5 engineered aggregates below are (kept interpretable, not one column per month per model)."
+    sensitivity: none
+    leakage_risk: none
+
+  - name: X12..X17
+    origin: uci-default-credit
+    description: "BILL_AMT1 (most recent) through BILL_AMT6 (oldest) - monthly statement balance."
+    type: numeric
+    unit: "NT dollar"
+    window: "6 months preceding the target month"
+    available_at_prediction_time: true
+    transformation: "aggregated into total_bill_amount, avg_bill_amount, bill_trend, bill_variability, utilization_ratio, limit_exposure_distance"
+    missing_policy: median_impute
+    domain: "may be negative (a credit balance), per UCI documentation"
+    monotonicity: "higher exposure relative to limit -> higher predicted default risk, expected"
+    status: engineered_allowed
+    reason: "Aggregated, not used as 6 raw monthly columns."
+    sensitivity: none
+    leakage_risk: none
+
+  - name: X18..X23
+    origin: uci-default-credit
+    description: "PAY_AMT1 (most recent) through PAY_AMT6 (oldest) - monthly amount paid."
+    type: numeric
+    unit: "NT dollar"
+    window: "6 months preceding the target month"
+    available_at_prediction_time: true
+    transformation: "aggregated into total_payment_amount, avg_payment_amount, payment_to_bill_ratio, months_without_payment, payment_coverage_rate, payment_variation, worst_payment_to_bill_ratio"
+    missing_policy: median_impute
+    domain: "min 0, per UCI documentation"
+    monotonicity: "higher payment coverage -> lower predicted default risk, expected"
+    status: engineered_allowed
+    reason: "Aggregated, not used as 6 raw monthly columns."
+    sensitivity: none
+    leakage_risk: none
+
+engineered_features:
+  - name: max_delinquency_status
+    description: "Worst (maximum) repayment-status code across the 6 observed months."
+    unit: "coded scale, -2..9+"
+    monotonicity: "increasing -> higher risk"
+    status: allowed
+    leakage_risk: none
+
+  - name: months_delinquent_count
+    description: "Count of the 6 months with a repayment-status code > 0 (any reported delay)."
+    unit: "count, 0-6"
+    monotonicity: "increasing -> higher risk"
+    status: allowed
+    leakage_risk: none
+
+  - name: most_recent_delinquency_status
+    description: "Repayment-status code for the most recent observed month (PAY_0)."
+    unit: "coded scale"
+    monotonicity: "increasing -> higher risk"
+    status: allowed
+    leakage_risk: none
+
+  - name: delinquency_trend
+    description: "(PAY_0 - PAY_6) / 5 - average monthly change in delinquency status across the window; positive means worsening."
+    unit: "coded-scale units per month"
+    monotonicity: "increasing -> higher risk"
+    status: engineered_allowed
+    leakage_risk: none
+
+  - name: consecutive_months_delinquent
+    description: "Longest run of consecutive months (counting back from the most recent) with a repayment-status code > 0."
+    unit: "count, 0-6"
+    monotonicity: "increasing -> higher risk"
+    status: allowed
+    leakage_risk: none
+
+  - name: total_bill_amount
+    description: "Sum of the 6 monthly statement balances."
+    unit: "NT dollar"
+    monotonicity: "not enforced (correlates with limit and spend, ambiguous sign)"
+    status: allowed
+    leakage_risk: none
+
+  - name: avg_bill_amount
+    description: "Mean of the 6 monthly statement balances."
+    unit: "NT dollar"
+    monotonicity: "not enforced"
+    status: allowed
+    leakage_risk: none
+
+  - name: bill_trend
+    description: "(BILL_AMT1 - BILL_AMT6) / 5 - average monthly change in statement balance."
+    unit: "NT dollar per month"
+    monotonicity: "increasing -> ambiguous (could reflect either rising distress or rising spend); not enforced"
+    status: engineered_allowed
+    leakage_risk: none
+
+  - name: bill_variability
+    description: "Sample standard deviation of the 6 monthly statement balances."
+    unit: "NT dollar"
+    monotonicity: "not enforced"
+    status: engineered_allowed
+    leakage_risk: none
+
+  - name: utilization_ratio
+    description: "avg_bill_amount / LIMIT_BAL, safe-divided (0 when LIMIT_BAL <= 0), clipped to [-5, 5]. Can be negative (a net credit balance)."
+    unit: "ratio, clipped [-5, 5]"
+    monotonicity: "increasing -> higher risk"
+    status: engineered_allowed
+    leakage_risk: none
+
+  - name: total_payment_amount
+    description: "Sum of the 6 monthly amounts paid."
+    unit: "NT dollar"
+    monotonicity: "not enforced"
+    status: allowed
+    leakage_risk: none
+
+  - name: avg_payment_amount
+    description: "Mean of the 6 monthly amounts paid."
+    unit: "NT dollar"
+    monotonicity: "not enforced"
+    status: allowed
+    leakage_risk: none
+
+  - name: payment_to_bill_ratio
+    description: "total_payment_amount / total_bill_amount, safe-divided and capped at 5.0."
+    unit: "ratio, capped [0, 5]"
+    monotonicity: "increasing -> lower risk"
+    status: engineered_allowed
+    leakage_risk: none
+
+  - name: months_without_payment
+    description: "Count of the 6 months with PAY_AMT == 0."
+    unit: "count, 0-6"
+    monotonicity: "increasing -> higher risk"
+    status: allowed
+    leakage_risk: none
+
+  - name: payment_coverage_rate
+    description: "Fraction of the 5 valid statement-cycle pairs (payment month i vs. prior bill month i+1) where the payment fully covered the prior bill."
+    unit: "ratio, [0, 1]"
+    monotonicity: "increasing -> lower risk"
+    status: engineered_allowed
+    leakage_risk: none
+
+  - name: payment_variation
+    description: "Coefficient of variation (stdev / (mean + epsilon)) of the 6 monthly payments."
+    unit: "ratio"
+    monotonicity: "not enforced"
+    status: engineered_allowed
+    leakage_risk: none
+
+  - name: worst_payment_to_bill_ratio
+    description: "Minimum, across the 5 valid statement-cycle pairs, of payment_i / prior_bill_(i+1), safe-divided and capped at 5.0."
+    unit: "ratio, capped [0, 5]"
+    monotonicity: "increasing -> lower risk"
+    status: engineered_allowed
+    leakage_risk: none
+
+  - name: limit_exposure_distance
+    description: "(LIMIT_BAL - avg_bill_amount) / LIMIT_BAL, safe-divided, clipped to [-5, 5] - fraction of the limit left as headroom (can be negative if over limit)."
+    unit: "ratio, clipped [-5, 5]"
+    monotonicity: "decreasing -> higher risk"
+    status: engineered_allowed
+    leakage_risk: none
+
+audit_only_group:
+  # These never enter credlens.modeling.preprocessing's ColumnTransformer -
+  # credlens.modeling.leakage.assert_no_restricted_columns raises if any
+  # of them appear in a training DataFrame. Used exclusively by
+  # credlens.modeling.subgroup_audit, joined to predictions by ID only
+  # after scoring.
+  - X2
+  - X3
+  - X4
+  - X5

@@ -4,7 +4,7 @@
 
 **CredLens turns a digital lender's credit portfolio into a reproducible, tested analytics product — from business question to KPI to decision.**
 
-**Status: Foundation through Decision Intelligence Dashboard (Phase 7).** This repository contains business framing, architecture, project scaffolding, reproducibly acquired and audited public benchmark datasets (Phase 2), a conceptual data model/temporal semantics/formal data contracts (Phase 3), a real, deterministic, performance-optimized synthetic-portfolio generator with five executable scenarios (Phase 4A/4B), a DuckDB + dbt analytical warehouse with three hardened integrity gates (Phase 5-6), a reproducible portfolio-analysis layer answering a versioned business-question registry with bilingual reports, professional charts, and a case-study notebook (Phase 6), and — as of Phase 7 — a multipage Streamlit **Decision Intelligence Dashboard**, a verifiable insights registry, a completed four-scenario multi-seed robustness sweep, and a small, versioned demo package a reviewer can run without regenerating anything (see [Decision Intelligence Dashboard](#decision-intelligence-dashboard) below). No model has been trained and no real-world business result is claimed anywhere in this repository — every generated value is explicitly synthetic, see [Current capabilities](#current-capabilities) and [`docs/roadmap.md`](docs/roadmap.md) for what happens next.
+**Status: Foundation through an interpretable behavioral risk model (Phase 8).** This repository contains business framing, architecture, project scaffolding, reproducibly acquired and audited public benchmark datasets (Phase 2), a conceptual data model/temporal semantics/formal data contracts (Phase 3), a real, deterministic, performance-optimized synthetic-portfolio generator with five executable scenarios (Phase 4A/4B), a DuckDB + dbt analytical warehouse with three hardened integrity gates (Phase 5-6), a reproducible portfolio-analysis layer answering a versioned business-question registry with bilingual reports, professional charts, and a case-study notebook (Phase 6), a multipage Streamlit **Decision Intelligence Dashboard** with a verifiable insights registry, a completed four-scenario multi-seed robustness sweep, and a small, versioned demo package (Phase 7), and — as of Phase 8 — an **interpretable behavioral early-warning default model** trained and validated on the real, public UCI benchmark, with full leakage/calibration/uncertainty/subgroup/robustness rigor and a 9th dashboard page, **Model Lab** (see [Decision Intelligence Dashboard](#decision-intelligence-dashboard) and [Model Lab](#model-lab--behavioral-early-warning-model) below). This model is a historical-benchmark case study, not a production credit decision system — see [Current capabilities](#current-capabilities), [`reports/modeling/model_card.md`](reports/modeling/model_card.md), and [`docs/roadmap.md`](docs/roadmap.md) for what happens next.
 
 ## The business scenario
 
@@ -37,6 +37,29 @@ uv run credlens dashboard run --demo
 - CSV/PNG exports carrying their own build/analysis/provenance/sample-size metadata.
 
 **Architecture, reproduction with a real warehouse build, and every limitation are in [`dashboard/README.md`](dashboard/README.md).**
+
+## Model Lab — Behavioral Early-Warning Model
+
+**Historical public benchmark — UCI, Taiwan, 2005. Not connected to the synthetic CredLens portfolio above, and not suitable for real lending decisions.**
+
+Phase 8 adds an interpretable **behavioral early-warning model for next-month default**, trained and validated on the real, public [Default of Credit Card Clients](https://archive.ics.uci.edu/dataset/350/default+of+credit+card+clients) dataset — never on the synthetic portfolio, never mixed with it. It answers a structurally different question than an origination/credit-granting score: given six months of an *existing* account's repayment behavior, does it look like it is about to default? See [`docs/target_and_leakage_audit.md`](docs/target_and_leakage_audit.md) (Phase 3) for why this framing, not origination, is the only one this dataset's own structure supports.
+
+**Try it:**
+
+```bash
+uv sync --extra analysis --extra modeling
+uv run credlens model data-audit
+uv run credlens model create-split --experiment-id EXP_demo --seed 42
+uv run credlens model train --experiment-id EXP_demo --seed 42
+uv run credlens model evaluate --experiment-id EXP_demo
+uv run credlens dashboard run --demo   # then open the "Model Lab" page
+```
+
+**What it is:** 18 interpretable behavioral features (delinquency/bill/payment aggregates — no raw demographic column ever reaches training), a Dummy baseline, a transparent single-feature isotonic rule, a tuned logistic regression (the main interpretable candidate — coefficients/odds ratios), and a HistGradientBoosting challenger. Full leakage controls (static allowlist + 5 functional negative controls: shuffled-target, near-perfect-leak detection, ID-only, direct-target/target-copy rejection), a locked 60/20/20 stratified split, calibration comparison (kept uncalibrated when no method helped), a stratified bootstrap and 5-seed split-stability sweep, post-hoc subgroup diagnostics (SEX/EDUCATION/MARRIAGE/AGE — audit only, never a training feature), and 9 controlled robustness perturbations.
+
+**What it is not:** an origination/credit-granting score, a regulatory PD/LGD/EAD model, a fairness certification, a profit/cutoff optimizer, or anything connected to a real lending decision — see [`reports/modeling/model_card.md`](reports/modeling/model_card.md) / [`model_card.pt-BR.md`](reports/modeling/model_card.pt-BR.md) for the full, mandatory disclosure.
+
+**Full methodology, real numbers, and every gate result:** [`reports/modeling/technical_report.md`](reports/modeling/technical_report.md).
 
 ## Questions this project will eventually help answer
 
@@ -92,14 +115,15 @@ What exists in the repository right now:
 - **A reproducible portfolio-analysis layer** (Phase 6, `credlens.analysis`): hardened three warehouse gaps found by re-reading Phase 5's own documentation against its code — exact-cents monetary reconciliation (was a wide percentage band), structural test-root isolation so a test can never touch an official demonstration run/suite/build, and mandatory raw-source integrity re-verification at query/analysis time (a mutated parquet file is detected and blocks every downstream query). On top of that: SQL-first metrics/scenario-comparison/multi-seed-robustness/public-benchmark functions, 12 colorblind-accessible charts, a bilingual (EN/PT-BR) executive summary and technical report built from "decision cards," a full provenance manifest, a versioned 20-question business-question registry (`analysis/questions.yml`), a `credlens analysis {validate,run,scenarios,benchmark,status,reproduce}` CLI, and a thin case-study notebook. See [Case study: Credit Portfolio Intelligence](#case-study-credit-portfolio-intelligence) and [`docs/analysis_architecture.md`](docs/analysis_architecture.md). Install with `uv sync --extra warehouse --extra analysis`.
 - Business documentation: charter, business problem framing, stakeholder map, KPI dictionary (definitions only, no computed values), data strategy, architecture, assumptions & limitations, glossary, roadmap — plus Phase 2's dataset selection matrix, data dictionary, data-quality audit, target/leakage audit, sensitive-attributes audit, Phase 3's conceptual model, temporal semantics, state machines, metric semantics, business rules, data contracts, fairness-data design, Phase 4A's implementation record, Phase 5's warehouse architecture, and Phase 6's analysis architecture, for 10 ADRs total (see [Repository structure](#repository-structure)).
 - **A Streamlit Decision Intelligence Dashboard and supporting analytical hardening** (Phase 7): completed multi-seed robustness for all four comparable scenarios (Phase 6 only ever ran `macroeconomic_stress`), a three-tier sample-size policy (`credlens.analysis.sample_policy`, replacing a flat, too-low cutoff), a five-category data-provenance system (`credlens.analysis.data_provenance`) that fixed a real mislabeling bug (a public-benchmark chart was watermarked "Synthetic data"), a generated, versioned insights registry (`reports/portfolio_analysis/insights.yml`), a reproducibility fingerprint extended to reports/insights (proven via `credlens analysis reproduce`), a real Jupyter-kernel-executed case-study notebook, and the dashboard itself — see [Decision Intelligence Dashboard](#decision-intelligence-dashboard) and [`dashboard/README.md`](dashboard/README.md). Install with `uv sync --extra warehouse --extra analysis --extra dashboard`.
-- CI (GitHub Actions): lint, format check, type check, tests with coverage, a warehouse smoke build (dbt build + test + reconcile), a full `credlens analysis` validation pass, and a dashboard validation pass (demo package export + `AppTest`-driven page checks) — on every push.
+- **An interpretable behavioral early-warning default model** (Phase 8, `credlens.modeling`): trained and validated on the real, public UCI benchmark, never the synthetic portfolio — a versioned target contract and feature registry (18 engineered behavioral features, 4 sensitive attributes excluded from training by construction), a static leakage allowlist plus 5 functional negative controls, a locked 60/20/20 stratified split, four model levels (Dummy, a transparent isotonic single-feature rule, a tuned logistic regression, a HistGradientBoosting challenger), calibration comparison, a stratified bootstrap and 5-seed split-stability sweep, global/local interpretability (coefficients/odds ratios, permutation importance, partial dependence, pseudonymized reason codes), post-hoc subgroup diagnostics, 9 controlled robustness perturbations, an experiment/candidate registry with explicit promotion gates, batch scoring, and a 9th dashboard page (**Model Lab**) — see [Model Lab](#model-lab--behavioral-early-warning-model) and [`reports/modeling/technical_report.md`](reports/modeling/technical_report.md). Install with `uv sync --extra analysis --extra modeling`.
+- CI (GitHub Actions): lint, format check, type check, tests with coverage, a warehouse smoke build (dbt build + test + reconcile), a full `credlens analysis` validation pass, a dashboard validation pass (demo package export + `AppTest`-driven page checks), and a modeling smoke pass (train/evaluate/explain/audit-groups/stress-test/register/batch-score + Model Lab `AppTest`) — on every push.
 
 ## Planned capabilities (not yet implemented)
 
 - The remaining synthetic scenario (`data_quality_incident`) - specified but not calibrated as an executable generation config (its quarantine-based alternative is implemented).
 - Wiring `strict`-mode contract validation into a real ingestion pipeline as an enforcement gate — today `credlens synthetic generate` gates its own output before promoting it, and `credlens warehouse` gates which runs it will load, but nothing outside those two entry points reads from `data/synthetic/` yet.
-- An interpretable probability-of-default model and expected-loss calculation.
-- A cutoff/policy simulator.
+- A trained model on the SYNTHETIC portfolio (Phase 8's model is deliberately scoped to the real UCI benchmark only), regulatory PD/LGD/EAD, and expected-loss calculation.
+- A cutoff/profit optimizer (Phase 8's "Scenario Lab"/"Model Lab" pages are explicitly never framed as an optimizer).
 - A production container deployment (an optional local `Dockerfile.dashboard` exists for demo-mode only — see [`dashboard/README.md`](dashboard/README.md)) and an expanded CI/CD pipeline.
 
 See [`docs/roadmap.md`](docs/roadmap.md) for the full phase sequence and dependencies between phases.
@@ -194,6 +218,21 @@ uv run credlens dashboard run --demo                           # no warehouse ne
 uv run credlens dashboard export-demo --build-id <build_id>
 uv run credlens dashboard validate --build-id <build_id>       # or --demo
 uv run credlens dashboard status
+
+# Behavioral early-warning model (Phase 8) - requires `--extra modeling` too;
+# runs on the real, already-acquired UCI benchmark, never on the synthetic portfolio
+uv run credlens model data-audit
+uv run credlens model validate-features
+uv run credlens model create-split --experiment-id EXP_demo --seed 42
+uv run credlens model train --experiment-id EXP_demo --seed 42
+uv run credlens model evaluate --experiment-id EXP_demo
+uv run credlens model compare --experiment-id EXP_demo
+uv run credlens model explain --experiment-id EXP_demo
+uv run credlens model audit-groups --experiment-id EXP_demo
+uv run credlens model stress-test --experiment-id EXP_demo
+uv run credlens model register --experiment-id EXP_demo --model-id MODEL_demo
+uv run credlens model validate --model-id MODEL_demo
+uv run credlens model report --experiment-id EXP_demo --model-id MODEL_demo
 ```
 
 Without `uv`, use a standard virtual environment instead:
@@ -243,17 +282,17 @@ uv run pytest
 credlens-credit-analytics/
 ├── README.md / README.pt-BR.md   # This file, and its Portuguese counterpart
 ├── pyproject.toml                # Package metadata, dependencies, tool config
-├── config/                       # base.yaml (structural config) + synthetic/ (blueprints + baseline.generation.yaml)
+├── config/                       # base.yaml (structural config) + synthetic/ (blueprints) + modeling/ (Phase 8 target/feature/eval contracts)
 ├── contracts/                    # raw/ + operational/ data contract YAML files (Phase 3, extended Phase 4A)
 ├── data/                         # raw/ + synthetic/ + synthetic_truth/ + warehouse/ (all git-ignored) + metadata/ (versioned) - see data/README.md
 ├── warehouse/                    # dbt-core project: models (raw/staging/intermediate/dimensions/facts/marts), tests, seeds, kpi_catalog.yml (Phase 5-6)
 ├── analysis/                     # questions.yml (versioned business-question registry) + specifications/ (Phase 6-7) - see analysis/README.md
 ├── notebooks/                    # credit_portfolio_case_study.ipynb - a thin, narrated viewer over reports/portfolio_analysis/ (Phase 6)
-├── dashboard/                    # Streamlit app.py + pages/ + demo_data/ (Phase 7) - see dashboard/README.md
+├── dashboard/                    # Streamlit app.py + pages/ (incl. 9_Model_Lab.py) + demo_data/ (Phase 7-8) - see dashboard/README.md
 ├── docs/                         # Business, architecture, data-acquisition, data-contracts, generator, warehouse, and analysis documentation
-├── src/credlens/                 # Application package (CLI, config, logging, data/, contracts/, generation/, warehouse/, analysis/, dashboard/, synthetic.py)
+├── src/credlens/                 # Application package (CLI, config, logging, data/, contracts/, generation/, warehouse/, analysis/, dashboard/, modeling/, synthetic.py)
 ├── tests/                        # Pytest suite, including tests/fixtures/contracts/ (valid + invalid scenarios)
-├── reports/                      # data_audit/, synthetic_validation/, portfolio_analysis/ - all reproducible, none hand-edited
+├── reports/                      # data_audit/, synthetic_validation/, portfolio_analysis/, modeling/ - all reproducible, none hand-edited
 └── .github/                      # CI workflow and issue/PR templates
 ```
 
@@ -269,13 +308,15 @@ Phase 6 documentation: [`docs/analysis_architecture.md`](docs/analysis_architect
 
 Phase 7 documentation: [`dashboard/README.md`](dashboard/README.md) (dashboard architecture, page/filter dictionaries, demo package, troubleshooting), the revised [`analysis/specifications/segmentation_policy.md`](analysis/specifications/segmentation_policy.md) (the three-tier sample-size policy), and [`reports/portfolio_analysis/insights.yml`](reports/portfolio_analysis/insights.yml) (the generated, versioned insights registry).
 
+Phase 8 documentation: [`config/modeling/behavioral_default.yml`](config/modeling/behavioral_default.yml) (the versioned target contract), [`config/modeling/feature_registry.yml`](config/modeling/feature_registry.yml) (feature governance), [`config/modeling/evaluation.yml`](config/modeling/evaluation.yml) (the full evaluation protocol), and [`reports/modeling/`](reports/modeling/) (bilingual model card + technical report, generated after `credlens model report`).
+
 ## Data strategy (summary)
 
 The target strategy is **public data + a reproducible synthetic operational layer**: real, licensed public credit/macroeconomic datasets provide realistic structure and distributions; a documented, code-generated synthetic layer fills in the operational detail (e.g., day-to-day delinquency transitions) that public datasets don't expose, without ever presenting synthetic values as real observed outcomes. As of Phase 2, four sources are acquired and licensed (two UCI individual-level benchmarks, two Banco Central do Brasil macro series); a fifth (Kaggle) is blocked pending user-provided credentials this project will not request. As of Phase 3, the synthetic layer's conceptual model, contracts, and generation *specification* existed but no generator was built. **As of Phase 4A, the generator itself is real for the `baseline` scenario** - `credlens synthetic generate --scenario baseline` produces a full, contract-valid, deterministic synthetic portfolio; every other scenario remains specification-only. See [`docs/data_strategy.md`](docs/data_strategy.md), [`docs/synthetic_generation_spec.md`](docs/synthetic_generation_spec.md), and [`docs/synthetic_generation_implementation.md`](docs/synthetic_generation_implementation.md) for the full picture.
 
 ## Limitations
 
-This is a portfolio project about a **fictional** company. It contains no real customers and no real personal or financial data — every KPI, insight, and dashboard figure describes a synthetic data-generating process, never a real institution's result. It cannot be used to make real credit decisions, and any future model or metric it produces will require independent statistical, legal, and regulatory validation before any real-world use. No trained model, cutoff optimization, causal inference, or profitability/ROI calculation exists anywhere in this repository (see [`docs/roadmap.md`](docs/roadmap.md) for what those later phases would require). See [`docs/assumptions_and_limitations.md`](docs/assumptions_and_limitations.md) for the full list.
+This is a portfolio project about a **fictional** company. It contains no real customers and no real personal or financial data — every KPI, insight, and dashboard figure built from the synthetic portfolio describes a synthetic data-generating process, never a real institution's result. Phase 8 adds one model trained on a **real, public historical benchmark** (UCI, Taiwan, 2005) — it is a behavioral early-warning case study, not an origination score, not a regulatory PD/LGD/EAD model, not a fairness certification, and not connected in any way to the synthetic portfolio; see [`reports/modeling/model_card.md`](reports/modeling/model_card.md) for its full, explicit "Not suitable for real lending decisions" disclosure. Nothing in this repository can be used to make a real credit decision, and any future model or metric it produces will require independent statistical, legal, and regulatory validation before any real-world use. No cutoff/profit optimization, causal inference, or profitability/ROI calculation exists anywhere in this repository (see [`docs/roadmap.md`](docs/roadmap.md) for what those later phases would require). See [`docs/assumptions_and_limitations.md`](docs/assumptions_and_limitations.md) for the full list.
 
 ## Roadmap
 

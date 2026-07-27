@@ -20,6 +20,7 @@ PAGE_PROVENANCE: dict[str, ProvenanceCategory] = {
     "scenario_lab": "synthetic_scenario",
     "data_quality_methodology": "synthetic_operational",
     "public_benchmarks": "mixed_context",
+    "model_lab": "public_benchmark",
 }
 
 

@@ -4,7 +4,7 @@
 
 **O CredLens transforma a carteira de crédito de uma credor digital em um produto de analytics reprodutível e testado — da pergunta de negócio ao KPI, do KPI à decisão.**
 
-**Status: da Fundação até o Dashboard de Inteligência de Decisão (Fase 7).** Este repositório contém a definição do negócio, a arquitetura, o esqueleto do projeto, bases públicas de referência adquiridas e auditadas de forma reprodutível (Fase 2), um modelo conceitual de dados, semântica temporal e contratos de dados formais (Fase 3), um gerador determinístico real de carteira sintética, otimizado em performance, com cinco cenários executáveis (Fase 4A/4B), um warehouse analítico DuckDB + dbt com três gates de integridade reforçados (Fase 5-6), uma camada reprodutível de análise de portfólio que responde a um registro versionado de perguntas de negócio, com relatórios bilíngues, gráficos profissionais e um notebook de estudo de caso (Fase 6), e, desde a Fase 7, um **Dashboard de Inteligência de Decisão** em Streamlit multipágina, um registro verificável de insights, uma varredura de robustez multi-seed completa para os quatro cenários, e um pacote demonstrativo pequeno e versionado que um recrutador pode executar sem regenerar nada (veja [Dashboard de Inteligência de Decisão](#dashboard-de-inteligência-de-decisão) abaixo). Nenhum modelo foi treinado, e nenhum resultado de negócio do mundo real é alegado em lugar algum deste repositório — todo valor gerado é explicitamente sintético, veja [Capacidades atuais](#capacidades-atuais) e [`docs/roadmap.md`](docs/roadmap.md) para os próximos passos.
+**Status: da Fundação até um modelo interpretável de risco comportamental (Fase 8).** Este repositório contém a definição do negócio, a arquitetura, o esqueleto do projeto, bases públicas de referência adquiridas e auditadas de forma reprodutível (Fase 2), um modelo conceitual de dados, semântica temporal e contratos de dados formais (Fase 3), um gerador determinístico real de carteira sintética, otimizado em performance, com cinco cenários executáveis (Fase 4A/4B), um warehouse analítico DuckDB + dbt com três gates de integridade reforçados (Fase 5-6), uma camada reprodutível de análise de portfólio que responde a um registro versionado de perguntas de negócio, com relatórios bilíngues, gráficos profissionais e um notebook de estudo de caso (Fase 6), um **Dashboard de Inteligência de Decisão** em Streamlit multipágina com um registro verificável de insights, uma varredura de robustez multi-seed completa para os quatro cenários, e um pacote demonstrativo pequeno e versionado (Fase 7), e, desde a Fase 8, um **modelo comportamental de alerta antecipado de inadimplência**, treinado e validado no benchmark público real da UCI, com todo o rigor de leakage/calibração/incerteza/subgrupo/robustez e uma 9ª página no dashboard, **Model Lab** (veja [Dashboard de Inteligência de Decisão](#dashboard-de-inteligência-de-decisão) e [Model Lab](#model-lab--modelo-comportamental-de-alerta-antecipado) abaixo). Esse modelo é um estudo de caso sobre um benchmark histórico, não um sistema de decisão de crédito em produção — veja [Capacidades atuais](#capacidades-atuais), [`reports/modeling/model_card.pt-BR.md`](reports/modeling/model_card.pt-BR.md) e [`docs/roadmap.md`](docs/roadmap.md) para os próximos passos.
 
 ## O cenário de negócio
 
@@ -37,6 +37,29 @@ uv run credlens dashboard run --demo
 - Exportações em CSV/PNG que carregam seus próprios metadados de build/análise/proveniência/tamanho de amostra.
 
 **Arquitetura, reprodução com um warehouse validado real, e todas as limitações estão em [`dashboard/README.md`](dashboard/README.md).**
+
+## Model Lab — Modelo Comportamental de Alerta Antecipado
+
+**Benchmark público histórico — UCI, Taiwan, 2005. Não conectado à carteira sintética do CredLens acima, e não adequado para decisões reais de concessão de crédito.**
+
+A Fase 8 adiciona um **modelo comportamental de alerta antecipado para inadimplência no mês seguinte**, treinado e validado no dataset público real [Default of Credit Card Clients](https://archive.ics.uci.edu/dataset/350/default+of+credit+card+clients) — nunca na carteira sintética, nunca misturado a ela. Ele responde a uma pergunta estruturalmente diferente de um score de concessão/originação: dado o histórico de 6 meses de uma conta **já existente**, ela parece estar prestes a entrar em inadimplência? Veja [`docs/target_and_leakage_audit.md`](docs/target_and_leakage_audit.md) (Fase 3) para o porquê desse enquadramento — e não o de originação — ser o único que a própria estrutura do dataset sustenta.
+
+**Experimente:**
+
+```bash
+uv sync --extra analysis --extra modeling
+uv run credlens model data-audit
+uv run credlens model create-split --experiment-id EXP_demo --seed 42
+uv run credlens model train --experiment-id EXP_demo --seed 42
+uv run credlens model evaluate --experiment-id EXP_demo
+uv run credlens dashboard run --demo   # depois abra a página "Model Lab"
+```
+
+**O que é:** 18 features comportamentais interpretáveis (agregados de atraso/fatura/pagamento — nenhum atributo demográfico bruto chega ao treinamento), uma baseline Dummy, uma regra isotônica transparente de uma única feature, uma regressão logística ajustada (o principal candidato interpretável — coeficientes/odds ratios) e um desafiante HistGradientBoosting. Controles completos de leakage (allowlist estática + 5 controles negativos funcionais: alvo embaralhado, detecção de leakage quase perfeito, apenas ID, rejeição de cópia direta/renomeada do alvo), um split estratificado 60/20/20 travado, comparação de calibração (mantido não calibrado quando nenhum método ajudou), um bootstrap estratificado e uma varredura de estabilidade em 5 seeds, diagnósticos pós-hoc de subgrupo (SEXO/EDUCAÇÃO/ESTADO CIVIL/IDADE — apenas auditoria, nunca uma feature de treino) e 9 perturbações controladas de robustez.
+
+**O que não é:** um score de concessão/originação, um modelo regulatório de PD/LGD/EAD, uma certificação de fairness, um otimizador de lucro/corte, ou algo conectado a uma decisão real de crédito — veja [`reports/modeling/model_card.pt-BR.md`](reports/modeling/model_card.pt-BR.md) para a divulgação completa e obrigatória.
+
+**Metodologia completa, números reais e o resultado de cada gate:** [`reports/modeling/technical_report.pt-BR.md`](reports/modeling/technical_report.pt-BR.md).
 
 ## Perguntas que este projeto pretende ajudar a responder no futuro
 
@@ -92,14 +115,15 @@ O que existe no repositório agora:
 - **Uma camada reprodutível de análise de portfólio** (Fase 6, `credlens.analysis`): corrigiu três lacunas do warehouse encontradas ao reler a própria documentação da Fase 5 contra o código — reconciliação monetária em centavos exatos (era uma faixa percentual larga), isolamento estrutural de diretórios de teste para que um teste nunca toque um run/suite/build de demonstração oficial, e reverificação obrigatória de integridade das fontes brutas em tempo de consulta/análise (um arquivo parquet adulterado é detectado e bloqueia toda consulta subsequente). Além disso: funções SQL-first de métricas/comparação de cenários/robustez multi-seed/benchmark público, 12 gráficos acessíveis a daltônicos, um resumo executivo e relatório técnico bilíngues (EN/PT-BR) construídos a partir de "decision cards", um manifesto completo de proveniência, um registro versionado de 20 perguntas de negócio (`analysis/questions.yml`), uma CLI `credlens analysis {validate,run,scenarios,benchmark,status,reproduce}`, e um notebook fino de estudo de caso. Veja [Estudo de caso: Credit Portfolio Intelligence](#estudo-de-caso-credit-portfolio-intelligence) e [`docs/analysis_architecture.md`](docs/analysis_architecture.md). Instale com `uv sync --extra warehouse --extra analysis`.
 - Documentação de negócio: charter, definição do problema de negócio, mapa de stakeholders, dicionário de KPIs (apenas definições, sem valores calculados), estratégia de dados, arquitetura, premissas e limitações, glossário, roadmap — além, na Fase 2, da matriz de seleção de datasets, dicionário de dados, auditoria de qualidade, auditoria de alvo/vazamento e auditoria de atributos sensíveis, na Fase 3, do modelo conceitual, semântica temporal, máquinas de estado, semântica de métricas, regras de negócio, contratos de dados e desenho de fairness, na Fase 4A, do registro de implementação do gerador, na Fase 5, da arquitetura do warehouse, e na Fase 6, da arquitetura da camada de análise, totalizando 10 ADRs (veja [Estrutura do repositório](#estrutura-do-repositório)).
 - **Um Dashboard de Inteligência de Decisão em Streamlit e o endurecimento analítico que o sustenta** (Fase 7): robustez multi-seed completada para os quatro cenários comparáveis (a Fase 6 só havia executado `macroeconomic_stress`), uma política de amostra mínima em três níveis (`credlens.analysis.sample_policy`, substituindo um corte fixo e baixo demais), um sistema de proveniência de dados em cinco categorias (`credlens.analysis.data_provenance`) que corrigiu um bug real de rotulagem (um gráfico de benchmark público estava marcado com a marca d'água "Synthetic data"), um registro de insights gerado e versionado (`reports/portfolio_analysis/insights.yml`), um fingerprint de reprodutibilidade estendido a relatórios/insights (comprovado via `credlens analysis reproduce`), um notebook de estudo de caso executado de fato em kernel Jupyter, e o próprio dashboard — veja [Dashboard de Inteligência de Decisão](#dashboard-de-inteligência-de-decisão) e [`dashboard/README.md`](dashboard/README.md). Instale com `uv sync --extra warehouse --extra analysis --extra dashboard`.
-- CI (GitHub Actions): lint, checagem de formatação, checagem de tipos, testes com cobertura, um build de warehouse em escala smoke (dbt build + test + reconcile), uma validação completa da camada `credlens analysis`, e uma validação do dashboard (exportação do pacote demonstrativo + checagens de página via `AppTest`) — a cada push.
+- **Um modelo comportamental interpretável de alerta antecipado de inadimplência** (Fase 8, `credlens.modeling`): treinado e validado no benchmark público real da UCI, nunca na carteira sintética — um contrato de alvo e um registro de features versionados (18 features comportamentais, 4 atributos sensíveis excluídos do treino por construção), uma allowlist estática de leakage mais 5 controles negativos funcionais, um split estratificado 60/20/20 travado, quatro níveis de modelo (Dummy, uma regra isotônica transparente de uma feature, uma regressão logística ajustada, um desafiante HistGradientBoosting), comparação de calibração, um bootstrap estratificado e uma varredura de estabilidade em 5 seeds, interpretabilidade global/local (coeficientes/odds ratios, permutation importance, partial dependence, reason codes pseudonimizados), diagnósticos pós-hoc de subgrupo, 9 perturbações controladas de robustez, um registro de experimentos/candidatos com gates explícitos de promoção, scoring em lote e uma 9ª página no dashboard (**Model Lab**) — veja [Model Lab](#model-lab--modelo-comportamental-de-alerta-antecipado) e [`reports/modeling/technical_report.pt-BR.md`](reports/modeling/technical_report.pt-BR.md). Instale com `uv sync --extra analysis --extra modeling`.
+- CI (GitHub Actions): lint, checagem de formatação, checagem de tipos, testes com cobertura, um build de warehouse em escala smoke (dbt build + test + reconcile), uma validação completa da camada `credlens analysis`, uma validação do dashboard (exportação do pacote demonstrativo + checagens de página via `AppTest`), e uma passagem de fumaça de modelagem (train/evaluate/explain/audit-groups/stress-test/register/batch-score + `AppTest` do Model Lab) — a cada push.
 
 ## Capacidades planejadas (ainda não implementadas)
 
 - O cenário sintético restante (`data_quality_incident`) — especificado, mas não calibrado como configuração de geração executável (sua alternativa baseada em quarentena está implementada).
 - Conectar a validação em modo `strict` a um pipeline de ingestão real como bloqueio de fato — hoje `credlens synthetic generate` já bloqueia sua própria saída antes de promovê-la, e `credlens warehouse` já bloqueia quais runs pode carregar, mas nada além desses dois pontos de entrada ainda lê de `data/synthetic/`.
-- Um modelo interpretável de probabilidade de inadimplência e cálculo de perda esperada.
-- Um simulador de ponto de corte / política de crédito.
+- Um modelo treinado na carteira SINTÉTICA (o modelo da Fase 8 é deliberadamente restrito ao benchmark real da UCI), PD/LGD/EAD regulatórios e cálculo de perda esperada.
+- Um otimizador de corte/lucro (as páginas "Scenario Lab"/"Model Lab" da Fase 8 nunca são enquadradas como um otimizador).
 - Um deploy de container em produção (existe um `Dockerfile.dashboard` local opcional, apenas para o modo demo — veja [`dashboard/README.md`](dashboard/README.md)) e um pipeline de CI/CD ampliado.
 
 Veja [`docs/roadmap.md`](docs/roadmap.md) para a sequência completa de fases e suas dependências.
@@ -192,6 +216,21 @@ uv run credlens dashboard run --demo                            # sem precisar d
 uv run credlens dashboard export-demo --build-id <build_id>
 uv run credlens dashboard validate --build-id <build_id>        # ou --demo
 uv run credlens dashboard status
+
+# Modelo comportamental de alerta antecipado (Fase 8) - requer também `--extra modeling`;
+# roda no benchmark real da UCI já adquirido, nunca na carteira sintética
+uv run credlens model data-audit
+uv run credlens model validate-features
+uv run credlens model create-split --experiment-id EXP_demo --seed 42
+uv run credlens model train --experiment-id EXP_demo --seed 42
+uv run credlens model evaluate --experiment-id EXP_demo
+uv run credlens model compare --experiment-id EXP_demo
+uv run credlens model explain --experiment-id EXP_demo
+uv run credlens model audit-groups --experiment-id EXP_demo
+uv run credlens model stress-test --experiment-id EXP_demo
+uv run credlens model register --experiment-id EXP_demo --model-id MODEL_demo
+uv run credlens model validate --model-id MODEL_demo
+uv run credlens model report --experiment-id EXP_demo --model-id MODEL_demo
 ```
 
 Sem `uv`, use um ambiente virtual padrão:
@@ -241,17 +280,17 @@ uv run pytest
 credlens-credit-analytics/
 ├── README.md / README.pt-BR.md   # Este arquivo e sua versão em português
 ├── pyproject.toml                # Metadados do pacote, dependências, configuração de ferramentas
-├── config/                       # base.yaml (config estrutural) + synthetic/ (blueprints + baseline.generation.yaml)
+├── config/                       # base.yaml (config estrutural) + synthetic/ (blueprints) + modeling/ (contratos de alvo/features/avaliação da Fase 8)
 ├── contracts/                    # Arquivos YAML de contratos de dados raw/ + operational/ (Fase 3, estendidos na Fase 4A)
 ├── data/                         # raw/ + synthetic/ + synthetic_truth/ + warehouse/ (todos ignorados pelo git) + metadata/ (versionado) - ver data/README.md
 ├── warehouse/                    # Projeto dbt-core: models (raw/staging/intermediate/dimensions/facts/marts), tests, seeds, kpi_catalog.yml (Fase 5-6)
 ├── analysis/                     # questions.yml (registro versionado de perguntas de negócio) + specifications/ (Fase 6-7) - ver analysis/README.md
 ├── notebooks/                    # credit_portfolio_case_study.ipynb - um visualizador fino e narrado sobre reports/portfolio_analysis/ (Fase 6)
-├── dashboard/                    # app.py + pages/ + demo_data/ do Streamlit (Fase 7) - ver dashboard/README.md
+├── dashboard/                    # app.py + pages/ (incl. 9_Model_Lab.py) + demo_data/ do Streamlit (Fase 7-8) - ver dashboard/README.md
 ├── docs/                         # Documentação de negócio, arquitetura, aquisição de dados, contratos, gerador, warehouse e análise
-├── src/credlens/                 # Pacote da aplicação (CLI, config, logging, data/, contracts/, generation/, warehouse/, analysis/, dashboard/, synthetic.py)
+├── src/credlens/                 # Pacote da aplicação (CLI, config, logging, data/, contracts/, generation/, warehouse/, analysis/, dashboard/, modeling/, synthetic.py)
 ├── tests/                        # Suíte de testes Pytest, incluindo tests/fixtures/contracts/ (cenários válido/inválidos)
-├── reports/                      # data_audit/, synthetic_validation/, portfolio_analysis/ - todos reproduzíveis, nenhum editado à mão
+├── reports/                      # data_audit/, synthetic_validation/, portfolio_analysis/, modeling/ - todos reproduzíveis, nenhum editado à mão
 └── .github/                      # Workflow de CI e templates de issue/PR
 ```
 
@@ -267,13 +306,15 @@ Documentação da Fase 6: [`docs/analysis_architecture.md`](docs/analysis_archit
 
 Documentação da Fase 7: [`dashboard/README.md`](dashboard/README.md) (arquitetura do dashboard, dicionários de páginas/filtros, pacote demonstrativo, troubleshooting), o [`analysis/specifications/segmentation_policy.md`](analysis/specifications/segmentation_policy.md) revisado (a política de amostra mínima em três níveis), e [`reports/portfolio_analysis/insights.yml`](reports/portfolio_analysis/insights.yml) (o registro de insights gerado e versionado).
 
+Documentação da Fase 8: [`config/modeling/behavioral_default.yml`](config/modeling/behavioral_default.yml) (o contrato de alvo versionado), [`config/modeling/feature_registry.yml`](config/modeling/feature_registry.yml) (governança de features), [`config/modeling/evaluation.yml`](config/modeling/evaluation.yml) (o protocolo completo de avaliação), e [`reports/modeling/`](reports/modeling/) (model card e relatório técnico bilíngues, gerados após `credlens model report`).
+
 ## Estratégia de dados (resumo)
 
 A estratégia-alvo é **dados públicos + uma camada operacional sintética reprodutível**: bases públicas de crédito/macroeconômicas reais e licenciadas fornecem estrutura e distribuições realistas; uma camada sintética documentada e gerada por código preenche o detalhe operacional (por exemplo, transições diárias de inadimplência) que bases públicas não expõem, sem nunca apresentar valores sintéticos como resultados reais observados. Na Fase 2, quatro fontes foram adquiridas e licenciadas (duas bases individuais da UCI, duas séries macro do Banco Central); uma quinta (Kaggle) está bloqueada aguardando credenciais fornecidas pelo usuário, que este projeto não solicitará. Na Fase 3, o modelo conceitual, os contratos e a *especificação* de geração da camada sintética passaram a existir, mas nenhum gerador foi construído. **Na Fase 4A, o gerador em si é real para o cenário `baseline`** — `credlens synthetic generate --scenario baseline` produz uma carteira sintética completa, válida contra os contratos e determinística; todo outro cenário permanece apenas especificado. Veja [`docs/data_strategy.md`](docs/data_strategy.md), [`docs/synthetic_generation_spec.md`](docs/synthetic_generation_spec.md) e [`docs/synthetic_generation_implementation.md`](docs/synthetic_generation_implementation.md) para o quadro completo.
 
 ## Limitações
 
-Este é um projeto de portfólio sobre uma empresa **fictícia**. Não contém clientes reais nem dados pessoais ou financeiros reais — todo KPI, insight e número do dashboard descreve um processo de geração de dados sintético, nunca o resultado de uma instituição real. Não pode ser usado para conceder crédito real, e qualquer modelo ou métrica futura que ele produza exigirá validação estatística, jurídica e regulatória independente antes de qualquer uso real. Nenhum modelo treinado, otimização de cutoff, inferência causal ou cálculo de lucro/ROI existe em nenhum lugar deste repositório (veja [`docs/roadmap.md`](docs/roadmap.md) para o que essas fases futuras exigiriam). Veja [`docs/assumptions_and_limitations.md`](docs/assumptions_and_limitations.md) para a lista completa.
+Este é um projeto de portfólio sobre uma empresa **fictícia**. Não contém clientes reais nem dados pessoais ou financeiros reais — todo KPI, insight e número do dashboard construído a partir da carteira sintética descreve um processo de geração de dados sintético, nunca o resultado de uma instituição real. A Fase 8 adiciona um modelo treinado em um **benchmark público histórico real** (UCI, Taiwan, 2005) — é um estudo de caso de alerta antecipado comportamental, não um score de originação, não um modelo regulatório de PD/LGD/EAD, não uma certificação de fairness, e não está conectado de forma alguma à carteira sintética; veja [`reports/modeling/model_card.pt-BR.md`](reports/modeling/model_card.pt-BR.md) para sua divulgação completa e explícita de "Não é adequado para decisões reais de concessão de crédito". Nada neste repositório pode ser usado para tomar uma decisão real de crédito, e qualquer modelo ou métrica futura que ele produza exigirá validação estatística, jurídica e regulatória independente antes de qualquer uso real. Nenhuma otimização de corte/lucro, inferência causal ou cálculo de lucro/ROI existe em nenhum lugar deste repositório (veja [`docs/roadmap.md`](docs/roadmap.md) para o que essas fases futuras exigiriam). Veja [`docs/assumptions_and_limitations.md`](docs/assumptions_and_limitations.md) para a lista completa.
 
 ## Roadmap
 
