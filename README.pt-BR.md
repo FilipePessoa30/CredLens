@@ -4,7 +4,7 @@
 
 **O CredLens transforma a carteira de crédito de uma credor digital em um produto de analytics reprodutível e testado — da pergunta de negócio ao KPI, do KPI à decisão.**
 
-**Status: da Fundação até um modelo interpretável de risco comportamental (Fase 8).** Este repositório contém a definição do negócio, a arquitetura, o esqueleto do projeto, bases públicas de referência adquiridas e auditadas de forma reprodutível (Fase 2), um modelo conceitual de dados, semântica temporal e contratos de dados formais (Fase 3), um gerador determinístico real de carteira sintética, otimizado em performance, com cinco cenários executáveis (Fase 4A/4B), um warehouse analítico DuckDB + dbt com três gates de integridade reforçados (Fase 5-6), uma camada reprodutível de análise de portfólio que responde a um registro versionado de perguntas de negócio, com relatórios bilíngues, gráficos profissionais e um notebook de estudo de caso (Fase 6), um **Dashboard de Inteligência de Decisão** em Streamlit multipágina com um registro verificável de insights, uma varredura de robustez multi-seed completa para os quatro cenários, e um pacote demonstrativo pequeno e versionado (Fase 7), e, desde a Fase 8, um **modelo comportamental de alerta antecipado de inadimplência**, treinado e validado no benchmark público real da UCI, com todo o rigor de leakage/calibração/incerteza/subgrupo/robustez e uma 9ª página no dashboard, **Model Lab** (veja [Dashboard de Inteligência de Decisão](#dashboard-de-inteligência-de-decisão) e [Model Lab](#model-lab--modelo-comportamental-de-alerta-antecipado) abaixo). Esse modelo é um estudo de caso sobre um benchmark histórico, não um sistema de decisão de crédito em produção — veja [Capacidades atuais](#capacidades-atuais), [`reports/modeling/model_card.pt-BR.md`](reports/modeling/model_card.pt-BR.md) e [`docs/roadmap.md`](docs/roadmap.md) para os próximos passos.
+**Status: da Fundação até validação independente de modelo e simulação de monitoramento (Fase 9).** Este repositório contém a definição do negócio, a arquitetura, o esqueleto do projeto, bases públicas de referência adquiridas e auditadas de forma reprodutível (Fase 2), um modelo conceitual de dados, semântica temporal e contratos de dados formais (Fase 3), um gerador determinístico real de carteira sintética, otimizado em performance, com cinco cenários executáveis (Fase 4A/4B), um warehouse analítico DuckDB + dbt com três gates de integridade reforçados (Fase 5-6), uma camada reprodutível de análise de portfólio que responde a um registro versionado de perguntas de negócio, com relatórios bilíngues, gráficos profissionais e um notebook de estudo de caso (Fase 6), um **Dashboard de Inteligência de Decisão** em Streamlit multipágina com um registro verificável de insights, uma varredura de robustez multi-seed completa para os quatro cenários, e um pacote demonstrativo pequeno e versionado (Fase 7), um **modelo comportamental de alerta antecipado de inadimplência**, treinado e validado no benchmark público real da UCI, com todo o rigor de leakage/calibração/incerteza/subgrupo/robustez e uma 9ª página no dashboard, **Model Lab** (Fase 8), e, desde a Fase 9, uma **camada de validação independente** que recomputa essa evidência a partir de artefatos congelados (nunca copiando o relatório da Fase 8), uma auditoria corrigida de multicolinearidade/gaps de subgrupo, um modelo `challenger` formalmente registrado, e uma **simulação de monitoramento** claramente rotulada com uma 10ª página no dashboard, **Model Monitoring Lab** (veja [Dashboard de Inteligência de Decisão](#dashboard-de-inteligência-de-decisão), [Model Lab](#model-lab--modelo-comportamental-de-alerta-antecipado), e [Model Monitoring Lab](#model-monitoring-lab--validação-independente-e-simulação-de-monitoramento) abaixo). Nem o modelo nem sua simulação de monitoramento são um sistema real de decisão ou monitoramento de produção — veja [Capacidades atuais](#capacidades-atuais), [`reports/modeling/model_card.pt-BR.md`](reports/modeling/model_card.pt-BR.md), [`reports/model_validation/validation_report.pt-BR.md`](reports/model_validation/validation_report.pt-BR.md) e [`docs/roadmap.md`](docs/roadmap.md) para os próximos passos.
 
 ## O cenário de negócio
 
@@ -60,6 +60,31 @@ uv run credlens dashboard run --demo   # depois abra a página "Model Lab"
 **O que não é:** um score de concessão/originação, um modelo regulatório de PD/LGD/EAD, uma certificação de fairness, um otimizador de lucro/corte, ou algo conectado a uma decisão real de crédito — veja [`reports/modeling/model_card.pt-BR.md`](reports/modeling/model_card.pt-BR.md) para a divulgação completa e obrigatória.
 
 **Metodologia completa, números reais e o resultado de cada gate:** [`reports/modeling/technical_report.pt-BR.md`](reports/modeling/technical_report.pt-BR.md).
+
+## Model Monitoring Lab — Validação Independente e Simulação de Monitoramento
+
+**Simulação de monitoramento sobre um benchmark público histórico — nunca um sistema de monitoramento de produção real.**
+
+A Fase 9 valida independentemente o modelo da Fase 8 (`credlens.model_validation` — um pacote separado que recomputa evidência a partir de artefatos congelados, nunca copia o relatório da Fase 8) e simula monitoramento sobre ele (`credlens.monitoring` — 12 batches simulados construídos particionando o conjunto de teste bloqueado, nunca dados reais de produção com data real).
+
+**Experimente:**
+
+```bash
+uv run credlens model validate-independent --model-id MODEL_behavioral_default_v1
+uv run credlens model register-challenger --experiment-id EXP_behavioral_default_v1
+uv run credlens model compare-candidates --experiment-id EXP_behavioral_default_v1
+uv run credlens monitor create-reference --model-id MODEL_behavioral_default_v1
+uv run credlens monitor simulate-batches --reference-id REF_MODEL_behavioral_default_v1
+uv run credlens monitor run --reference-id REF_MODEL_behavioral_default_v1 \
+  --batch-set BATCHSET_REF_MODEL_behavioral_default_v1
+uv run credlens dashboard run --demo   # depois abra a página "Model Monitoring Lab"
+```
+
+**O que foi encontrado:** um controle de permutação com 100 repetições substituindo o frágil teste de embaralhamento de banda fixa da Fase 8 (p-valor empírico = 0,0099); uma auditoria de multicolinearidade sinalizando `months_delinquent_count`/`consecutive_months_delinquent` (VIF ~57/53) e dois pares total/média perfeitamente colineares como `redundant`; uma correção ao "gap máximo de TPR = 0,3323" reportado na Fase 8 (era a própria taxa de verdadeiro positivo de um grupo, escolhida como máximo apenas porque o mínimo veio de um grupo `limited` de 56 linhas — o gap corrigido, apenas entre grupos adequados, é 0,0657); o HistGradientBoosting formalmente registrado como `challenger` (nunca `candidate`/`production`) com um trade-off Pareto real contra o candidato interpretável; uma decisão independente de 14 gates — **`validation_passed_with_limitations`**.
+
+**O que não é:** uma certificação de fairness, uma avaliação de conformidade legal, ou um sistema real de monitoramento de produção — os alertas são apenas locais e estruturados, sem nenhum transporte por e-mail/Slack/webhook em todo este código, e sem remediação ou promoção automática.
+
+**Metodologia completa, números reais e o resultado de cada gate:** [`reports/model_validation/validation_report.pt-BR.md`](reports/model_validation/validation_report.pt-BR.md), [`reports/monitoring/monitoring_report.pt-BR.md`](reports/monitoring/monitoring_report.pt-BR.md).
 
 ## Perguntas que este projeto pretende ajudar a responder no futuro
 
@@ -280,17 +305,17 @@ uv run pytest
 credlens-credit-analytics/
 ├── README.md / README.pt-BR.md   # Este arquivo e sua versão em português
 ├── pyproject.toml                # Metadados do pacote, dependências, configuração de ferramentas
-├── config/                       # base.yaml (config estrutural) + synthetic/ (blueprints) + modeling/ (contratos de alvo/features/avaliação da Fase 8)
+├── config/                       # base.yaml (config estrutural) + synthetic/ (blueprints) + modeling/ (Fase 8) + model_validation/, monitoring/ (Fase 9)
 ├── contracts/                    # Arquivos YAML de contratos de dados raw/ + operational/ (Fase 3, estendidos na Fase 4A)
 ├── data/                         # raw/ + synthetic/ + synthetic_truth/ + warehouse/ (todos ignorados pelo git) + metadata/ (versionado) - ver data/README.md
 ├── warehouse/                    # Projeto dbt-core: models (raw/staging/intermediate/dimensions/facts/marts), tests, seeds, kpi_catalog.yml (Fase 5-6)
 ├── analysis/                     # questions.yml (registro versionado de perguntas de negócio) + specifications/ (Fase 6-7) - ver analysis/README.md
 ├── notebooks/                    # credit_portfolio_case_study.ipynb - um visualizador fino e narrado sobre reports/portfolio_analysis/ (Fase 6)
-├── dashboard/                    # app.py + pages/ (incl. 9_Model_Lab.py) + demo_data/ do Streamlit (Fase 7-8) - ver dashboard/README.md
+├── dashboard/                    # app.py + pages/ (incl. 9_Model_Lab.py, 10_Model_Monitoring_Lab.py) + demo_data/ do Streamlit (Fase 7-9) - ver dashboard/README.md
 ├── docs/                         # Documentação de negócio, arquitetura, aquisição de dados, contratos, gerador, warehouse e análise
-├── src/credlens/                 # Pacote da aplicação (CLI, config, logging, data/, contracts/, generation/, warehouse/, analysis/, dashboard/, modeling/, synthetic.py)
+├── src/credlens/                 # Pacote da aplicação (CLI, config, logging, data/, contracts/, generation/, warehouse/, analysis/, dashboard/, modeling/, model_validation/, monitoring/, synthetic.py)
 ├── tests/                        # Suíte de testes Pytest, incluindo tests/fixtures/contracts/ (cenários válido/inválidos)
-├── reports/                      # data_audit/, synthetic_validation/, portfolio_analysis/, modeling/ - todos reproduzíveis, nenhum editado à mão
+├── reports/                      # data_audit/, synthetic_validation/, portfolio_analysis/, modeling/, model_validation/, monitoring/ - todos reproduzíveis, nenhum editado à mão
 └── .github/                      # Workflow de CI e templates de issue/PR
 ```
 

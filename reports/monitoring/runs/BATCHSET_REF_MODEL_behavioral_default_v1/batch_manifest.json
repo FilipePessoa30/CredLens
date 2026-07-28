@@ -1,0 +1,120 @@
+{
+  "batch_set_id": "BATCHSET_REF_MODEL_behavioral_default_v1",
+  "batches": [
+    {
+      "batch_sequence": 1,
+      "simulation_scenario": "baseline_like",
+      "source_partition": 1,
+      "label_availability": "available",
+      "description": "Unperturbed slice - used to measure the false-alert rate under natural sampling variability.",
+      "n_rows": 500,
+      "path": "reports\\monitoring\\runs\\BATCHSET_REF_MODEL_behavioral_default_v1\\batches\\batch_01.csv"
+    },
+    {
+      "batch_sequence": 2,
+      "simulation_scenario": "missingness_drift",
+      "source_partition": 2,
+      "label_availability": "available",
+      "missingness_extra_fraction": 0.15,
+      "n_rows": 500,
+      "path": "reports\\monitoring\\runs\\BATCHSET_REF_MODEL_behavioral_default_v1\\batches\\batch_02.csv"
+    },
+    {
+      "batch_sequence": 3,
+      "simulation_scenario": "utilization_shift",
+      "source_partition": 3,
+      "label_availability": "available",
+      "utilization_shift_multiplier": 1.5,
+      "n_rows": 500,
+      "path": "reports\\monitoring\\runs\\BATCHSET_REF_MODEL_behavioral_default_v1\\batches\\batch_03.csv"
+    },
+    {
+      "batch_sequence": 4,
+      "simulation_scenario": "payment_reduction",
+      "source_partition": 4,
+      "label_availability": "available",
+      "payment_shrink_factor": 0.5,
+      "n_rows": 500,
+      "path": "reports\\monitoring\\runs\\BATCHSET_REF_MODEL_behavioral_default_v1\\batches\\batch_04.csv"
+    },
+    {
+      "batch_sequence": 5,
+      "simulation_scenario": "delinquency_worsening",
+      "source_partition": 5,
+      "label_availability": "available",
+      "delinquency_worsening_steps": 1,
+      "n_rows": 500,
+      "path": "reports\\monitoring\\runs\\BATCHSET_REF_MODEL_behavioral_default_v1\\batches\\batch_05.csv"
+    },
+    {
+      "batch_sequence": 6,
+      "simulation_scenario": "out_of_domain_codes",
+      "source_partition": 6,
+      "label_availability": "available",
+      "out_of_domain_delinquency_code": 15,
+      "affected_fraction": 0.1,
+      "n_rows": 500,
+      "path": "reports\\monitoring\\runs\\BATCHSET_REF_MODEL_behavioral_default_v1\\batches\\batch_06.csv"
+    },
+    {
+      "batch_sequence": 7,
+      "simulation_scenario": "feature_range_violation",
+      "source_partition": 7,
+      "label_availability": "available",
+      "impossible_bill_multiplier": 500.0,
+      "affected_fraction": 0.02,
+      "n_rows": 500,
+      "path": "reports\\monitoring\\runs\\BATCHSET_REF_MODEL_behavioral_default_v1\\batches\\batch_07.csv"
+    },
+    {
+      "batch_sequence": 8,
+      "simulation_scenario": "prevalence_drift",
+      "source_partition": 8,
+      "label_availability": "available",
+      "target_prevalence": 0.35,
+      "n_rows": 311,
+      "path": "reports\\monitoring\\runs\\BATCHSET_REF_MODEL_behavioral_default_v1\\batches\\batch_08.csv"
+    },
+    {
+      "batch_sequence": 9,
+      "simulation_scenario": "score_distribution_shift",
+      "source_partition": 9,
+      "label_availability": "available",
+      "utilization_shift_multiplier": 1.3,
+      "delinquency_worsening_steps": 1,
+      "n_rows": 500,
+      "path": "reports\\monitoring\\runs\\BATCHSET_REF_MODEL_behavioral_default_v1\\batches\\batch_09.csv"
+    },
+    {
+      "batch_sequence": 10,
+      "simulation_scenario": "subgroup_composition_shift",
+      "source_partition": 10,
+      "label_availability": "available",
+      "oversampled_age_bucket": [
+        18,
+        30
+      ],
+      "oversample_fraction": 0.8,
+      "n_rows": 500,
+      "path": "reports\\monitoring\\runs\\BATCHSET_REF_MODEL_behavioral_default_v1\\batches\\batch_10.csv"
+    },
+    {
+      "batch_sequence": 11,
+      "simulation_scenario": "label_delay",
+      "source_partition": 11,
+      "label_availability": "pending",
+      "n_rows": 500,
+      "path": "reports\\monitoring\\runs\\BATCHSET_REF_MODEL_behavioral_default_v1\\batches\\batch_11.csv"
+    },
+    {
+      "batch_sequence": 12,
+      "simulation_scenario": "corrupted_schema",
+      "source_partition": 12,
+      "label_availability": "available",
+      "drop_column": "X6",
+      "affected_fraction": 1.0,
+      "n_rows": 500,
+      "path": "reports\\monitoring\\runs\\BATCHSET_REF_MODEL_behavioral_default_v1\\batches\\batch_12.csv"
+    }
+  ]
+}

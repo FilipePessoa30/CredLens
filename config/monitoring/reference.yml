@@ -1,0 +1,29 @@
+# CredLens - Phase 9 monitoring reference configuration.
+#
+# The monitoring reference is built ONLY from data already used to fit/
+# tune the registered model (train + validation) - never from the locked
+# test set, which stays reserved for the one-time official evaluation
+# already frozen in reports/modeling/. See
+# src/credlens/monitoring/reference.py.
+
+reference_config_version: "1.0.0"
+
+# Which split(s) the reference distribution is built from.
+reference_source_split: "train_and_validation"
+
+feature_distribution:
+  quantiles: [0.01, 0.05, 0.25, 0.5, 0.75, 0.95, 0.99]
+  histogram_bins: 20
+
+score_distribution:
+  quantiles: [0.01, 0.05, 0.1, 0.25, 0.5, 0.75, 0.9, 0.95, 0.99]
+  histogram_bins: 20
+
+# Bootstrap used to derive descriptive "how much does this reference
+# naturally wobble" bands - the same stratified-resample method Phase 8's
+# credlens.modeling.uncertainty uses, applied here to reference statistics
+# instead of test metrics.
+bootstrap:
+  n_resamples: 300
+  seed: 20260728
+  percentiles: [2.5, 97.5]

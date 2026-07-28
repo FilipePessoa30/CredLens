@@ -1,0 +1,42 @@
+{
+  "psi": {
+    "metric": "psi",
+    "review_cutoff": 0.074895,
+    "material_deviation_cutoff": 0.08109,
+    "n_resamples": 100,
+    "batch_size": 500,
+    "min_sample_size_for_alert": 30
+  },
+  "score_mean_shift": {
+    "metric": "score_mean_shift",
+    "review_cutoff": 0.014353,
+    "material_deviation_cutoff": 0.019467,
+    "n_resamples": 100,
+    "batch_size": 500,
+    "min_sample_size_for_alert": 30
+  },
+  "roc_auc_delta": {
+    "metric": "roc_auc_delta",
+    "review_cutoff": 0.053695,
+    "material_deviation_cutoff": 0.073662,
+    "n_resamples": 100,
+    "batch_size": 500,
+    "min_sample_size_for_alert": 30
+  },
+  "pr_auc_delta": {
+    "metric": "pr_auc_delta",
+    "review_cutoff": 0.099228,
+    "material_deviation_cutoff": 0.121335,
+    "n_resamples": 100,
+    "batch_size": 500,
+    "min_sample_size_for_alert": 30
+  },
+  "brier_delta": {
+    "metric": "brier_delta",
+    "review_cutoff": 0.019357,
+    "material_deviation_cutoff": 0.028942,
+    "n_resamples": 100,
+    "batch_size": 500,
+    "min_sample_size_for_alert": 30
+  }
+}

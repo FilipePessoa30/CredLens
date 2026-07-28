@@ -1,0 +1,38 @@
+{
+  "subject_id": "MODEL_behavioral_default_v1",
+  "current_state": "validation_passed_with_limitations",
+  "transitions": [
+    {
+      "from_state": "experiment",
+      "to_state": "validation_passed_with_limitations",
+      "evidence_ref": "reports/model_validation/evidence/EXP_behavioral_default_v1.json",
+      "gate_summary": "All blocking gates passed; non-blocking gate(s) raised limitations: coefficient_stability.",
+      "triggered_by": "manual_validation_run",
+      "timestamp_utc": "2026-07-28T17:30:35.074933+00:00"
+    },
+    {
+      "from_state": "validation_passed_with_limitations",
+      "to_state": "validation_passed_with_limitations",
+      "evidence_ref": "reports/model_validation/evidence/EXP_behavioral_default_v1.json",
+      "gate_summary": "All blocking gates passed; non-blocking gate(s) raised limitations: coefficient_stability.",
+      "triggered_by": "manual_validation_run",
+      "timestamp_utc": "2026-07-28T18:46:55.693538+00:00"
+    },
+    {
+      "from_state": "validation_passed_with_limitations",
+      "to_state": "validation_passed_with_limitations",
+      "evidence_ref": "reports/model_validation/evidence/EXP_behavioral_default_v1.json",
+      "gate_summary": "All blocking gates passed; non-blocking gate(s) raised limitations: coefficient_stability.",
+      "triggered_by": "manual_validation_run",
+      "timestamp_utc": "2026-07-28T18:48:08.056051+00:00"
+    },
+    {
+      "from_state": "validation_passed_with_limitations",
+      "to_state": "validation_passed_with_limitations",
+      "evidence_ref": "reports/model_validation/evidence/EXP_behavioral_default_v1.json",
+      "gate_summary": "All blocking gates passed; non-blocking gate(s) raised limitations: coefficient_stability.",
+      "triggered_by": "manual_validation_run",
+      "timestamp_utc": "2026-07-28T20:01:32.077578+00:00"
+    }
+  ]
+}

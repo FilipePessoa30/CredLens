@@ -677,6 +677,110 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     model_report_parser.add_argument("--json", action="store_true")
 
+    # --- Phase 9: independent validation + challenger subcommands ----------
+
+    model_validate_independent_parser = model_subparsers.add_parser(
+        "validate-independent",
+        help="Independent re-validation (Phase 9) - recomputes evidence from frozen artifacts, "
+        "never copies the Phase 8 report.",
+    )
+    model_validate_independent_parser.add_argument("--model-id", required=True)
+    model_validate_independent_parser.add_argument(
+        "--ci",
+        action="store_true",
+        help="Use the reduced CI permutation count instead of the full 100.",
+    )
+    model_validate_independent_parser.add_argument("--json", action="store_true")
+
+    model_audit_collinearity_parser = model_subparsers.add_parser(
+        "audit-collinearity",
+        help="Multicollinearity/coefficient-stability audit (Phase 9 section 7).",
+    )
+    model_audit_collinearity_parser.add_argument("--model-id", required=True)
+    model_audit_collinearity_parser.add_argument("--json", action="store_true")
+
+    model_audit_negative_controls_parser = model_subparsers.add_parser(
+        "audit-negative-controls",
+        help="Permutation-based negative control (Phase 9 section 6) - replaces the Phase 8 "
+        "fixed-band shuffled-target check.",
+    )
+    model_audit_negative_controls_parser.add_argument("--experiment-id", required=True)
+    model_audit_negative_controls_parser.add_argument(
+        "--ci",
+        action="store_true",
+        help="Use the reduced CI permutation count instead of the full 100.",
+    )
+    model_audit_negative_controls_parser.add_argument("--json", action="store_true")
+
+    model_compare_candidates_parser = model_subparsers.add_parser(
+        "compare-candidates",
+        help="Candidate/challenger Pareto trade-off comparison (Phase 9 section 8.1).",
+    )
+    model_compare_candidates_parser.add_argument("--experiment-id", default=None)
+    model_compare_candidates_parser.add_argument("--json", action="store_true")
+
+    model_register_challenger_parser = model_subparsers.add_parser(
+        "register-challenger",
+        help="Registers the HistGradientBoosting model as a 'challenger' (Phase 9 section 8) - "
+        "never 'candidate', never 'production'.",
+    )
+    model_register_challenger_parser.add_argument("--experiment-id", required=True)
+    model_register_challenger_parser.add_argument("--model-id", default=None)
+    model_register_challenger_parser.add_argument("--json", action="store_true")
+
+    # --- Phase 9: monitor command group --------------------------------------
+
+    monitor_parser = subparsers.add_parser(
+        "monitor",
+        help="Monitoring simulation on a historical public benchmark (Phase 9) - never a real "
+        "production monitoring system.",
+    )
+    monitor_subparsers = monitor_parser.add_subparsers(dest="monitor_command")
+
+    monitor_create_reference_parser = monitor_subparsers.add_parser(
+        "create-reference", help="Builds the monitoring reference from train+validation only."
+    )
+    monitor_create_reference_parser.add_argument("--model-id", required=True)
+    monitor_create_reference_parser.add_argument("--json", action="store_true")
+
+    monitor_simulate_batches_parser = monitor_subparsers.add_parser(
+        "simulate-batches", help="Builds the 12 simulated batches from the locked test set."
+    )
+    monitor_simulate_batches_parser.add_argument("--reference-id", required=True)
+    monitor_simulate_batches_parser.add_argument("--json", action="store_true")
+
+    monitor_run_parser = monitor_subparsers.add_parser(
+        "run",
+        help="Scores every batch and computes data quality/drift/performance/subgroup/alerts.",
+    )
+    monitor_run_parser.add_argument("--reference-id", required=True)
+    monitor_run_parser.add_argument("--batch-set", required=True)
+    monitor_run_parser.add_argument("--json", action="store_true")
+
+    monitor_status_parser = monitor_subparsers.add_parser(
+        "status", help="Summarizes a monitoring run."
+    )
+    monitor_status_parser.add_argument("--run-id", required=True)
+    monitor_status_parser.add_argument("--json", action="store_true")
+
+    monitor_alerts_parser = monitor_subparsers.add_parser(
+        "alerts", help="Lists alerts for a monitoring run."
+    )
+    monitor_alerts_parser.add_argument("--run-id", required=True)
+    monitor_alerts_parser.add_argument("--json", action="store_true")
+
+    monitor_report_parser = monitor_subparsers.add_parser(
+        "report", help="Writes the bilingual monitoring report + manifest."
+    )
+    monitor_report_parser.add_argument("--run-id", required=True)
+    monitor_report_parser.add_argument("--json", action="store_true")
+
+    monitor_validate_parser = monitor_subparsers.add_parser(
+        "validate", help="Structural integrity check of a monitoring run's artifacts."
+    )
+    monitor_validate_parser.add_argument("--run-id", required=True)
+    monitor_validate_parser.add_argument("--json", action="store_true")
+
     return parser
 
 
@@ -2210,6 +2314,8 @@ def main(argv: list[str] | None = None) -> int:
         return _dispatch_dashboard_command(args)
     if args.command == "model":
         return _dispatch_model_command(args)
+    if args.command == "monitor":
+        return _dispatch_monitor_command(args)
 
     parser.print_help()
     return 0
@@ -2458,8 +2564,12 @@ def _dispatch_dashboard_command(args: argparse.Namespace) -> int:
 
 
 def _model_error_types() -> tuple[type[Exception], ...]:
+    from credlens.model_validation.evidence import EvidenceError
+    from credlens.model_validation.negative_controls import PermutationTestError
+    from credlens.model_validation.reporting import ModelValidationError
     from credlens.modeling.contracts import ContractError
     from credlens.modeling.data import DataAcquisitionError
+    from credlens.modeling.input_contract import InputContractError
     from credlens.modeling.leakage import LeakageError
     from credlens.modeling.registry import RegistryError
     from credlens.modeling.reporting import ReportingError
@@ -2468,10 +2578,32 @@ def _model_error_types() -> tuple[type[Exception], ...]:
     return (
         ContractError,
         DataAcquisitionError,
+        InputContractError,
         LeakageError,
         RegistryError,
         ReportingError,
         SplitError,
+        EvidenceError,
+        PermutationTestError,
+        ModelValidationError,
+    )
+
+
+def _monitor_error_types() -> tuple[type[Exception], ...]:
+    from credlens.modeling.input_contract import InputContractError
+    from credlens.monitoring.batches import BatchBuildError
+    from credlens.monitoring.contracts import MonitoringConfigError
+    from credlens.monitoring.reference import ReferenceError
+    from credlens.monitoring.reporting import MonitoringReportingError
+    from credlens.monitoring.runner import MonitoringRunError
+
+    return (
+        InputContractError,
+        BatchBuildError,
+        MonitoringConfigError,
+        ReferenceError,
+        MonitoringReportingError,
+        MonitoringRunError,
     )
 
 
@@ -2770,6 +2902,156 @@ def _cmd_model_report(
     return 0
 
 
+# --- Phase 9: independent validation + challenger CLI handlers --------------
+
+
+def _cmd_model_validate_independent(model_id: str, ci: bool, as_json: bool) -> int:
+    try:
+        from credlens.model_validation.reporting import (
+            generate_validation_figures,
+            validate_independent,
+            write_validation_reports,
+        )
+
+        result = validate_independent(model_id, full_permutations=not ci)
+        write_validation_reports(result.experiment_id)
+        try:
+            generate_validation_figures(result.experiment_id)
+        except Exception as exc:  # matplotlib optional - report text still stands
+            print(f"Warning: figures not generated ({exc}).")
+    except _model_error_types() as exc:
+        print(f"Error: {exc}")
+        return 1
+
+    if as_json:
+        print(json.dumps(result.to_dict(), indent=2))
+    else:
+        print(f"CredLens model validate-independent: {model_id}")
+        print("=" * 40)
+        for gate in result.decision.gates:
+            print(f"[{gate.status.upper()}] ({gate.severity}) {gate.name}: {gate.result}")
+        print(f"Decision: {result.decision.decision}")
+        print(f"Reason: {result.decision.reason}")
+    return 0 if result.decision.decision != "validation_failed" else 1
+
+
+def _cmd_model_audit_collinearity(model_id: str, as_json: bool) -> int:
+    try:
+        from credlens.model_validation.collinearity import run_collinearity_audit
+        from credlens.model_validation.evidence import load_validation_config
+        from credlens.model_validation.reporting import resolve_experiment_id_from_model
+        from credlens.modeling.contracts import (
+            load_evaluation_config,
+            load_feature_registry,
+            load_target_contract,
+        )
+        from credlens.modeling.data import load_uci_default_credit
+        from credlens.modeling.features import engineer_features
+        from credlens.modeling.splitting import (
+            apply_split_assignment_table,
+            load_split_assignment_table,
+        )
+
+        experiment_id = resolve_experiment_id_from_model(model_id, Path.cwd())
+        contract = load_target_contract()
+        df = load_uci_default_credit()
+        split_table = load_split_assignment_table(
+            Path("reports/modeling/experiments") / experiment_id / "split_assignment.csv"
+        )
+        assignment = apply_split_assignment_table(
+            df, split_table, id_column=contract.identifier_column
+        )
+        x_train = engineer_features(df).loc[assignment.train_index]
+        validation_config = load_validation_config()
+        collinearity = run_collinearity_audit(x_train, validation_config.collinearity)
+        _ = load_evaluation_config, load_feature_registry
+    except _model_error_types() as exc:
+        print(f"Error: {exc}")
+        return 1
+
+    result = collinearity.to_dict()
+    if as_json:
+        print(json.dumps(result, indent=2))
+    else:
+        print(f"CredLens model audit-collinearity: {model_id}")
+        print("=" * 40)
+        print(f"condition_number: {result['condition_number']}")
+        print(f"features_above_action_threshold: {result['features_above_action_threshold']}")
+        for pair in result["high_correlation_pairs"][:5]:
+            print(f"  {pair['feature_a']} <-> {pair['feature_b']}: {pair['correlation']}")
+    return 0
+
+
+def _cmd_model_audit_negative_controls(experiment_id: str, ci: bool, as_json: bool) -> int:
+    try:
+        from credlens.model_validation.evidence import load_validation_config
+        from credlens.model_validation.negative_controls import run_permutation_negative_control
+
+        cfg = load_validation_config().permutation_test
+        n = int(cfg["n_permutations_ci"]) if ci else int(cfg["n_permutations_full"])
+        report = run_permutation_negative_control(
+            experiment_id,
+            n_permutations=n,
+            base_seed=int(cfg["base_seed"]),
+            alpha=float(cfg["alpha"]),
+            max_permutation_mean_deviation=float(
+                cfg["max_permutation_mean_deviation_from_random_roc_auc"]
+            ),
+        )
+    except _model_error_types() as exc:
+        print(f"Error: {exc}")
+        return 1
+
+    if as_json:
+        print(json.dumps(report.to_dict(), indent=2))
+    else:
+        print(f"CredLens model audit-negative-controls: {experiment_id}")
+        print("=" * 40)
+        print(f"n_permutations: {report.n_permutations}")
+        print(f"empirical_p_value: {report.empirical_p_value}")
+        print(f"real_model_validation_roc_auc: {report.real_model_validation_roc_auc}")
+        print(f"permutation roc_auc mean/std: {report.roc_auc_mean}/{report.roc_auc_std}")
+        print(f"Result: {'PASS' if report.passed else 'FAIL'} - {report.reason}")
+    return 0 if report.passed else 1
+
+
+def _cmd_model_compare_candidates(experiment_id: str | None, as_json: bool) -> int:
+    try:
+        from credlens.model_validation.reporting import compare_candidates
+
+        table = compare_candidates(experiment_id)
+    except _model_error_types() as exc:
+        print(f"Error: {exc}")
+        return 1
+
+    if as_json:
+        print(json.dumps(table.to_dict(orient="records"), indent=2))
+    else:
+        print("CredLens model compare-candidates")
+        print("=" * 40)
+        print(table.to_string(index=False))
+    return 0
+
+
+def _cmd_model_register_challenger(experiment_id: str, model_id: str | None, as_json: bool) -> int:
+    try:
+        from credlens.model_validation.reporting import register_challenger_experiment
+
+        manifest = register_challenger_experiment(experiment_id, model_id)
+    except _model_error_types() as exc:
+        print(f"Error: {exc}")
+        return 1
+
+    if as_json:
+        print(json.dumps(manifest.to_dict(), indent=2))
+    else:
+        print(f"CredLens model register-challenger: {experiment_id} -> {manifest.model_id}")
+        print("=" * 40)
+        print(f"status: {manifest.status}")
+        print(f"artifact_sha256: {manifest.artifact_sha256}")
+    return 0
+
+
 def _dispatch_model_command(args: argparse.Namespace) -> int:
     if args.model_command == "data-audit":
         return _cmd_model_data_audit(args.json)
@@ -2797,12 +3079,191 @@ def _dispatch_model_command(args: argparse.Namespace) -> int:
         return _cmd_model_predict_batch(args.model_id, args.input, args.output, args.json)
     if args.model_command == "report":
         return _cmd_model_report(args.experiment_id, args.model_id, args.no_figures, args.json)
+    if args.model_command == "validate-independent":
+        return _cmd_model_validate_independent(args.model_id, args.ci, args.json)
+    if args.model_command == "audit-collinearity":
+        return _cmd_model_audit_collinearity(args.model_id, args.json)
+    if args.model_command == "audit-negative-controls":
+        return _cmd_model_audit_negative_controls(args.experiment_id, args.ci, args.json)
+    if args.model_command == "compare-candidates":
+        return _cmd_model_compare_candidates(args.experiment_id, args.json)
+    if args.model_command == "register-challenger":
+        return _cmd_model_register_challenger(args.experiment_id, args.model_id, args.json)
 
     print(
         "usage: credlens model {data-audit,validate-features,create-split,train,evaluate,"
-        "compare,explain,audit-groups,stress-test,register,validate,predict-batch,report} ..."
+        "compare,explain,audit-groups,stress-test,register,validate,predict-batch,report,"
+        "validate-independent,audit-collinearity,audit-negative-controls,compare-candidates,"
+        "register-challenger} ..."
     )
     print("Run 'credlens model <command> --help' for details.")
+    return 1
+
+
+def _cmd_monitor_create_reference(model_id: str, as_json: bool) -> int:
+    try:
+        from credlens.monitoring.reporting import create_reference
+
+        reference_id = create_reference(model_id)
+    except _monitor_error_types() as exc:
+        print(f"Error: {exc}")
+        return 1
+
+    result = {"reference_id": reference_id}
+    if as_json:
+        print(json.dumps(result, indent=2))
+    else:
+        print(f"CredLens monitor create-reference: {model_id}")
+        print("=" * 40)
+        print(f"reference_id: {reference_id}")
+    return 0
+
+
+def _cmd_monitor_simulate_batches(reference_id: str, as_json: bool) -> int:
+    try:
+        from credlens.monitoring.reporting import simulate_batches
+
+        batch_set_id = simulate_batches(reference_id)
+    except _monitor_error_types() as exc:
+        print(f"Error: {exc}")
+        return 1
+
+    result = {"batch_set_id": batch_set_id}
+    if as_json:
+        print(json.dumps(result, indent=2))
+    else:
+        print(f"CredLens monitor simulate-batches: {reference_id}")
+        print("=" * 40)
+        print(f"batch_set_id: {batch_set_id}")
+    return 0
+
+
+def _cmd_monitor_run(reference_id: str, batch_set: str, as_json: bool) -> int:
+    try:
+        from credlens.monitoring.reporting import run as run_monitoring_pipeline
+
+        run_id = run_monitoring_pipeline(reference_id, batch_set)
+    except _monitor_error_types() as exc:
+        print(f"Error: {exc}")
+        return 1
+
+    result = {"run_id": run_id}
+    if as_json:
+        print(json.dumps(result, indent=2))
+    else:
+        print(f"CredLens monitor run: {reference_id} / {batch_set}")
+        print("=" * 40)
+        print(f"run_id: {run_id}")
+    return 0
+
+
+def _cmd_monitor_status(run_id: str, as_json: bool) -> int:
+    try:
+        from credlens.monitoring.reporting import status as monitor_status
+
+        record = monitor_status(run_id)
+    except _monitor_error_types() as exc:
+        print(f"Error: {exc}")
+        return 1
+
+    if as_json:
+        print(json.dumps(record, indent=2))
+    else:
+        print(f"CredLens monitor status: {run_id}")
+        print("=" * 40)
+        print(f"n_batches: {record['n_batches']}")
+        print(f"n_alerts: {record['n_alerts']}")
+        for batch in record["batches"]:
+            print(
+                f"  batch {batch['batch_sequence']:02d} ({batch['simulation_scenario']}): "
+                f"{'BLOCKED' if batch['blocked'] else 'scored'}"
+            )
+    return 0
+
+
+def _cmd_monitor_alerts(run_id: str, as_json: bool) -> int:
+    try:
+        from credlens.monitoring.alerts import load_alerts
+
+        alerts = load_alerts(run_id)
+    except _monitor_error_types() as exc:
+        print(f"Error: {exc}")
+        return 1
+
+    if as_json:
+        print(json.dumps(alerts, indent=2))
+    else:
+        print(f"CredLens monitor alerts: {run_id}")
+        print("=" * 40)
+        if not alerts:
+            print("(no alerts)")
+        for alert in alerts:
+            print(
+                f"[{alert['severity']}] {alert['alert_id']} - "
+                f"{alert['category']}/{alert['metric']}: {alert['status']}"
+            )
+    return 0
+
+
+def _cmd_monitor_report(run_id: str, as_json: bool) -> int:
+    try:
+        from credlens.monitoring.reporting import write_monitoring_reports
+
+        written = write_monitoring_reports(run_id)
+    except _monitor_error_types() as exc:
+        print(f"Error: {exc}")
+        return 1
+
+    result = {k: str(v) for k, v in written.items()}
+    if as_json:
+        print(json.dumps(result, indent=2))
+    else:
+        print(f"CredLens monitor report: {run_id}")
+        print("=" * 40)
+        for name, path in written.items():
+            print(f"{name}: {path}")
+    return 0
+
+
+def _cmd_monitor_validate(run_id: str, as_json: bool) -> int:
+    try:
+        from credlens.monitoring.reporting import validate_run
+
+        ok = validate_run(run_id)
+    except _monitor_error_types() as exc:
+        print(f"Error: {exc}")
+        return 1
+
+    if as_json:
+        print(json.dumps({"run_id": run_id, "valid": ok}, indent=2))
+    else:
+        print(f"CredLens monitor validate: {run_id}")
+        print("=" * 40)
+        print(f"Result: {'OK' if ok else 'FAILED'}")
+    return 0 if ok else 1
+
+
+def _dispatch_monitor_command(args: argparse.Namespace) -> int:
+    if args.monitor_command == "create-reference":
+        return _cmd_monitor_create_reference(args.model_id, args.json)
+    if args.monitor_command == "simulate-batches":
+        return _cmd_monitor_simulate_batches(args.reference_id, args.json)
+    if args.monitor_command == "run":
+        return _cmd_monitor_run(args.reference_id, args.batch_set, args.json)
+    if args.monitor_command == "status":
+        return _cmd_monitor_status(args.run_id, args.json)
+    if args.monitor_command == "alerts":
+        return _cmd_monitor_alerts(args.run_id, args.json)
+    if args.monitor_command == "report":
+        return _cmd_monitor_report(args.run_id, args.json)
+    if args.monitor_command == "validate":
+        return _cmd_monitor_validate(args.run_id, args.json)
+
+    print(
+        "usage: credlens monitor {create-reference,simulate-batches,run,status,alerts,report,"
+        "validate} ..."
+    )
+    print("Run 'credlens monitor <command> --help' for details.")
     return 1
 
 

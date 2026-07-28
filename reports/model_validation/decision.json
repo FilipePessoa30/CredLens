@@ -1,0 +1,133 @@
+{
+  "experiment_id": "EXP_behavioral_default_v1",
+  "gates": [
+    {
+      "name": "dataset_integrity",
+      "status": "pass",
+      "severity": "blocking",
+      "evidence": "evidence.dataset_hash=45bcf4df62ff2e23...",
+      "threshold": "matches config/modeling/behavioral_default.yml's acquired_hash_sha256",
+      "result": "OK",
+      "justification": "evidence.dataset_hash=45bcf4df62ff2e23..."
+    },
+    {
+      "name": "split_integrity",
+      "status": "pass",
+      "severity": "blocking",
+      "evidence": "recomputed split hash matches experiment record (4022f9cc24a66c25...)",
+      "threshold": "combined split hash unchanged since training",
+      "result": "OK",
+      "justification": "recomputed split hash matches experiment record (4022f9cc24a66c25...)"
+    },
+    {
+      "name": "leakage",
+      "status": "pass",
+      "severity": "blocking",
+      "evidence": "experiment.warnings=[]",
+      "threshold": "no Phase 8 negative-control failures; no sensitive column in feature_set",
+      "result": "OK",
+      "justification": "experiment.warnings=[]"
+    },
+    {
+      "name": "negative_controls",
+      "status": "pass",
+      "severity": "blocking",
+      "evidence": "Real model validation ROC-AUC (0.7503) exceeds 100/100 permuted-target fits (empirical p=0.0099 <= alpha=0.01); the permutation-null mean ROC-AUC (0.4907) is within 0.05 of random (0.5).",
+      "threshold": "empirical p<=0.01, |null mean - 0.5|<=0.05",
+      "result": "OK",
+      "justification": "Real model validation ROC-AUC (0.7503) exceeds 100/100 permuted-target fits (empirical p=0.0099 <= alpha=0.01); the permutation-null mean ROC-AUC (0.4907) is within 0.05 of random (0.5)."
+    },
+    {
+      "name": "discrimination",
+      "status": "pass",
+      "severity": "blocking",
+      "evidence": "3 metric(s) recomputed within tolerance",
+      "threshold": "tolerance=0.0005, min_test_roc_auc=0.6",
+      "result": "OK",
+      "justification": "3 metric(s) recomputed within tolerance"
+    },
+    {
+      "name": "calibration",
+      "status": "pass",
+      "severity": "blocking",
+      "evidence": "5 calibration metric(s) recomputed within tolerance",
+      "threshold": "tolerance=0.0005",
+      "result": "OK",
+      "justification": "5 calibration metric(s) recomputed within tolerance"
+    },
+    {
+      "name": "stability",
+      "status": "pass",
+      "severity": "blocking",
+      "evidence": "roc_auc_stdev=0.0088",
+      "threshold": "max_split_stability_roc_auc_stdev=0.02",
+      "result": "OK",
+      "justification": "roc_auc_stdev=0.0088"
+    },
+    {
+      "name": "coefficient_stability",
+      "status": "warning",
+      "severity": "non_blocking",
+      "evidence": "unstable/redundant features: ['months_delinquent_count', 'consecutive_months_delinquent', 'avg_payment_amount', 'total_payment_amount', 'avg_bill_amount', 'total_bill_amount', 'bill_trend', 'bill_variability', 'worst_payment_to_bill_ratio']",
+      "threshold": "sign_flip_rate_unstable_threshold=0.05",
+      "result": "LIMITATION",
+      "justification": "unstable/redundant features: ['months_delinquent_count', 'consecutive_months_delinquent', 'avg_payment_amount', 'total_payment_amount', 'avg_bill_amount', 'total_bill_amount', 'bill_trend', 'bill_variability', 'worst_payment_to_bill_ratio']"
+    },
+    {
+      "name": "subgroup_audit",
+      "status": "pass",
+      "severity": "non_blocking",
+      "evidence": "max selection-rate absolute_gap=0.0530",
+      "threshold": "max_subgroup_selection_rate_gap=0.3",
+      "result": "OK",
+      "justification": "max selection-rate absolute_gap=0.0530"
+    },
+    {
+      "name": "robustness",
+      "status": "pass",
+      "severity": "blocking",
+      "evidence": "2 spot-checked perturbation(s) reproduced",
+      "threshold": "see robustness_stochastic_tolerance / metric_absolute_tolerance",
+      "result": "OK",
+      "justification": "2 spot-checked perturbation(s) reproduced"
+    },
+    {
+      "name": "input_contract",
+      "status": "pass",
+      "severity": "blocking",
+      "evidence": "strict-mode self-test rejected every injected violation type",
+      "threshold": "all built-in adversarial probes correctly blocked",
+      "result": "OK",
+      "justification": "strict-mode self-test rejected every injected violation type"
+    },
+    {
+      "name": "artifact_integrity",
+      "status": "pass",
+      "severity": "blocking",
+      "evidence": "validate_model_candidate hash-verified and scored a probe row",
+      "threshold": "artifact SHA-256 matches manifest; probe score in [0, 1]",
+      "result": "OK",
+      "justification": "validate_model_candidate hash-verified and scored a probe row"
+    },
+    {
+      "name": "reproducibility",
+      "status": "pass",
+      "severity": "blocking",
+      "evidence": "predictions_test.csv hash matches the frozen evidence manifest.",
+      "threshold": "frozen evidence hashes match current on-disk artifacts",
+      "result": "OK",
+      "justification": "predictions_test.csv hash matches the frozen evidence manifest."
+    },
+    {
+      "name": "documentation",
+      "status": "pass",
+      "severity": "blocking",
+      "evidence": "model_card.md/.pt-BR.md/technical_report.md present with mandatory disclosures.",
+      "threshold": "model card (EN/PT-BR) and technical report present with mandatory disclosure",
+      "result": "OK",
+      "justification": "model_card.md/.pt-BR.md/technical_report.md present with mandatory disclosures."
+    }
+  ],
+  "decision": "validation_passed_with_limitations",
+  "reason": "All blocking gates passed; non-blocking gate(s) raised limitations: coefficient_stability."
+}

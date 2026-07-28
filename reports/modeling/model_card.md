@@ -3,8 +3,8 @@
 **Status**: candidate
 
 ## Name and version
-- Experiment: `EXP_behavioral_default_v1`
-- Model: `MODEL_behavioral_default_v1`
+- Experiment: `TEST_cli_pipeline`
+- Model: `TEST_cli_model`
 - Feature registry: v1.0.0
 
 ## Purpose
@@ -43,7 +43,7 @@ SEX, EDUCATION, MARRIAGE, AGE - post-hoc audit only
 (`credlens.modeling.subgroup_audit`).
 
 ## Models and selection
-logistic_regression (main) / hist_gradient_boosting (challenger). Full comparison in `reports/modeling/tables/EXP_behavioral_default_v1__champion_challenger.csv`.
+logistic_regression (main) / hist_gradient_boosting (challenger). Full comparison in `reports/modeling/tables/TEST_cli_pipeline__champion_challenger.csv`.
 
 ## Metrics (locked test set)
 - ROC-AUC: 0.745123
@@ -59,21 +59,21 @@ Selected method: `none`. No calibration method produced a consistent improvement
 Illustrative review-capacity scenario (never profit-optimized)
 
 ## Uncertainty
-See `reports/modeling/tables/EXP_behavioral_default_v1__bootstrap.json` (stratified bootstrap) and
-`EXP_behavioral_default_v1__split_stability.csv` (multiple split seeds).
+See `reports/modeling/tables/TEST_cli_pipeline__bootstrap.json` (stratified bootstrap) and
+`TEST_cli_pipeline__split_stability.csv` (multiple split seeds).
 
 ## Subgroup audit
 See "Fairness and subgroup diagnostics - not a compliance assessment" in
-`reports/modeling/tables/EXP_behavioral_default_v1__subgroup_audit.csv`. Not a fairness
+`reports/modeling/tables/TEST_cli_pipeline__subgroup_audit.csv`. Not a fairness
 certification, not a legal compliance assessment.
 
 ## Interpretability
 Coefficients/odds ratios, permutation importance, partial dependence, and descriptive
-reason codes - see `reports/modeling/tables/EXP_behavioral_default_v1__coefficients.csv`,
-`EXP_behavioral_default_v1__permutation_importance.csv`, `EXP_behavioral_default_v1__local_explanations.json`.
+reason codes - see `reports/modeling/tables/TEST_cli_pipeline__coefficients.csv`,
+`TEST_cli_pipeline__permutation_importance.csv`, `TEST_cli_pipeline__local_explanations.json`.
 
 ## Robustness
-See `reports/modeling/tables/EXP_behavioral_default_v1__robustness.csv` - technical perturbation
+See `reports/modeling/tables/TEST_cli_pipeline__robustness.csv` - technical perturbation
 tests, not a real-crisis forecast.
 
 ## Limitations

@@ -1,0 +1,170 @@
+"""Calibrates alert thresholds FROM the reference's own bootstrap
+resampling (Phase 9 section 16) - never a copied market-generic PSI/KS
+band. For each metric family, `n_resamples` batch-sized subsamples are
+drawn from the reference population itself (which by construction has
+ZERO real drift versus the full reference) and the SAME drift/
+performance metric is computed against the full reference every time,
+building an empirical null distribution. The configured percentiles
+(`review_percentile`, `material_deviation_percentile`) of that null
+distribution become this reference's calibrated thresholds - a
+different number for every reference, on purpose.
+"""
+
+from __future__ import annotations
+
+import json
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Any
+
+import numpy as np
+import pandas as pd
+
+from credlens.model_validation.calibration import independent_brier
+from credlens.model_validation.discrimination import independent_pr_auc, independent_roc_auc
+from credlens.monitoring.drift import population_stability_index
+
+THRESHOLDS_STATE_ORDER = (
+    "within_reference_variability",
+    "review",
+    "material_deviation",
+    "blocked_input",
+)
+
+
+@dataclass(frozen=True)
+class CalibratedThreshold:
+    metric: str
+    review_cutoff: float
+    material_deviation_cutoff: float
+    n_resamples: int
+    batch_size: int
+    min_sample_size_for_alert: int
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "metric": self.metric,
+            "review_cutoff": round(self.review_cutoff, 6),
+            "material_deviation_cutoff": round(self.material_deviation_cutoff, 6),
+            "n_resamples": self.n_resamples,
+            "batch_size": self.batch_size,
+            "min_sample_size_for_alert": self.min_sample_size_for_alert,
+        }
+
+
+def classify_state(
+    observed_absolute_value: float, calibrated: CalibratedThreshold, n_sample: int
+) -> str:
+    if n_sample < calibrated.min_sample_size_for_alert:
+        return "within_reference_variability"
+    if observed_absolute_value >= calibrated.material_deviation_cutoff:
+        return "material_deviation"
+    if observed_absolute_value >= calibrated.review_cutoff:
+        return "review"
+    return "within_reference_variability"
+
+
+def calibrate_thresholds(
+    reference_population: pd.DataFrame,
+    reference_feature_stats: dict[str, Any],
+    thresholds_config: Any,
+    *,
+    batch_size: int,
+    feature_columns: list[str],
+    n_resamples: int = 100,
+    seed: int = 20260728,
+) -> dict[str, CalibratedThreshold]:
+    calib = thresholds_config.calibration
+    review_pct = float(calib["review_percentile"])
+    material_pct = float(calib["material_deviation_percentile"])
+    min_n = int(calib["min_sample_size_for_alert"])
+    rng = np.random.default_rng(seed)
+    n = len(reference_population)
+
+    psi_null: list[float] = []
+    for _ in range(n_resamples):
+        feature = feature_columns[rng.integers(0, len(feature_columns))]
+        idx = rng.choice(n, size=min(batch_size, n), replace=False)
+        subsample = reference_population[feature].to_numpy(dtype=float)[idx]
+        full = reference_population[feature].to_numpy(dtype=float)
+        bin_edges = reference_feature_stats[feature]["histogram"]["bin_edges"]
+        psi_null.append(abs(population_stability_index(full, subsample, bin_edges)))
+
+    score_shift_null: list[float] = []
+    for _ in range(n_resamples):
+        idx = rng.choice(n, size=min(batch_size, n), replace=False)
+        subsample_scores = reference_population["score"].to_numpy(dtype=float)[idx]
+        score_shift_null.append(
+            abs(float(subsample_scores.mean()) - float(reference_population["score"].mean()))
+        )
+
+    perf_null: dict[str, list[float]] = {"roc_auc_delta": [], "pr_auc_delta": [], "brier_delta": []}
+    y_full = reference_population["y_true"].to_numpy()
+    p_full = reference_population["score"].to_numpy()
+    reference_roc_auc = independent_roc_auc(pd.Series(y_full), pd.Series(p_full))
+    reference_pr_auc = independent_pr_auc(pd.Series(y_full), pd.Series(p_full))
+    reference_brier = independent_brier(pd.Series(y_full), pd.Series(p_full))
+    for _ in range(n_resamples):
+        idx = rng.choice(n, size=min(batch_size, n), replace=False)
+        y_s, p_s = y_full[idx], p_full[idx]
+        if len(set(y_s.tolist())) < 2:
+            continue
+        perf_null["roc_auc_delta"].append(
+            abs(independent_roc_auc(pd.Series(y_s), pd.Series(p_s)) - reference_roc_auc)
+        )
+        perf_null["pr_auc_delta"].append(
+            abs(independent_pr_auc(pd.Series(y_s), pd.Series(p_s)) - reference_pr_auc)
+        )
+        perf_null["brier_delta"].append(
+            abs(independent_brier(pd.Series(y_s), pd.Series(p_s)) - reference_brier)
+        )
+
+    def _cutoffs(name: str, null: list[float]) -> CalibratedThreshold:
+        arr = np.array(null) if null else np.array([0.0])
+        return CalibratedThreshold(
+            metric=name,
+            review_cutoff=float(np.percentile(arr, review_pct)),
+            material_deviation_cutoff=float(np.percentile(arr, material_pct)),
+            n_resamples=len(null),
+            batch_size=batch_size,
+            min_sample_size_for_alert=min_n,
+        )
+
+    result = {
+        "psi": _cutoffs("psi", psi_null),
+        "score_mean_shift": _cutoffs("score_mean_shift", score_shift_null),
+        "roc_auc_delta": _cutoffs("roc_auc_delta", perf_null["roc_auc_delta"]),
+        "pr_auc_delta": _cutoffs("pr_auc_delta", perf_null["pr_auc_delta"]),
+        "brier_delta": _cutoffs("brier_delta", perf_null["brier_delta"]),
+    }
+    return result
+
+
+def write_calibrated_thresholds(
+    reference_id: str, thresholds: dict[str, CalibratedThreshold], *, repo_root: Path | None = None
+) -> Path:
+    repo_root = repo_root or Path.cwd()
+    out_dir = repo_root / "reports" / "monitoring" / "reference"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    path = out_dir / f"{reference_id}__alert_thresholds.json"
+    path.write_text(
+        json.dumps({k: v.to_dict() for k, v in thresholds.items()}, indent=2), encoding="utf-8"
+    )
+    return path
+
+
+def load_calibrated_thresholds(
+    reference_id: str, *, repo_root: Path | None = None
+) -> dict[str, CalibratedThreshold]:
+    repo_root = repo_root or Path.cwd()
+    path = (
+        repo_root
+        / "reports"
+        / "monitoring"
+        / "reference"
+        / f"{reference_id}__alert_thresholds.json"
+    )
+    if not path.is_file():
+        raise FileNotFoundError(f"No calibrated thresholds found at '{path}'.")
+    raw = json.loads(path.read_text(encoding="utf-8"))
+    return {k: CalibratedThreshold(**v) for k, v in raw.items()}

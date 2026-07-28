@@ -1,0 +1,47 @@
+# CredLens - Phase 9 alert-threshold CALIBRATION RECIPE.
+#
+# These are NOT fixed institutional limits (Phase 9 section 16: "Não
+# copie limites genéricos de mercado como verdade universal"). Each
+# metric's actual numeric cutoff is derived at `monitor create-reference`
+# time from the reference's own bootstrap resampling (see
+# credlens.monitoring.thresholds.calibrate_thresholds) and written to
+# reports/monitoring/reference/<reference_id>__alert_thresholds.json -
+# this file only says WHICH percentile of that empirical null
+# distribution to use for each state boundary, and the minimum sample
+# size below which a metric is never alerted on at all.
+
+thresholds_config_version: "1.0.0"
+
+states:
+  - "within_reference_variability"
+  - "review"
+  - "material_deviation"
+  - "blocked_input"
+
+# review_percentile: the bootstrap percentile of |batch - reference|
+# beyond which a metric moves from within_reference_variability to
+# review. material_deviation_percentile: the percentile beyond which it
+# escalates further. Both computed from `n_resamples` reference-vs-
+# reference resamples (config/monitoring/reference.yml's bootstrap), so
+# the bands reflect this benchmark's OWN natural sampling noise rather
+# than a market convention.
+calibration:
+  review_percentile: 95
+  material_deviation_percentile: 99.5
+  min_sample_size_for_alert: 30
+
+metric_families:
+  data_quality:
+    metrics: ["missingness_rate", "domain_violation_rate", "duplicate_rate", "non_finite_rate"]
+  feature_drift:
+    metrics: ["psi", "ks_statistic", "wasserstein_distance", "jensen_shannon_divergence",
+              "mean_shift", "median_shift", "variance_shift", "missingness_delta"]
+  score_drift:
+    metrics: ["score_psi", "score_mean_shift", "score_quantile_shift"]
+  performance_drift:
+    metrics: ["roc_auc_delta", "pr_auc_delta", "brier_delta", "ks_delta"]
+
+# blocked_input is never derived from a percentile - it fires ONLY when
+# credlens.modeling.input_contract's strict mode rejects a batch-level
+# schema violation (missing/extra/wrong-typed column), independent of any
+# statistical threshold.

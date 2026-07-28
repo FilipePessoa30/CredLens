@@ -1,4 +1,4 @@
-# CredLens Dashboard (Phase 7-8)
+# CredLens Dashboard (Phase 7-9)
 
 A Streamlit **presentation layer** over the already-validated CredLens warehouse/analysis
 outputs. No business rule is computed here — every KPI comes from a dbt mart
@@ -7,7 +7,10 @@ sample-size label comes from `credlens.analysis.sample_policy`, every provenance
 from `credlens.analysis.data_provenance`. The dashboard's own code (`src/credlens/dashboard/`)
 only loads, filters, formats, and renders. Phase 8 adds a 9th page, **Model Lab**, which reads
 from `reports/modeling/` (`credlens.modeling`) instead - a historical public benchmark, always
-visually and structurally separate from the synthetic-portfolio pages above.
+visually and structurally separate from the synthetic-portfolio pages above. Phase 9 adds a
+10th page, **Model Monitoring Lab**, reading from `reports/monitoring/` and
+`reports/model_validation/` (`credlens.monitoring`/`credlens.model_validation`) - a clearly
+labeled monitoring SIMULATION, never a real production monitoring system.
 
 ## Quick start
 
@@ -76,6 +79,7 @@ src/credlens/dashboard/            # Installable, testable support package
 | Data Quality & Methodology | synthetic_operational | Build/analysis/fingerprint, full provenance registry, documentation links, limitations |
 | Public Benchmarks | mixed_context | UCI / South German Credit / BCB SGS — real public data, visually separate, empty state if unavailable |
 | Model Lab | public_benchmark | Behavioral early-warning model (UCI, Taiwan, 2005) — champion/challenger comparison, ROC/PR/calibration, lift/gains/decile event rate, an illustrative capacity simulator, coefficients/permutation importance/partial dependence, pseudonymized local explanations, subgroup diagnostics, robustness/seed-stability, and the model card — never connected to the synthetic portfolio above |
+| Model Monitoring Lab | public_benchmark | Monitoring SIMULATION over the same UCI model — data quality, feature-drift heatmap, PSI/KS/Wasserstein per feature, score/risk-band shift, performance/calibration over batch sequence, subgroup composition/gaps, an alert timeline, the independent validation decision/gates, and the candidate/challenger trade-off — never a real production monitoring system |
 
 Model Lab (Phase 8) reads exclusively from `reports/modeling/` (an experiment record + tables `credlens model evaluate/explain/audit-groups/stress-test` already wrote) - it never retrains, never recomputes a metric, and never accepts an uploaded file. If no experiment has been run yet (`credlens model train --experiment-id <ID>` ...), it shows an empty state, not an error. See the [Model Lab section of the main README](../README.md#model-lab--behavioral-early-warning-model) for how to generate one.
 

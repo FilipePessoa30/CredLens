@@ -72,3 +72,10 @@ benchmark, never on the synthetic portfolio this package analyzes -
 `credlens.modeling` does not import from or write into `credlens.analysis`
 or this directory, and this directory's own "no trained model" scope
 statement above still describes the SYNTHETIC portfolio accurately.
+
+Phase 9 (`credlens.model_validation`, `credlens.monitoring`,
+`reports/model_validation/`, `reports/monitoring/`) independently
+re-validates that same UCI model and simulates monitoring over it -
+still never touching this directory or the synthetic portfolio. Both
+new packages reuse `credlens.analysis.sample_policy` for subgroup/
+monitoring sample-size classification, the only import from this layer.

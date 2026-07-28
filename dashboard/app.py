@@ -56,6 +56,9 @@ pages = [
     ),
     st.Page(str(_PAGES_DIR / "8_Public_Benchmarks.py"), title="Public Benchmarks", icon="🌐"),
     st.Page(str(_PAGES_DIR / "9_Model_Lab.py"), title="Model Lab", icon="🔬"),
+    st.Page(
+        str(_PAGES_DIR / "10_Model_Monitoring_Lab.py"), title="Model Monitoring Lab", icon="📡"
+    ),
 ]
 
 navigation = st.navigation(pages)

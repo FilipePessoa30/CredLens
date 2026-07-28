@@ -21,6 +21,7 @@ PAGE_PROVENANCE: dict[str, ProvenanceCategory] = {
     "data_quality_methodology": "synthetic_operational",
     "public_benchmarks": "mixed_context",
     "model_lab": "public_benchmark",
+    "model_monitoring_lab": "public_benchmark",
 }
 
 

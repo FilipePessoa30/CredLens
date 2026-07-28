@@ -11,7 +11,9 @@ load_uci_default_credit` directly and are marked `@pytest.mark.slow`.
 
 from __future__ import annotations
 
+import shutil
 from collections.abc import Callable
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -75,3 +77,62 @@ def tiny_uci_frame() -> pd.DataFrame:
 @pytest.fixture
 def tiny_uci_frame_factory() -> Callable[..., pd.DataFrame]:
     return _make_tiny_uci_frame
+
+
+_P9_EXPERIMENT_ID = "TEST_p9_base"
+_P9_MODEL_ID = "TEST_p9_base_model"
+
+
+@pytest.fixture(scope="module")
+def phase9_isolated_repo_root(tmp_path_factory: pytest.TempPathFactory) -> Path:
+    """A real, isolated copy of the Phase 8/9 config + acquired UCI CSV,
+    with the FULL modeling pipeline (train -> evaluate -> explain ->
+    audit-groups -> stress-test -> register) already run once per test
+    session, producing a real registered `candidate` model that
+    `credlens.model_validation`/`credlens.monitoring` slow tests can
+    validate/monitor without ever touching the real official experiment
+    on disk (mirrors `tests/test_modeling_reporting.py`'s isolated-repo
+    pattern, shared here so it is built only once for the whole session)."""
+    real_root = Path.cwd()
+    root = tmp_path_factory.mktemp("phase9_isolated_repo")
+
+    for config_subdir in ("modeling", "model_validation", "monitoring"):
+        src = real_root / "config" / config_subdir
+        dst = root / "config" / config_subdir
+        dst.mkdir(parents=True)
+        for file in src.glob("*.yml"):
+            shutil.copy(file, dst / file.name)
+
+    metadata_dir = root / "data" / "metadata"
+    metadata_dir.mkdir(parents=True)
+    shutil.copy(
+        real_root / "data" / "metadata" / "file_manifest.csv", metadata_dir / "file_manifest.csv"
+    )
+    raw_dir = root / "data" / "raw" / "uci_default_credit"
+    raw_dir.mkdir(parents=True)
+    shutil.copy(
+        real_root / "data" / "raw" / "uci_default_credit" / "default_of_credit_card_clients.csv",
+        raw_dir / "default_of_credit_card_clients.csv",
+    )
+
+    from credlens.modeling import reporting as modeling_reporting
+
+    modeling_reporting.train_experiment(_P9_EXPERIMENT_ID, repo_root=root, seed=42)
+    modeling_reporting.evaluate_experiment(_P9_EXPERIMENT_ID, repo_root=root)
+    modeling_reporting.compare_models(_P9_EXPERIMENT_ID, repo_root=root)
+    modeling_reporting.explain_experiment(_P9_EXPERIMENT_ID, repo_root=root)
+    modeling_reporting.audit_groups_experiment(_P9_EXPERIMENT_ID, repo_root=root)
+    modeling_reporting.stress_test_experiment(_P9_EXPERIMENT_ID, repo_root=root)
+    modeling_reporting.register_experiment_model(_P9_EXPERIMENT_ID, _P9_MODEL_ID, repo_root=root)
+    modeling_reporting.write_reports(_P9_EXPERIMENT_ID, _P9_MODEL_ID, repo_root=root)
+    return root
+
+
+@pytest.fixture(scope="session")
+def phase9_experiment_id() -> str:
+    return _P9_EXPERIMENT_ID
+
+
+@pytest.fixture(scope="session")
+def phase9_model_id() -> str:
+    return _P9_MODEL_ID

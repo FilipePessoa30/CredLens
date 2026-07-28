@@ -117,6 +117,14 @@ logs/
 # artifact, not a scratch directory.
 reports/modeling/experiments/*/models/
 
+# --- Model validation (Phase 9: independent validation) ---
+# The frozen evidence manifest carries a `frozen_at_utc` timestamp and is
+# purely an internal integrity-check artifact (hashes already duplicated,
+# in stable form, across decision.json/validation_report.md and the
+# gitignored CSV tables) - never versioned, always regenerable via
+# `credlens model validate-independent`.
+reports/model_validation/evidence/
+
 # --- Warehouse (Phase 5: DuckDB + dbt) ---
 # warehouse/ itself (SQL/YAML/macros/seeds/analyses/tests) IS versioned -
 # only dbt's own generated/compiled artifacts and the rendered profile

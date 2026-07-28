@@ -3,8 +3,8 @@
 **Status**: candidate
 
 ## Nome e versão
-- Experimento: `EXP_behavioral_default_v1`
-- Modelo: `MODEL_behavioral_default_v1`
+- Experimento: `TEST_cli_pipeline`
+- Modelo: `TEST_cli_model`
 - Registro de features: v1.0.0
 
 ## Finalidade
@@ -42,7 +42,7 @@ SEXO, EDUCAÇÃO, ESTADO CIVIL, IDADE - apenas auditoria pós-hoc
 (`credlens.modeling.subgroup_audit`).
 
 ## Modelos e seleção
-logistic_regression (main) / hist_gradient_boosting (challenger). Comparação completa em `reports/modeling/tables/EXP_behavioral_default_v1__champion_challenger.csv`.
+logistic_regression (main) / hist_gradient_boosting (challenger). Comparação completa em `reports/modeling/tables/TEST_cli_pipeline__champion_challenger.csv`.
 
 ## Métricas (teste, bloqueado)
 - ROC-AUC: 0.745123
@@ -58,21 +58,21 @@ Método selecionado: `none`. No calibration method produced a consistent improve
 Illustrative review-capacity scenario (never profit-optimized)
 
 ## Incerteza
-Ver `reports/modeling/tables/EXP_behavioral_default_v1__bootstrap.json` (bootstrap estratificado) e
-`EXP_behavioral_default_v1__split_stability.csv` (múltiplas seeds de split).
+Ver `reports/modeling/tables/TEST_cli_pipeline__bootstrap.json` (bootstrap estratificado) e
+`TEST_cli_pipeline__split_stability.csv` (múltiplas seeds de split).
 
 ## Auditoria de subgrupo
 Ver seção "Fairness and subgroup diagnostics - not a compliance assessment" em
-`reports/modeling/tables/EXP_behavioral_default_v1__subgroup_audit.csv`. Não é certificação de
+`reports/modeling/tables/TEST_cli_pipeline__subgroup_audit.csv`. Não é certificação de
 fairness nem avaliação de conformidade legal.
 
 ## Interpretabilidade
 Coeficientes/odds ratios, permutation importance, partial dependence e reason codes
-descritivos - ver `reports/modeling/tables/EXP_behavioral_default_v1__coefficients.csv`,
-`EXP_behavioral_default_v1__permutation_importance.csv`, `EXP_behavioral_default_v1__local_explanations.json`.
+descritivos - ver `reports/modeling/tables/TEST_cli_pipeline__coefficients.csv`,
+`TEST_cli_pipeline__permutation_importance.csv`, `TEST_cli_pipeline__local_explanations.json`.
 
 ## Robustez
-Ver `reports/modeling/tables/EXP_behavioral_default_v1__robustness.csv` - testes técnicos de
+Ver `reports/modeling/tables/TEST_cli_pipeline__robustness.csv` - testes técnicos de
 perturbação, não previsão de crise real.
 
 ## Limitações

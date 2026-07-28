@@ -32,12 +32,12 @@ Estimador principal: logistic_regression (main) / hist_gradient_boosting (challe
 Calibração: none.
 
 ## 11. Avaliação (teste bloqueado) / 12. Operating points / 13. Incerteza
-Ver tabelas `reports/modeling/tables/EXP_behavioral_default_v1__*.csv` e
-`EXP_behavioral_default_v1__bootstrap.json`.
+Ver tabelas `reports/modeling/tables/TEST_cli_pipeline__*.csv` e
+`TEST_cli_pipeline__bootstrap.json`.
 
 ## 14. Interpretabilidade / 15. Diagnóstico de subgrupo / 16. Robustez
-Ver `EXP_behavioral_default_v1__coefficients.csv`, `EXP_behavioral_default_v1__subgroup_audit.csv`,
-`EXP_behavioral_default_v1__robustness.csv`.
+Ver `TEST_cli_pipeline__coefficients.csv`, `TEST_cli_pipeline__subgroup_audit.csv`,
+`TEST_cli_pipeline__robustness.csv`.
 
 ## 17. Comparação champion/challenger
 | Modelo | ROC-AUC | PR-AUC | Brier | KS |
@@ -65,5 +65,5 @@ Ver `EXP_behavioral_default_v1__coefficients.csv`, `EXP_behavioral_default_v1__s
 Este modelo foi treinado em um benchmark público histórico e não está conectado ao portfólio sintético do CredLens. Não é adequado para decisões reais de concessão de crédito.
 
 ## 20. Reprodução
-`uv run credlens model train --experiment-id EXP_behavioral_default_v1 --seed 42`, seguido de
+`uv run credlens model train --experiment-id TEST_cli_pipeline --seed 42`, seguido de
 `evaluate`, `compare`, `explain`, `audit-groups`, `stress-test`, `register`, `report`.

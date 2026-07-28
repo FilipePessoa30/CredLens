@@ -1,0 +1,105 @@
+# CredLens - Phase 9 independent validation configuration.
+#
+# Every numeric knob the independent validation layer (src/credlens/
+# model_validation/) needs lives here, versioned separately from Phase 8's
+# config/modeling/evaluation.yml - this is deliberate: the validation
+# layer must be able to change its own tolerances/thresholds without
+# touching the training-time config it is auditing.
+
+validation_config_version: "1.0.0"
+
+# credlens.model_validation.recomputation - independent re-derivation of
+# discrimination/calibration/threshold metrics from FROZEN predictions.
+# Tolerances are tight (these are the SAME predictions, recomputed with an
+# independent implementation - divergence should be floating-point noise,
+# not a real disagreement).
+recomputation:
+  metric_absolute_tolerance: 0.0005
+  stability_absolute_tolerance: 0.0005
+  # Operating-point thresholds depend on which exact score value is
+  # picked at a quantile/recall boundary - an independent implementation
+  # using a different tie-breaking/interpolation convention (order-
+  # statistic indexing here vs. numpy.quantile's linear interpolation in
+  # credlens.modeling.thresholds) legitimately lands on a slightly
+  # different threshold, shifting recall/precision by a small amount.
+  # This is expected quantization noise, not a computation bug - see
+  # Phase 9 section 11's own note about ties/quantiles - so it gets a
+  # looser, separately documented tolerance than exact metric recomputation.
+  operating_point_tolerance: 0.003
+  # The out_of_domain_delinquency_code robustness perturbation draws its
+  # own random corruption mask - an independent re-derivation with a
+  # freshly seeded RNG will not match Phase 8's exact random rows (whose
+  # RNG state had already advanced through several earlier perturbations
+  # in the same run), so it needs a looser, magnitude-only tolerance.
+  # delinquency_worsening is fully deterministic (no randomness) and uses
+  # the tight metric_absolute_tolerance above instead.
+  robustness_stochastic_tolerance: 0.08
+
+# credlens.model_validation.negative_controls - replaces Phase 8's single
+# fixed-band shuffled-target check with a reproducible permutation test.
+permutation_test:
+  n_permutations_full: 100
+  n_permutations_ci: 10
+  base_seed: 20260728
+  # A permutation "passes" if the REAL model's test-set ROC-AUC exceeds
+  # essentially all permuted-target fits (empirical p-value below alpha)
+  # AND the permutation distribution itself is centered near 0.5 with no
+  # systematic bias in either direction (a symmetric check - Phase 9
+  # section 6: "avalie desvio bilateral ... equivalente que também
+  # detecte relação fortemente invertida").
+  alpha: 0.01
+  max_permutation_mean_deviation_from_random_roc_auc: 0.05
+
+# credlens.model_validation.collinearity / coefficient_audit
+collinearity:
+  vif_flag_threshold: 5.0
+  vif_action_threshold: 10.0
+  high_correlation_threshold: 0.70
+  condition_number_flag_threshold: 15.0
+  condition_number_action_threshold: 30.0
+  coefficient_bootstrap_n_resamples: 200
+  coefficient_bootstrap_seed: 20260728
+  cv_folds_for_stability: 5
+  regularization_sensitivity_grid: [0.01, 0.1, 1.0, 10.0]
+  sign_flip_rate_unstable_threshold: 0.05
+  low_magnitude_odds_ratio_band: [0.95, 1.05]
+
+# credlens.model_validation.subgroup_validation
+subgroup_bootstrap:
+  n_resamples: 500
+  seed: 20260728
+  percentiles: [2.5, 50, 97.5]
+
+# credlens.model_validation.decision - validation gates (Phase 9 section
+# 19). Every gate is independently evaluated here, never copied from the
+# Phase 8 registration gate report.
+gates:
+  max_recomputation_metric_divergence: 0.0005
+  min_test_roc_auc: 0.60
+  min_pr_auc_uplift_over_dummy: 0.03
+  permutation_alpha: 0.01
+  max_calibration_brier_divergence: 0.0005
+  max_split_stability_roc_auc_stdev: 0.02
+  vif_action_threshold: 10.0
+  max_subgroup_selection_rate_gap: 0.30
+  max_robustness_pr_auc_degradation_without_flag: 0.20
+  require_artifact_hash_match: true
+  require_reproducibility_match: true
+  require_documentation_complete: true
+
+# credlens.model_validation.challenger_review - candidate/challenger
+# Pareto comparison axes (Phase 9 section 8.1). Purely descriptive - no
+# axis here decides eligibility on its own.
+pareto_axes:
+  - pr_auc
+  - roc_auc
+  - brier_score
+  - log_loss
+  - ks_statistic
+  - calibration_slope
+  - split_stability_roc_auc_stdev
+  - max_robustness_pr_auc_degradation
+  - max_subgroup_selection_rate_gap
+  - artifact_size_bytes
+  - scoring_latency_ms
+  - explainability_tier

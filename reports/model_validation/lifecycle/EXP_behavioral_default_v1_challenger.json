@@ -1,0 +1,30 @@
+{
+  "subject_id": "EXP_behavioral_default_v1_challenger",
+  "current_state": "challenger",
+  "transitions": [
+    {
+      "from_state": "experiment",
+      "to_state": "challenger",
+      "evidence_ref": "reports/modeling/models/EXP_behavioral_default_v1_challenger.manifest.json",
+      "gate_summary": "Registered as challenger per Phase 9 section 8 - never candidate/production.",
+      "triggered_by": "manual_validation_run",
+      "timestamp_utc": "2026-07-28T17:30:54.634672+00:00"
+    },
+    {
+      "from_state": "challenger",
+      "to_state": "challenger",
+      "evidence_ref": "reports/modeling/models/EXP_behavioral_default_v1_challenger.manifest.json",
+      "gate_summary": "Registered as challenger per Phase 9 section 8 - never candidate/production.",
+      "triggered_by": "manual_validation_run",
+      "timestamp_utc": "2026-07-28T18:47:10.353268+00:00"
+    },
+    {
+      "from_state": "challenger",
+      "to_state": "challenger",
+      "evidence_ref": "reports/modeling/models/EXP_behavioral_default_v1_challenger.manifest.json",
+      "gate_summary": "Registered as challenger per Phase 9 section 8 - never candidate/production.",
+      "triggered_by": "manual_validation_run",
+      "timestamp_utc": "2026-07-28T20:01:47.534238+00:00"
+    }
+  ]
+}

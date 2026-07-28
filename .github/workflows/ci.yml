@@ -230,18 +230,110 @@ jobs:
       - name: Model Lab - AppTest execution of the 9th dashboard page
         run: uv run pytest tests/test_dashboard_model_lab.py -q
 
+      # Independent model validation (Phase 9): the same CI-scoped
+      # CI_MODEL_SMOKE_v1 candidate from the Phase 8 steps above, run
+      # through credlens.model_validation. `--ci` uses the reduced
+      # permutation count (10, not 100) - with alpha=0.01 the smallest
+      # achievable empirical p-value at n=10 is 1/11 ~ 0.09, so the
+      # negative_controls gate (and therefore the overall decision)
+      # CANNOT mathematically pass at this scale - this step proves the
+      # pipeline RUNS end to end without error, not that it passes; full-
+      # rigor validation (100 permutations) is proven separately by
+      # tests/test_model_validation_*.py and the committed official
+      # decision.json (see the restorative step below for why decision
+      # .json/validation_report.md are regenerated one final time here).
+      - name: Model validation - independent re-validation (CI-scoped, reduced permutations)
+        run: |
+          uv run credlens model validate-independent --model-id CI_MODEL_SMOKE_v1 --ci || true
+          uv run credlens model audit-collinearity --model-id CI_MODEL_SMOKE_v1
+          uv run credlens model audit-negative-controls --experiment-id CI_MODEL_SMOKE --ci
+
+      - name: Model validation - challenger registration + Pareto comparison
+        run: |
+          uv run credlens model register-challenger --experiment-id CI_MODEL_SMOKE \
+            --model-id CI_MODEL_SMOKE_challenger
+          uv run credlens model compare-candidates --experiment-id CI_MODEL_SMOKE
+
+      - name: Input contract - strict mode rejects an out-of-domain code (smoke)
+        run: |
+          uv run python -c "
+          import pandas as pd
+          from credlens.modeling.input_contract import InputContractError, validate_input_contract
+          df = pd.read_csv('data/raw/uci_default_credit/default_of_credit_card_clients.csv').head(5)
+          df.loc[df.index[0], 'X6'] = 15
+          report = validate_input_contract(df, 'strict')
+          assert report.n_quarantined_rows == 1
+          try:
+              validate_input_contract(df.drop(columns=['X6']), 'strict')
+              raise SystemExit('strict mode should have rejected a missing column')
+          except InputContractError:
+              pass
+          print('input contract strict-mode checks OK')
+          "
+
+      # Monitoring simulation (Phase 9): a SEPARATE reference/batch-set/run
+      # scoped to CI_MODEL_SMOKE_v1 - reference_id/batch_set_id/run_id are
+      # all derived from this CI-only model_id, so this can never collide
+      # with the official REF_MODEL_behavioral_default_v1 reference (or
+      # its batch set/runs) committed to the repo. All 12 batches (500
+      # rows each, exactly partitioning the 6,000-row locked test set)
+      # run in a few seconds - there is no separate "smaller" batch
+      # config to switch to for CI (Phase 9 section 26: "batches
+      # pequenos" - 500 rows/batch already qualifies as small and fast).
+      - name: Monitoring - create reference, simulate batches, run
+        run: |
+          uv run credlens monitor create-reference --model-id CI_MODEL_SMOKE_v1 --json > ci_monitor_ref.json
+          REFERENCE_ID=$(uv run python -c "import json; print(json.load(open('ci_monitor_ref.json'))['reference_id'])")
+          uv run credlens monitor simulate-batches --reference-id "$REFERENCE_ID" --json > ci_monitor_batches.json
+          BATCH_SET_ID=$(uv run python -c "import json; print(json.load(open('ci_monitor_batches.json'))['batch_set_id'])")
+          uv run credlens monitor run --reference-id "$REFERENCE_ID" --batch-set "$BATCH_SET_ID" --json > ci_monitor_run.json
+          RUN_ID=$(uv run python -c "import json; print(json.load(open('ci_monitor_run.json'))['run_id'])")
+          echo "CI_MONITOR_RUN_ID=$RUN_ID" >> "$GITHUB_ENV"
+
+      - name: Monitoring - status, alerts, validate (no report - see cleanup note below)
+        run: |
+          uv run credlens monitor status --run-id "$CI_MONITOR_RUN_ID"
+          uv run credlens monitor alerts --run-id "$CI_MONITOR_RUN_ID"
+          uv run credlens monitor validate --run-id "$CI_MONITOR_RUN_ID"
+
+      - name: Model Monitoring Lab - AppTest execution of the 10th dashboard page
+        run: uv run pytest tests/test_dashboard_monitoring_lab.py -q
+
       - name: Model - clean up the CI-scoped experiment/model (never committed)
         run: |
           rm -rf reports/modeling/experiments/CI_MODEL_SMOKE* \
                  reports/modeling/models/CI_MODEL_SMOKE_v1* \
+                 reports/modeling/models/CI_MODEL_SMOKE_challenger* \
                  reports/modeling/tables/CI_MODEL_SMOKE__* \
-                 reports/modeling/figures/CI_MODEL_SMOKE__*
+                 reports/modeling/figures/CI_MODEL_SMOKE__* \
+                 reports/model_validation/tables/CI_MODEL_SMOKE__* \
+                 reports/model_validation/lifecycle/CI_MODEL_SMOKE* \
+                 reports/monitoring/reference/REF_CI_MODEL_SMOKE_v1* \
+                 reports/monitoring/runs/BATCHSET_REF_CI_MODEL_SMOKE_v1* \
+                 reports/monitoring/runs/RUN_BATCHSET_REF_CI_MODEL_SMOKE_v1_* \
+                 reports/monitoring/alerts/RUN_BATCHSET_REF_CI_MODEL_SMOKE_v1_*.json \
+                 ci_monitor_ref.json ci_monitor_batches.json ci_monitor_run.json
+
+      # Restorative step (same tension, same fix as Phase 8's model_card
+      # clobbering note): credlens.model_validation.decision/report write
+      # to a SINGLE shared path (reports/model_validation/decision.json,
+      # validation_report.md/.pt-BR.md), not one keyed by experiment_id -
+      # the CI-scoped run above already overwrote them with
+      # CI_MODEL_SMOKE content. Both are fully deterministic (no
+      # timestamp field), so re-running validate-independent against the
+      # OFFICIAL model reproduces the exact committed content - unlike
+      # model cards, this is a real fix, not just a risk reduction.
+      - name: Model validation - restore the official decision/report
+        run: uv run credlens model validate-independent --model-id MODEL_behavioral_default_v1
 
       # Runs LAST so it also covers every step above (notebook execution,
       # dashboard demo export/validate/AppTest, the modeling CLI smoke
-      # sequence) - none of them may modify a tracked, official artifact.
+      # sequence, independent validation, challenger registration,
+      # monitoring simulation) - none of them may modify a tracked,
+      # official artifact.
       - name: Prove no official artifact was ever altered
         run: |
           git status --porcelain reports/portfolio_analysis/ reports/modeling/ analysis/ warehouse/ \
+            reports/model_validation/ reports/monitoring/ \
             | tee ci_git_status.txt
           test ! -s ci_git_status.txt

@@ -1,9 +1,9 @@
 {
-  "content_fingerprint": "14f7aafcce676f1a90d4d2c3b889146265ddd29cb47388c3506e759be446212e",
-  "experiment_id": "EXP_behavioral_default_v1",
-  "generated_at_utc": "2026-07-27T22:13:17.091595+00:00",
-  "model_id": "MODEL_behavioral_default_v1",
-  "package_version": "0.9.0",
+  "content_fingerprint": "505fba3dc381958e4a84148f9fd4d4b5c89e820902d94647c1127140df427d83",
+  "experiment_id": "TEST_cli_pipeline",
+  "generated_at_utc": "2026-07-28T19:41:41.908655+00:00",
+  "model_id": "TEST_cli_model",
+  "package_version": "0.10.0",
   "reports_written": [
     "model_card.md",
     "model_card.pt-BR.md",
