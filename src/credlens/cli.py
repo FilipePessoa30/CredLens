@@ -728,6 +728,40 @@ def _build_parser() -> argparse.ArgumentParser:
     model_register_challenger_parser.add_argument("--model-id", default=None)
     model_register_challenger_parser.add_argument("--json", action="store_true")
 
+    # --- Phase 10 gate D: remediation subcommands ---------------------------
+
+    model_remediate_parser = model_subparsers.add_parser(
+        "remediate",
+        help="Post-validation remediation (Phase 10 gate D) - builds a NEW, separately "
+        "registered logistic regression on a documented reduced feature set "
+        "(config/model_validation/remediation_policy.yml), never overwriting the original "
+        "model/experiment.",
+    )
+    model_remediate_parser.add_argument("--model-id", required=True, help="Original model_id (v1).")
+    model_remediate_parser.add_argument(
+        "--new-experiment-id",
+        default="EXP_behavioral_default_v2_reduced",
+        help="Experiment id for the remediated model (default: EXP_behavioral_default_v2_reduced).",
+    )
+    model_remediate_parser.add_argument(
+        "--new-model-id",
+        default="MODEL_behavioral_default_v2_reduced",
+        help="Model id to register the remediated model under IF the decision is "
+        "remediation_candidate (default: MODEL_behavioral_default_v2_reduced).",
+    )
+    model_remediate_parser.add_argument("--json", action="store_true")
+
+    model_compare_remediation_parser = model_subparsers.add_parser(
+        "compare-remediation",
+        help="Prints the 5-model gate D comparison (original/VIF-reduced/stability-reduced/"
+        "final remediated/HistGBM challenger) - read-only, requires 'model remediate' to have "
+        "already run once.",
+    )
+    model_compare_remediation_parser.add_argument(
+        "--new-experiment-id", default="EXP_behavioral_default_v2_reduced"
+    )
+    model_compare_remediation_parser.add_argument("--json", action="store_true")
+
     # --- Phase 9: monitor command group --------------------------------------
 
     monitor_parser = subparsers.add_parser(
@@ -2566,6 +2600,7 @@ def _dispatch_dashboard_command(args: argparse.Namespace) -> int:
 def _model_error_types() -> tuple[type[Exception], ...]:
     from credlens.model_validation.evidence import EvidenceError
     from credlens.model_validation.negative_controls import PermutationTestError
+    from credlens.model_validation.remediation import RemediationError
     from credlens.model_validation.reporting import ModelValidationError
     from credlens.modeling.contracts import ContractError
     from credlens.modeling.data import DataAcquisitionError
@@ -2586,6 +2621,7 @@ def _model_error_types() -> tuple[type[Exception], ...]:
         EvidenceError,
         PermutationTestError,
         ModelValidationError,
+        RemediationError,
     )
 
 
@@ -2985,34 +3021,49 @@ def _cmd_model_audit_collinearity(model_id: str, as_json: bool) -> int:
 def _cmd_model_audit_negative_controls(experiment_id: str, ci: bool, as_json: bool) -> int:
     try:
         from credlens.model_validation.evidence import load_validation_config
-        from credlens.model_validation.negative_controls import run_permutation_negative_control
+        from credlens.model_validation.negative_controls import (
+            run_pipeline_retrain_permutation_control,
+            run_score_label_permutation_control,
+        )
 
         cfg = load_validation_config().permutation_test
-        n = int(cfg["n_permutations_ci"]) if ci else int(cfg["n_permutations_full"])
-        report = run_permutation_negative_control(
+        c1_cfg = cfg["control1_score_label"]
+        c2_cfg = cfg["control2_pipeline_retrain"]
+        sigma = float(cfg["centering_sigma_multiplier"])
+        n1 = int(c1_cfg["n_permutations_ci"]) if ci else int(c1_cfg["n_permutations_full"])
+        n2 = int(c2_cfg["n_permutations_ci"]) if ci else int(c2_cfg["n_permutations_full"])
+        control1 = run_score_label_permutation_control(
             experiment_id,
-            n_permutations=n,
-            base_seed=int(cfg["base_seed"]),
-            alpha=float(cfg["alpha"]),
-            max_permutation_mean_deviation=float(
-                cfg["max_permutation_mean_deviation_from_random_roc_auc"]
-            ),
+            n_permutations=n1,
+            base_seed=int(c1_cfg["base_seed"]),
+            alpha=float(c1_cfg["alpha"]),
+            centering_sigma_multiplier=sigma,
+            amplitude_ratio_min=float(cfg["amplitude_se_ratio_min"]),
+            amplitude_ratio_max=float(cfg["amplitude_se_ratio_max"]),
+        )
+        control2 = run_pipeline_retrain_permutation_control(
+            experiment_id,
+            n_permutations=n2,
+            base_seed=int(c2_cfg["base_seed"]),
+            alpha=float(c2_cfg["alpha"]),
+            centering_sigma_multiplier=sigma,
         )
     except _model_error_types() as exc:
         print(f"Error: {exc}")
         return 1
 
+    both_passed = control1.passed and control2.passed
     if as_json:
-        print(json.dumps(report.to_dict(), indent=2))
+        print(json.dumps({"control1_score_label": control1.to_dict(), "control2_pipeline_retrain": control2.to_dict()}, indent=2))
     else:
         print(f"CredLens model audit-negative-controls: {experiment_id}")
         print("=" * 40)
-        print(f"n_permutations: {report.n_permutations}")
-        print(f"empirical_p_value: {report.empirical_p_value}")
-        print(f"real_model_validation_roc_auc: {report.real_model_validation_roc_auc}")
-        print(f"permutation roc_auc mean/std: {report.roc_auc_mean}/{report.roc_auc_std}")
-        print(f"Result: {'PASS' if report.passed else 'FAIL'} - {report.reason}")
-    return 0 if report.passed else 1
+        print(f"Control 1 (score-label, n={control1.n_permutations}): "
+              f"p={control1.empirical_p_value}, {'PASS' if control1.passed else 'FAIL'} - {control1.reason}")
+        print(f"Control 2 (pipeline retrain, n={control2.n_permutations}): "
+              f"p={control2.empirical_p_value}, {'PASS' if control2.passed else 'FAIL'} - {control2.reason}")
+        print(f"Result: {'PASS' if both_passed else 'FAIL'}")
+    return 0 if both_passed else 1
 
 
 def _cmd_model_compare_candidates(experiment_id: str | None, as_json: bool) -> int:
@@ -3049,6 +3100,62 @@ def _cmd_model_register_challenger(experiment_id: str, model_id: str | None, as_
         print("=" * 40)
         print(f"status: {manifest.status}")
         print(f"artifact_sha256: {manifest.artifact_sha256}")
+    return 0
+
+
+def _cmd_model_remediate(model_id: str, new_experiment_id: str, new_model_id: str, as_json: bool) -> int:
+    try:
+        from credlens.model_validation.remediation import run_remediation
+        from credlens.model_validation.reporting import resolve_experiment_id_from_model
+
+        original_experiment_id = resolve_experiment_id_from_model(model_id, Path.cwd())
+        result = run_remediation(
+            original_experiment_id, new_experiment_id, model_id=new_model_id
+        )
+    except _model_error_types() as exc:
+        print(f"Error: {exc}")
+        return 1
+
+    if as_json:
+        print(json.dumps(result, indent=2))
+    else:
+        print(f"CredLens model remediate: {model_id} -> {new_experiment_id}")
+        print("=" * 40)
+        for row in result["comparison"]:
+            print(
+                f"  {row['model']}: n_features={row['n_features']} pr_auc={row['pr_auc']} "
+                f"roc_auc={row['roc_auc']} max_vif={row['max_vif']}"
+            )
+        print(f"Decision: {result['decision']['decision']}")
+        print(f"Reason: {result['decision']['reason']}")
+        print(f"Registered model_id: {result['registered_model_id']}")
+    return 0 if result["decision"]["decision"] != "remediation_rejected" else 1
+
+
+def _cmd_model_compare_remediation(new_experiment_id: str, as_json: bool) -> int:
+    try:
+        from credlens.model_validation.remediation import RemediationError
+
+        table_path = (
+            Path("reports/model_validation/tables")
+            / f"{new_experiment_id}__remediation_comparison.csv"
+        )
+        if not table_path.is_file():
+            raise RemediationError(
+                f"No remediation comparison at '{table_path}' - run 'credlens model remediate' "
+                "first."
+            )
+        table = pd.read_csv(table_path)
+    except _model_error_types() as exc:
+        print(f"Error: {exc}")
+        return 1
+
+    if as_json:
+        print(json.dumps(table.to_dict(orient="records"), indent=2))
+    else:
+        print(f"CredLens model compare-remediation: {new_experiment_id}")
+        print("=" * 40)
+        print(table.to_string(index=False))
     return 0
 
 
@@ -3089,12 +3196,18 @@ def _dispatch_model_command(args: argparse.Namespace) -> int:
         return _cmd_model_compare_candidates(args.experiment_id, args.json)
     if args.model_command == "register-challenger":
         return _cmd_model_register_challenger(args.experiment_id, args.model_id, args.json)
+    if args.model_command == "remediate":
+        return _cmd_model_remediate(
+            args.model_id, args.new_experiment_id, args.new_model_id, args.json
+        )
+    if args.model_command == "compare-remediation":
+        return _cmd_model_compare_remediation(args.new_experiment_id, args.json)
 
     print(
         "usage: credlens model {data-audit,validate-features,create-split,train,evaluate,"
         "compare,explain,audit-groups,stress-test,register,validate,predict-batch,report,"
         "validate-independent,audit-collinearity,audit-negative-controls,compare-candidates,"
-        "register-challenger} ..."
+        "register-challenger,remediate,compare-remediation} ..."
     )
     print("Run 'credlens model <command> --help' for details.")
     return 1

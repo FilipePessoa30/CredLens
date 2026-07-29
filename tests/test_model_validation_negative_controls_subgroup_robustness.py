@@ -16,7 +16,8 @@ import pytest
 
 from credlens.model_validation.negative_controls import (
     PermutationTestError,
-    run_permutation_negative_control,
+    run_pipeline_retrain_permutation_control,
+    run_score_label_permutation_control,
 )
 from credlens.model_validation.robustness_review import spot_check_robustness
 from credlens.model_validation.subgroup_validation import run_subgroup_validation
@@ -24,45 +25,98 @@ from credlens.model_validation.subgroup_validation import run_subgroup_validatio
 pytestmark = pytest.mark.slow
 
 
-class TestPermutationNegativeControl:
+class TestScoreLabelPermutationControl:
     def test_runs_and_produces_a_distribution(
         self, phase9_isolated_repo_root: Path, phase9_experiment_id: str
     ) -> None:
-        report = run_permutation_negative_control(
+        report = run_score_label_permutation_control(
+            phase9_experiment_id,
+            n_permutations=50,
+            base_seed=123,
+            alpha=0.01,
+            centering_sigma_multiplier=3.0,
+            amplitude_ratio_min=1 / 3,
+            amplitude_ratio_max=3.0,
+            repo_root=phase9_isolated_repo_root,
+        )
+        assert len(report.roc_auc_distribution) == 50
+        assert len(report.audit_table) == 50
+        assert 0.0 <= report.empirical_p_value <= 1.0
+        assert report.duplicate_permutation_indices == []
+        assert report.n_single_class_permutations == 0
+
+    def test_amplitude_matches_theory_closely(
+        self, phase9_isolated_repo_root: Path, phase9_experiment_id: str
+    ) -> None:
+        # No retraining occurs in this control, so its null variance
+        # should match the closed-form theoretical SE almost exactly.
+        report = run_score_label_permutation_control(
+            phase9_experiment_id,
+            n_permutations=200,
+            base_seed=777,
+            alpha=0.01,
+            centering_sigma_multiplier=3.0,
+            amplitude_ratio_min=1 / 3,
+            amplitude_ratio_max=3.0,
+            repo_root=phase9_isolated_repo_root,
+        )
+        assert 0.5 <= report.amplitude.ratio <= 1.5
+        assert report.amplitude.within_expected_amplitude
+
+    def test_missing_predictions_raises(self, phase9_isolated_repo_root: Path) -> None:
+        with pytest.raises(PermutationTestError):
+            run_score_label_permutation_control(
+                "TEST_no_such_experiment",
+                n_permutations=5,
+                base_seed=1,
+                alpha=0.01,
+                centering_sigma_multiplier=3.0,
+                amplitude_ratio_min=1 / 3,
+                amplitude_ratio_max=3.0,
+                repo_root=phase9_isolated_repo_root,
+            )
+
+
+class TestPipelineRetrainPermutationControl:
+    def test_runs_and_produces_a_distribution(
+        self, phase9_isolated_repo_root: Path, phase9_experiment_id: str
+    ) -> None:
+        report = run_pipeline_retrain_permutation_control(
             phase9_experiment_id,
             n_permutations=5,
             base_seed=123,
             alpha=0.01,
-            max_permutation_mean_deviation=0.05,
+            centering_sigma_multiplier=3.0,
             repo_root=phase9_isolated_repo_root,
         )
         assert len(report.roc_auc_distribution) == 5
-        assert len(report.permutation_seeds) == 5
+        assert len(report.audit_table) == 5
         assert 0.0 <= report.empirical_p_value <= 1.0
+        assert all(row.train_size > 0 for row in report.audit_table)
 
     def test_too_few_permutations_cannot_reach_a_strict_alpha(
         self, phase9_isolated_repo_root: Path, phase9_experiment_id: str
     ) -> None:
         # With n permutations the smallest achievable p-value is
         # 1/(n+1) - 5 permutations can never satisfy alpha=0.01.
-        report = run_permutation_negative_control(
+        report = run_pipeline_retrain_permutation_control(
             phase9_experiment_id,
             n_permutations=5,
             base_seed=456,
             alpha=0.01,
-            max_permutation_mean_deviation=0.05,
+            centering_sigma_multiplier=3.0,
             repo_root=phase9_isolated_repo_root,
         )
         assert report.empirical_p_value >= 1 / 6
 
     def test_missing_split_raises(self, phase9_isolated_repo_root: Path) -> None:
         with pytest.raises(PermutationTestError):
-            run_permutation_negative_control(
+            run_pipeline_retrain_permutation_control(
                 "TEST_no_such_experiment",
                 n_permutations=2,
                 base_seed=1,
                 alpha=0.01,
-                max_permutation_mean_deviation=0.05,
+                centering_sigma_multiplier=3.0,
                 repo_root=phase9_isolated_repo_root,
             )
 

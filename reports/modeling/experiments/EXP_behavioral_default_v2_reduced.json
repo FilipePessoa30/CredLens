@@ -1,0 +1,539 @@
+{
+  "artifact_hash": null,
+  "calibration": {
+    "reason": "Not recalibrated for the final remediated model.",
+    "selected_method": "none"
+  },
+  "created_at_utc": "2026-07-29T19:28:36.701693+00:00",
+  "cv_description": "StratifiedKFold(n_splits=5), scoring=average_precision, train-only",
+  "dataset_hash": "45bcf4df62ff2e237a74eb155cabfb4bbbc171219a0637daef44fdad07503dd0",
+  "dataset_id": "uci-default-credit",
+  "dependency_versions": {
+    "credlens": "0.10.0",
+    "numpy": "2.4.6",
+    "pandas": "2.3.3",
+    "python": "3.11.9",
+    "scikit_learn": "1.9.0",
+    "scipy": "1.17.1"
+  },
+  "estimator": "logistic_regression (final remediated - documented pairwise feature selection, gate D)",
+  "experiment_id": "EXP_behavioral_default_v2_reduced",
+  "feature_registry_version": "1.0.0",
+  "feature_set": [
+    "max_delinquency_status",
+    "months_delinquent_count",
+    "most_recent_delinquency_status",
+    "delinquency_trend",
+    "avg_bill_amount",
+    "utilization_ratio",
+    "avg_payment_amount",
+    "payment_to_bill_ratio",
+    "months_without_payment",
+    "payment_coverage_rate",
+    "payment_variation"
+  ],
+  "hyperparameters": {
+    "C": 0.01
+  },
+  "metrics": {
+    "coefficient_classification": [
+      {
+        "bootstrap_sign_flip_rate": 0.0,
+        "category": "stable_direction",
+        "cv_sign_flip_rate": 0.0,
+        "feature": "months_delinquent_count",
+        "original_coefficient": 0.501491,
+        "original_odds_ratio": 1.651182,
+        "reason_code_language_en": "This feature consistently increases the fitted model score.",
+        "reason_code_language_pt_br": "Esta feature consistentemente aumenta o score do modelo ajustado.",
+        "regularization_sign_changes": false,
+        "vif": 3.0089
+      },
+      {
+        "bootstrap_sign_flip_rate": 0.0,
+        "category": "stable_direction",
+        "cv_sign_flip_rate": 0.0,
+        "feature": "most_recent_delinquency_status",
+        "original_coefficient": 0.223567,
+        "original_odds_ratio": 1.25053,
+        "reason_code_language_en": "This feature consistently increases the fitted model score.",
+        "reason_code_language_pt_br": "Esta feature consistentemente aumenta o score do modelo ajustado.",
+        "regularization_sign_changes": false,
+        "vif": 7.046
+      },
+      {
+        "bootstrap_sign_flip_rate": 0.0,
+        "category": "stable_direction",
+        "cv_sign_flip_rate": 0.0,
+        "feature": "utilization_ratio",
+        "original_coefficient": 0.193593,
+        "original_odds_ratio": 1.213602,
+        "reason_code_language_en": "This feature consistently increases the fitted model score.",
+        "reason_code_language_pt_br": "Esta feature consistentemente aumenta o score do modelo ajustado.",
+        "regularization_sign_changes": false,
+        "vif": 2.3945
+      },
+      {
+        "bootstrap_sign_flip_rate": 0.0,
+        "category": "stable_direction",
+        "cv_sign_flip_rate": 0.0,
+        "feature": "avg_payment_amount",
+        "original_coefficient": -0.190742,
+        "original_odds_ratio": 0.826346,
+        "reason_code_language_en": "This feature consistently decreases the fitted model score.",
+        "reason_code_language_pt_br": "Esta feature consistentemente diminui o score do modelo ajustado.",
+        "regularization_sign_changes": false,
+        "vif": 1.374
+      },
+      {
+        "bootstrap_sign_flip_rate": 0.0,
+        "category": "stable_direction",
+        "cv_sign_flip_rate": 0.0,
+        "feature": "max_delinquency_status",
+        "original_coefficient": 0.186327,
+        "original_odds_ratio": 1.204817,
+        "reason_code_language_en": "This feature consistently increases the fitted model score.",
+        "reason_code_language_pt_br": "Esta feature consistentemente aumenta o score do modelo ajustado.",
+        "regularization_sign_changes": false,
+        "vif": 4.1399
+      },
+      {
+        "bootstrap_sign_flip_rate": 0.0,
+        "category": "stable_direction",
+        "cv_sign_flip_rate": 0.0,
+        "feature": "months_without_payment",
+        "original_coefficient": 0.11868,
+        "original_odds_ratio": 1.126009,
+        "reason_code_language_en": "This feature consistently increases the fitted model score.",
+        "reason_code_language_pt_br": "Esta feature consistentemente aumenta o score do modelo ajustado.",
+        "regularization_sign_changes": false,
+        "vif": 2.0186
+      },
+      {
+        "bootstrap_sign_flip_rate": 0.0,
+        "category": "stable_direction",
+        "cv_sign_flip_rate": 0.0,
+        "feature": "payment_coverage_rate",
+        "original_coefficient": 0.099303,
+        "original_odds_ratio": 1.104401,
+        "reason_code_language_en": "This feature consistently increases the fitted model score.",
+        "reason_code_language_pt_br": "Esta feature consistentemente aumenta o score do modelo ajustado.",
+        "regularization_sign_changes": false,
+        "vif": 4.0942
+      },
+      {
+        "bootstrap_sign_flip_rate": 0.0,
+        "category": "stable_direction",
+        "cv_sign_flip_rate": 0.0,
+        "feature": "delinquency_trend",
+        "original_coefficient": 0.094092,
+        "original_odds_ratio": 1.098661,
+        "reason_code_language_en": "This feature consistently increases the fitted model score.",
+        "reason_code_language_pt_br": "Esta feature consistentemente aumenta o score do modelo ajustado.",
+        "regularization_sign_changes": false,
+        "vif": 3.1769
+      },
+      {
+        "bootstrap_sign_flip_rate": 0.0,
+        "category": "stable_direction",
+        "cv_sign_flip_rate": 0.0,
+        "feature": "payment_to_bill_ratio",
+        "original_coefficient": 0.080314,
+        "original_odds_ratio": 1.083627,
+        "reason_code_language_en": "This feature consistently increases the fitted model score.",
+        "reason_code_language_pt_br": "Esta feature consistentemente aumenta o score do modelo ajustado.",
+        "regularization_sign_changes": false,
+        "vif": 1.8016
+      },
+      {
+        "bootstrap_sign_flip_rate": 0.085,
+        "category": "unstable_direction",
+        "cv_sign_flip_rate": 0.0,
+        "feature": "avg_bill_amount",
+        "original_coefficient": -0.041774,
+        "original_odds_ratio": 0.959086,
+        "reason_code_language_en": "This feature reduced the fitted model score for this record; this is not evidence of a protective causal effect.",
+        "reason_code_language_pt_br": "Esta feature reduziu o score do modelo ajustado para este registro; isto n\u00e3o \u00e9 evid\u00eancia de um efeito causal protetor.",
+        "regularization_sign_changes": false,
+        "vif": 1.8182
+      },
+      {
+        "bootstrap_sign_flip_rate": 0.06,
+        "category": "unstable_direction",
+        "cv_sign_flip_rate": 0.0,
+        "feature": "payment_variation",
+        "original_coefficient": -0.036542,
+        "original_odds_ratio": 0.964118,
+        "reason_code_language_en": "This feature reduced the fitted model score for this record; this is not evidence of a protective causal effect.",
+        "reason_code_language_pt_br": "Esta feature reduziu o score do modelo ajustado para este registro; isto n\u00e3o \u00e9 evid\u00eancia de um efeito causal protetor.",
+        "regularization_sign_changes": false,
+        "vif": 1.363
+      }
+    ],
+    "collinearity": {
+      "condition_number": 6.4207,
+      "condition_number_action_needed": false,
+      "condition_number_action_threshold": 30.0,
+      "condition_number_flag_threshold": 15.0,
+      "condition_number_flagged": false,
+      "features_above_action_threshold": [],
+      "features_above_flag_threshold": [
+        "most_recent_delinquency_status"
+      ],
+      "high_correlation_pairs": [
+        {
+          "correlation": 0.7618,
+          "feature_a": "max_delinquency_status",
+          "feature_b": "most_recent_delinquency_status"
+        },
+        {
+          "correlation": 0.7567,
+          "feature_a": "max_delinquency_status",
+          "feature_b": "months_delinquent_count"
+        },
+        {
+          "correlation": -0.7086,
+          "feature_a": "utilization_ratio",
+          "feature_b": "payment_coverage_rate"
+        }
+      ],
+      "vif_action_threshold": 10.0,
+      "vif_flag_threshold": 5.0,
+      "vif_table": [
+        {
+          "feature": "most_recent_delinquency_status",
+          "vif": 7.046
+        },
+        {
+          "feature": "max_delinquency_status",
+          "vif": 4.1399
+        },
+        {
+          "feature": "payment_coverage_rate",
+          "vif": 4.0942
+        },
+        {
+          "feature": "delinquency_trend",
+          "vif": 3.1769
+        },
+        {
+          "feature": "months_delinquent_count",
+          "vif": 3.0089
+        },
+        {
+          "feature": "utilization_ratio",
+          "vif": 2.3945
+        },
+        {
+          "feature": "months_without_payment",
+          "vif": 2.0186
+        },
+        {
+          "feature": "avg_bill_amount",
+          "vif": 1.8182
+        },
+        {
+          "feature": "payment_to_bill_ratio",
+          "vif": 1.8016
+        },
+        {
+          "feature": "avg_payment_amount",
+          "vif": 1.374
+        },
+        {
+          "feature": "payment_variation",
+          "vif": 1.363
+        }
+      ]
+    },
+    "split_stability_roc_auc": {
+      "mean": 0.7486329108848025,
+      "seeds": [
+        42,
+        43,
+        44
+      ],
+      "stdev": 0.007576722904571071,
+      "values": [
+        0.7443158609214441,
+        0.7442013645707329,
+        0.7573815071622305
+      ]
+    },
+    "test": {
+      "calibration": {
+        "brier_score": 0.142886,
+        "calibration_intercept": -0.044034,
+        "calibration_slope": 0.95313,
+        "expected_calibration_error": 0.012242,
+        "log_loss": 0.452576
+      },
+      "discrimination": {
+        "ks_statistic": 0.384603,
+        "pr_auc": 0.501553,
+        "roc_auc": 0.742282
+      },
+      "prevalence": 0.221167,
+      "ranking": {
+        "decile_table": [
+          {
+            "capture_rate": 0.290128,
+            "cumulative_capture_rate": 0.290128,
+            "cumulative_population_share": 0.1,
+            "decile": 1,
+            "event_rate": 0.641667,
+            "lift": 2.901281,
+            "n": 600,
+            "n_positive": 385
+          },
+          {
+            "capture_rate": 0.195931,
+            "cumulative_capture_rate": 0.486059,
+            "cumulative_population_share": 0.2,
+            "decile": 2,
+            "event_rate": 0.433333,
+            "lift": 1.959307,
+            "n": 600,
+            "n_positive": 260
+          },
+          {
+            "capture_rate": 0.110776,
+            "cumulative_capture_rate": 0.596835,
+            "cumulative_population_share": 0.3,
+            "decile": 3,
+            "event_rate": 0.245,
+            "lift": 1.107762,
+            "n": 600,
+            "n_positive": 147
+          },
+          {
+            "capture_rate": 0.08214,
+            "cumulative_capture_rate": 0.678975,
+            "cumulative_population_share": 0.4,
+            "decile": 4,
+            "event_rate": 0.181667,
+            "lift": 0.821402,
+            "n": 600,
+            "n_positive": 109
+          },
+          {
+            "capture_rate": 0.07159,
+            "cumulative_capture_rate": 0.750565,
+            "cumulative_population_share": 0.5,
+            "decile": 5,
+            "event_rate": 0.158333,
+            "lift": 0.715901,
+            "n": 600,
+            "n_positive": 95
+          },
+          {
+            "capture_rate": 0.058026,
+            "cumulative_capture_rate": 0.808591,
+            "cumulative_population_share": 0.6,
+            "decile": 6,
+            "event_rate": 0.128333,
+            "lift": 0.580256,
+            "n": 600,
+            "n_positive": 77
+          },
+          {
+            "capture_rate": 0.060286,
+            "cumulative_capture_rate": 0.868877,
+            "cumulative_population_share": 0.7,
+            "decile": 7,
+            "event_rate": 0.133333,
+            "lift": 0.602864,
+            "n": 600,
+            "n_positive": 80
+          },
+          {
+            "capture_rate": 0.051243,
+            "cumulative_capture_rate": 0.920121,
+            "cumulative_population_share": 0.8,
+            "decile": 8,
+            "event_rate": 0.113333,
+            "lift": 0.512434,
+            "n": 600,
+            "n_positive": 68
+          },
+          {
+            "capture_rate": 0.041447,
+            "cumulative_capture_rate": 0.961567,
+            "cumulative_population_share": 0.9,
+            "decile": 9,
+            "event_rate": 0.091667,
+            "lift": 0.414469,
+            "n": 600,
+            "n_positive": 55
+          },
+          {
+            "capture_rate": 0.038433,
+            "cumulative_capture_rate": 1.0,
+            "cumulative_population_share": 1.0,
+            "decile": 10,
+            "event_rate": 0.085,
+            "lift": 0.384326,
+            "n": 600,
+            "n_positive": 51
+          }
+        ]
+      },
+      "threshold_dependent": {
+        "balanced_accuracy": 0.614836,
+        "f1": 0.382821,
+        "false_negative": 966,
+        "false_positive": 198,
+        "n_flagged": 559,
+        "n_total": 6000,
+        "precision": 0.645796,
+        "recall": 0.272042,
+        "specificity": 0.957629,
+        "threshold": 0.5,
+        "true_negative": 4475,
+        "true_positive": 361
+      }
+    },
+    "validation": {
+      "calibration": {
+        "brier_score": 0.14149,
+        "calibration_intercept": 0.002778,
+        "calibration_slope": 0.985644,
+        "expected_calibration_error": 0.015289,
+        "log_loss": 0.451171
+      },
+      "discrimination": {
+        "ks_statistic": 0.397729,
+        "pr_auc": 0.503436,
+        "roc_auc": 0.749527
+      },
+      "prevalence": 0.221167,
+      "ranking": {
+        "decile_table": [
+          {
+            "capture_rate": 0.299925,
+            "cumulative_capture_rate": 0.299925,
+            "cumulative_population_share": 0.1,
+            "decile": 1,
+            "event_rate": 0.663333,
+            "lift": 2.999246,
+            "n": 600,
+            "n_positive": 398
+          },
+          {
+            "capture_rate": 0.192163,
+            "cumulative_capture_rate": 0.492087,
+            "cumulative_population_share": 0.2,
+            "decile": 2,
+            "event_rate": 0.425,
+            "lift": 1.921628,
+            "n": 600,
+            "n_positive": 255
+          },
+          {
+            "capture_rate": 0.110023,
+            "cumulative_capture_rate": 0.60211,
+            "cumulative_population_share": 0.3,
+            "decile": 3,
+            "event_rate": 0.243333,
+            "lift": 1.100226,
+            "n": 600,
+            "n_positive": 146
+          },
+          {
+            "capture_rate": 0.096458,
+            "cumulative_capture_rate": 0.698568,
+            "cumulative_population_share": 0.4,
+            "decile": 4,
+            "event_rate": 0.213333,
+            "lift": 0.964582,
+            "n": 600,
+            "n_positive": 128
+          },
+          {
+            "capture_rate": 0.076112,
+            "cumulative_capture_rate": 0.77468,
+            "cumulative_population_share": 0.5,
+            "decile": 5,
+            "event_rate": 0.168333,
+            "lift": 0.761115,
+            "n": 600,
+            "n_positive": 101
+          },
+          {
+            "capture_rate": 0.045215,
+            "cumulative_capture_rate": 0.819894,
+            "cumulative_population_share": 0.6,
+            "decile": 6,
+            "event_rate": 0.1,
+            "lift": 0.452148,
+            "n": 600,
+            "n_positive": 60
+          },
+          {
+            "capture_rate": 0.0422,
+            "cumulative_capture_rate": 0.862095,
+            "cumulative_population_share": 0.7,
+            "decile": 7,
+            "event_rate": 0.093333,
+            "lift": 0.422005,
+            "n": 600,
+            "n_positive": 56
+          },
+          {
+            "capture_rate": 0.049736,
+            "cumulative_capture_rate": 0.911831,
+            "cumulative_population_share": 0.8,
+            "decile": 8,
+            "event_rate": 0.11,
+            "lift": 0.497362,
+            "n": 600,
+            "n_positive": 66
+          },
+          {
+            "capture_rate": 0.049736,
+            "cumulative_capture_rate": 0.961567,
+            "cumulative_population_share": 0.9,
+            "decile": 9,
+            "event_rate": 0.11,
+            "lift": 0.497362,
+            "n": 600,
+            "n_positive": 66
+          },
+          {
+            "capture_rate": 0.038433,
+            "cumulative_capture_rate": 1.0,
+            "cumulative_population_share": 1.0,
+            "decile": 10,
+            "event_rate": 0.085,
+            "lift": 0.384326,
+            "n": 600,
+            "n_positive": 51
+          }
+        ]
+      },
+      "threshold_dependent": {
+        "balanced_accuracy": 0.616166,
+        "f1": 0.384946,
+        "false_negative": 969,
+        "false_positive": 175,
+        "n_flagged": 533,
+        "n_total": 6000,
+        "precision": 0.67167,
+        "recall": 0.269781,
+        "specificity": 0.962551,
+        "threshold": 0.5,
+        "true_negative": 4498,
+        "true_positive": 358
+      }
+    }
+  },
+  "preprocessing": "median imputation + standardization (final remediated feature set)",
+  "robustness_summary": {},
+  "seed": 42,
+  "split_hash": "reused_from:EXP_behavioral_default_v1",
+  "status": "evaluated",
+  "subgroup_audit_summary": {},
+  "target_column": "Y",
+  "threshold_policy": "Illustrative review-capacity scenario (never profit-optimized)",
+  "warnings": []
+}

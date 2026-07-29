@@ -80,10 +80,11 @@ class TestModelValidationCommands:
         )
         captured = capsys.readouterr()
         assert "Decision:" in captured.out
-        assert exit_code in (
-            0,
-            1,
-        )  # --ci cannot reach the negative-controls alpha, decision may fail
+        # Phase 10 gate B raised control2's CI permutation count 10 -> 99,
+        # so the smallest achievable empirical p-value (1/100=0.01) can
+        # now genuinely satisfy alpha=0.01 - --ci is no longer
+        # mathematically unable to pass the negative-controls gate.
+        assert exit_code == 0
 
     def test_audit_collinearity(
         self, registered_throwaway_model: str, capsys: pytest.CaptureFixture[str]
@@ -109,7 +110,8 @@ class TestModelValidationCommands:
         )
         captured = capsys.readouterr()
         payload = json.loads(captured.out)
-        assert payload["n_permutations"] == 10
+        assert payload["control1_score_label"]["n_permutations"] == 99
+        assert payload["control2_pipeline_retrain"]["n_permutations"] == 99
         assert exit_code in (0, 1)
 
     def test_register_challenger(self, capsys: pytest.CaptureFixture[str]) -> None:

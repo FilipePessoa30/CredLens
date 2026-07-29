@@ -14,7 +14,6 @@ import pandas as pd
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import (
     average_precision_score,
-    balanced_accuracy_score,
     brier_score_loss,
     confusion_matrix,
     f1_score,
@@ -129,14 +128,24 @@ def expected_calibration_error(
 
 
 def confusion_at_threshold(y: pd.Series, p: pd.Series, threshold: float) -> ConfusionMetrics:
+    """`labels=[0, 1]` is passed explicitly to every sklearn metric that
+    accepts it, so a single-class group (a tiny subgroup slice, or a
+    perturbed batch) never triggers sklearn's "A single label was found"
+    UserWarning by letting it infer labels from the data. `balanced_
+    accuracy_score` accepts no `labels` parameter at all, so it is never
+    called here - balanced accuracy is instead its own textbook
+    definition, the average of recall (sensitivity) and specificity,
+    computed directly from the already-guarded values below (both are
+    well-defined, via explicit zero-division handling, even when one
+    class is entirely absent)."""
     flagged = (np.asarray(p, dtype=float) >= threshold).astype(int)
     y_arr = np.asarray(y, dtype=int)
     tn, fp, fn, tp = confusion_matrix(y_arr, flagged, labels=[0, 1]).ravel()
-    precision = float(precision_score(y_arr, flagged, zero_division=0.0))
-    recall = float(recall_score(y_arr, flagged, zero_division=0.0))
+    precision = float(precision_score(y_arr, flagged, labels=[0, 1], zero_division=0.0))
+    recall = float(recall_score(y_arr, flagged, labels=[0, 1], zero_division=0.0))
     specificity = float(tn / (tn + fp)) if (tn + fp) > 0 else 0.0
-    f1 = float(f1_score(y_arr, flagged, zero_division=0.0))
-    balanced_acc = float(balanced_accuracy_score(y_arr, flagged))
+    f1 = float(f1_score(y_arr, flagged, labels=[0, 1], zero_division=0.0))
+    balanced_acc = (recall + specificity) / 2.0
     return ConfusionMetrics(
         threshold=threshold,
         n_flagged=int(flagged.sum()),

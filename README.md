@@ -65,7 +65,7 @@ uv run credlens dashboard run --demo   # then open the "Model Lab" page
 
 **Monitoring simulation on a historical public benchmark — never a real production monitoring system.**
 
-Phase 9 independently re-validates the Phase 8 model (`credlens.model_validation` — a separate package that recomputes evidence from frozen artifacts, never copies the Phase 8 report) and simulates monitoring over it (`credlens.monitoring` — 12 simulated batches built by partitioning the locked test set, never real dated production data).
+Phase 9 independently re-validates the Phase 8 model (`credlens.model_validation` — a separate package that recomputes evidence from frozen artifacts, never copies the Phase 8 report) and simulates monitoring over it (`credlens.monitoring` — 12+ simulated batches built by partitioning the locked test set, never real dated production data). **Frozen evaluation holdout reused across documented validation phases** — not "untouched": the split and test predictions never changed, but the same test set has been repeatedly consulted across Phases 8-10 (see [`reports/model_validation/validation_report.md`](reports/model_validation/validation_report.md) section 6 for the full disclosure and the indirect-adaptation risk this carries for any remediated model).
 
 **Try it:**
 

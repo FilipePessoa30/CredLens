@@ -35,20 +35,63 @@ recomputation:
   # the tight metric_absolute_tolerance above instead.
   robustness_stochastic_tolerance: 0.08
 
-# credlens.model_validation.negative_controls - replaces Phase 8's single
-# fixed-band shuffled-target check with a reproducible permutation test.
+# credlens.model_validation.negative_controls - Phase 10 gate A replaced
+# the single Phase 9 pipeline-retrain-only test (and its fixed
+# |mean-0.5|<=0.05 band) with TWO distinct, complementary controls, since
+# auditing the Phase 9 null distribution (mean=0.4907, std=0.0631,
+# range=[0.329, 0.675]) found no alignment/indexing/seeding bug - the
+# width is the EXPECTED, textbook consequence of retraining-based
+# permutation nulls carrying model-refitting variance on top of label-
+# shuffling variance. A parallel score-label-only control (frozen scores,
+# label permutation only) empirically confirms this: same data, same
+# frozen model, observed std=0.00883 against a theoretical closed-form SE
+# of 0.00898 (ratio 0.98) - i.e. textbook-tight, exactly as expected for
+# that DIFFERENT kind of test. Reporting both, side by side, replaces one
+# ambiguous number with two well-understood ones.
 permutation_test:
-  n_permutations_full: 100
-  n_permutations_ci: 10
-  base_seed: 20260728
-  # A permutation "passes" if the REAL model's test-set ROC-AUC exceeds
-  # essentially all permuted-target fits (empirical p-value below alpha)
-  # AND the permutation distribution itself is centered near 0.5 with no
-  # systematic bias in either direction (a symmetric check - Phase 9
-  # section 6: "avalie desvio bilateral ... equivalente que também
-  # detecte relação fortemente invertida").
-  alpha: 0.01
-  max_permutation_mean_deviation_from_random_roc_auc: 0.05
+  # Control 1 - score-label permutation (Phase 10 section 5.2): the
+  # ALREADY-FITTED model's frozen validation predictions are re-used
+  # unchanged; only the validation LABELS are permuted. No retraining -
+  # a classical, exact-reference-distribution permutation test whose
+  # variance has a closed-form theoretical prediction (see
+  # permutation_audit.theoretical_null_auc_se), checked directly against
+  # the observed standard deviation rather than an arbitrary band.
+  control1_score_label:
+    n_permutations_full: 999
+    n_permutations_ci: 99
+    base_seed: 20260728
+    alpha: 0.01
+  # Control 2 - full pipeline retrain (Phase 9's original control,
+  # preserved): the TRAINING target is permuted, the pipeline is refit
+  # from scratch, and scored on the untouched validation set. Legitimately
+  # wider variance than Control 1 - no closed-form SE exists for it, so no
+  # amplitude check is applied; only structural/centering checks are.
+  # n_permutations_ci was raised from 10 to 99 in Phase 10 gate B: a
+  # timed measurement on the real 30,000-row UCI benchmark showed a full
+  # retrain-permutation costs ~0.036s (20 permutations in 0.73s), so 99
+  # permutations cost well under 4 seconds - cheap enough to run for real
+  # in CI. At n=10 the smallest achievable empirical p-value was 1/11 ~
+  # 0.09, which can NEVER satisfy alpha=0.01 - that is why CI previously
+  # had to mask this gate's failure with `|| true`. At n=99 the smallest
+  # achievable p-value is 1/100 = 0.01, exactly satisfying `p <= alpha`,
+  # so CI can now genuinely pass or fail this gate instead of it being
+  # mathematically unwinnable.
+  control2_pipeline_retrain:
+    n_permutations_full: 100
+    n_permutations_ci: 99
+    base_seed: 20260728
+    alpha: 0.01
+  # Principled statistical checks - Phase 10 section 5.3 explicitly rules
+  # out "uma tolerância fixa arbitrária". Centering is a two-sided z-test
+  # of the null distribution's OWN mean against 0.5, using the null
+  # distribution's OWN standard error of the mean (std / sqrt(n)) - this
+  # self-calibrates to however many permutations were actually run, never
+  # a fixed absolute number. Amplitude is only evaluated for Control 1
+  # (which has a closed-form expected SE); it is the ratio of the
+  # observed standard deviation to that theoretical SE.
+  centering_sigma_multiplier: 3.0
+  amplitude_se_ratio_min: 0.3333333333333333
+  amplitude_se_ratio_max: 3.0
 
 # credlens.model_validation.collinearity / coefficient_audit
 collinearity:
@@ -86,6 +129,24 @@ gates:
   require_artifact_hash_match: true
   require_reproducibility_match: true
   require_documentation_complete: true
+
+# credlens.model_validation.remediation - Phase 10 gate D decision
+# thresholds for the post-validation remediated regression
+# (EXP_behavioral_default_v2_reduced / MODEL_behavioral_default_v2_reduced).
+# `remediation_candidate` is the MOST favorable outcome this decision can
+# reach - never a promotion gate, never validation_passed/candidate/
+# production. Improvement bounds exist because remediation only removes
+# redundant/unstable coefficients (adds no new information) - an
+# implausibly large gain over v1 is a red flag given gate C's disclosure
+# that this frozen test set has been repeatedly observed across Phases
+# 8-10, not evidence of a better model.
+remediation:
+  max_vif_action_threshold: 10.0
+  max_kept_feature_sign_flip_rate: 0.05
+  max_pr_auc_degradation_vs_v1: 0.02
+  max_pr_auc_suspicious_improvement_vs_v1: 0.03
+  max_roc_auc_degradation_vs_v1: 0.02
+  max_roc_auc_suspicious_improvement_vs_v1: 0.03
 
 # credlens.model_validation.challenger_review - candidate/challenger
 # Pareto comparison axes (Phase 9 section 8.1). Purely descriptive - no

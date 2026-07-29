@@ -32,10 +32,10 @@
       "name": "negative_controls",
       "status": "pass",
       "severity": "blocking",
-      "evidence": "Real model validation ROC-AUC (0.7503) exceeds 100/100 permuted-target fits (empirical p=0.0099 <= alpha=0.01); the permutation-null mean ROC-AUC (0.4907) is within 0.05 of random (0.5).",
-      "threshold": "empirical p<=0.01, |null mean - 0.5|<=0.05",
+      "evidence": "Control 1 (score-label): Real ROC-AUC (0.7503) exceeds 99/99 label permutations (empirical p=0.0100); null mean 0.4997 (z=-0.41) and std 0.00837 (ratio to theory=0.93) both within expectation. | Control 2 (pipeline retrain): Real model validation ROC-AUC (0.7503) exceeds 99/99 permuted-target refits (empirical p=0.0100); null mean 0.4897 (z=-1.35) is centered. Observed std 0.07604 is wider than Control 1's theoretical label-permutation-only SE (0.00898) - expected, since this control's variance includes model-refitting noise (see module docstring).",
+      "threshold": "both controls: empirical p<=0.01, centering within 3.0 sigma; Control 1 additionally: amplitude ratio in [0.33, 3.00]",
       "result": "OK",
-      "justification": "Real model validation ROC-AUC (0.7503) exceeds 100/100 permuted-target fits (empirical p=0.0099 <= alpha=0.01); the permutation-null mean ROC-AUC (0.4907) is within 0.05 of random (0.5)."
+      "justification": "Control 1 (score-label): Real ROC-AUC (0.7503) exceeds 99/99 label permutations (empirical p=0.0100); null mean 0.4997 (z=-0.41) and std 0.00837 (ratio to theory=0.93) both within expectation. | Control 2 (pipeline retrain): Real model validation ROC-AUC (0.7503) exceeds 99/99 permuted-target refits (empirical p=0.0100); null mean 0.4897 (z=-1.35) is centered. Observed std 0.07604 is wider than Control 1's theoretical label-permutation-only SE (0.00898) - expected, since this control's variance includes model-refitting noise (see module docstring)."
     },
     {
       "name": "discrimination",

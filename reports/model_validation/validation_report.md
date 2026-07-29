@@ -15,7 +15,7 @@ the original Phase 8 report.
 | dataset_integrity | pass | blocking | OK | evidence.dataset_hash=45bcf4df62ff2e23... |
 | split_integrity | pass | blocking | OK | recomputed split hash matches experiment record (4022f9cc24a66c25...) |
 | leakage | pass | blocking | OK | experiment.warnings=[] |
-| negative_controls | pass | blocking | OK | Real model validation ROC-AUC (0.7503) exceeds 100/100 permuted-target fits (empirical p=0.0099 <= alpha=0.01); the permutation-null mean ROC-AUC (0.4907) is within 0.05 of random (0.5). |
+| negative_controls | pass | blocking | OK | Control 1 (score-label): Real ROC-AUC (0.7503) exceeds 99/99 label permutations (empirical p=0.0100); null mean 0.4997 (z=-0.41) and std 0.00837 (ratio to theory=0.93) both within expectation. | Control 2 (pipeline retrain): Real model validation ROC-AUC (0.7503) exceeds 99/99 permuted-target refits (empirical p=0.0100); null mean 0.4897 (z=-1.35) is centered. Observed std 0.07604 is wider than Control 1's theoretical label-permutation-only SE (0.00898) - expected, since this control's variance includes model-refitting noise (see module docstring). |
 | discrimination | pass | blocking | OK | 3 metric(s) recomputed within tolerance |
 | calibration | pass | blocking | OK | 5 calibration metric(s) recomputed within tolerance |
 | stability | pass | blocking | OK | roc_auc_stdev=0.0088 |

@@ -1,0 +1,350 @@
+{
+  "artifact_hash": null,
+  "calibration": {
+    "reason": "Not recalibrated for the reduced model.",
+    "selected_method": "none"
+  },
+  "created_at_utc": "2026-07-29T19:28:28.603268+00:00",
+  "cv_description": "StratifiedKFold(n_splits=5), scoring=average_precision, train-only",
+  "dataset_hash": "45bcf4df62ff2e237a74eb155cabfb4bbbc171219a0637daef44fdad07503dd0",
+  "dataset_id": "uci-default-credit",
+  "dependency_versions": {
+    "credlens": "0.10.0",
+    "numpy": "2.4.6",
+    "pandas": "2.3.3",
+    "python": "3.11.9",
+    "scikit_learn": "1.9.0",
+    "scipy": "1.17.1"
+  },
+  "estimator": "logistic_regression (reduced, VIF-audited)",
+  "experiment_id": "EXP_behavioral_default_v2_reduced_vif_only",
+  "feature_registry_version": "1.0.0",
+  "feature_set": [
+    "max_delinquency_status",
+    "most_recent_delinquency_status",
+    "delinquency_trend",
+    "consecutive_months_delinquent",
+    "avg_bill_amount",
+    "bill_trend",
+    "bill_variability",
+    "avg_payment_amount",
+    "payment_to_bill_ratio",
+    "months_without_payment",
+    "payment_coverage_rate",
+    "payment_variation",
+    "worst_payment_to_bill_ratio",
+    "limit_exposure_distance"
+  ],
+  "hyperparameters": {
+    "C": 0.1
+  },
+  "metrics": {
+    "split_stability_roc_auc": {
+      "mean": 0.746219134296855,
+      "seeds": [
+        42,
+        43,
+        44
+      ],
+      "stdev": 0.008265460748295617,
+      "values": [
+        0.7407269647452834,
+        0.7422054190316479,
+        0.7557250191136338
+      ]
+    },
+    "test": {
+      "calibration": {
+        "brier_score": 0.143368,
+        "calibration_intercept": -0.06675,
+        "calibration_slope": 0.935666,
+        "expected_calibration_error": 0.01409,
+        "log_loss": 0.453996
+      },
+      "discrimination": {
+        "ks_statistic": 0.385841,
+        "pr_auc": 0.499501,
+        "roc_auc": 0.740537
+      },
+      "prevalence": 0.221167,
+      "ranking": {
+        "decile_table": [
+          {
+            "capture_rate": 0.287114,
+            "cumulative_capture_rate": 0.287114,
+            "cumulative_population_share": 0.1,
+            "decile": 1,
+            "event_rate": 0.635,
+            "lift": 2.871138,
+            "n": 600,
+            "n_positive": 381
+          },
+          {
+            "capture_rate": 0.198191,
+            "cumulative_capture_rate": 0.485305,
+            "cumulative_population_share": 0.2,
+            "decile": 2,
+            "event_rate": 0.438333,
+            "lift": 1.981914,
+            "n": 600,
+            "n_positive": 263
+          },
+          {
+            "capture_rate": 0.107008,
+            "cumulative_capture_rate": 0.592313,
+            "cumulative_population_share": 0.3,
+            "decile": 3,
+            "event_rate": 0.236667,
+            "lift": 1.070083,
+            "n": 600,
+            "n_positive": 142
+          },
+          {
+            "capture_rate": 0.084401,
+            "cumulative_capture_rate": 0.676714,
+            "cumulative_population_share": 0.4,
+            "decile": 4,
+            "event_rate": 0.186667,
+            "lift": 0.844009,
+            "n": 600,
+            "n_positive": 112
+          },
+          {
+            "capture_rate": 0.073097,
+            "cumulative_capture_rate": 0.749812,
+            "cumulative_population_share": 0.5,
+            "decile": 5,
+            "event_rate": 0.161667,
+            "lift": 0.730972,
+            "n": 600,
+            "n_positive": 97
+          },
+          {
+            "capture_rate": 0.056518,
+            "cumulative_capture_rate": 0.80633,
+            "cumulative_population_share": 0.6,
+            "decile": 6,
+            "event_rate": 0.125,
+            "lift": 0.565185,
+            "n": 600,
+            "n_positive": 75
+          },
+          {
+            "capture_rate": 0.065561,
+            "cumulative_capture_rate": 0.871891,
+            "cumulative_population_share": 0.7,
+            "decile": 7,
+            "event_rate": 0.145,
+            "lift": 0.655614,
+            "n": 600,
+            "n_positive": 87
+          },
+          {
+            "capture_rate": 0.048983,
+            "cumulative_capture_rate": 0.920874,
+            "cumulative_population_share": 0.8,
+            "decile": 8,
+            "event_rate": 0.108333,
+            "lift": 0.489827,
+            "n": 600,
+            "n_positive": 65
+          },
+          {
+            "capture_rate": 0.040693,
+            "cumulative_capture_rate": 0.961567,
+            "cumulative_population_share": 0.9,
+            "decile": 9,
+            "event_rate": 0.09,
+            "lift": 0.406933,
+            "n": 600,
+            "n_positive": 54
+          },
+          {
+            "capture_rate": 0.038433,
+            "cumulative_capture_rate": 1.0,
+            "cumulative_population_share": 1.0,
+            "decile": 10,
+            "event_rate": 0.085,
+            "lift": 0.384326,
+            "n": 600,
+            "n_positive": 51
+          }
+        ]
+      },
+      "threshold_dependent": {
+        "balanced_accuracy": 0.61117,
+        "f1": 0.374062,
+        "false_negative": 978,
+        "false_positive": 190,
+        "n_flagged": 539,
+        "n_total": 6000,
+        "precision": 0.647495,
+        "recall": 0.262999,
+        "specificity": 0.959341,
+        "threshold": 0.5,
+        "true_negative": 4483,
+        "true_positive": 349
+      }
+    },
+    "validation": {
+      "calibration": {
+        "brier_score": 0.142045,
+        "calibration_intercept": -0.016992,
+        "calibration_slope": 0.967453,
+        "expected_calibration_error": 0.016132,
+        "log_loss": 0.453115
+      },
+      "discrimination": {
+        "ks_statistic": 0.396018,
+        "pr_auc": 0.501204,
+        "roc_auc": 0.747982
+      },
+      "prevalence": 0.221167,
+      "ranking": {
+        "decile_table": [
+          {
+            "capture_rate": 0.291635,
+            "cumulative_capture_rate": 0.291635,
+            "cumulative_population_share": 0.1,
+            "decile": 1,
+            "event_rate": 0.645,
+            "lift": 2.916353,
+            "n": 600,
+            "n_positive": 387
+          },
+          {
+            "capture_rate": 0.198945,
+            "cumulative_capture_rate": 0.49058,
+            "cumulative_population_share": 0.2,
+            "decile": 2,
+            "event_rate": 0.44,
+            "lift": 1.98945,
+            "n": 600,
+            "n_positive": 264
+          },
+          {
+            "capture_rate": 0.110776,
+            "cumulative_capture_rate": 0.601356,
+            "cumulative_population_share": 0.3,
+            "decile": 3,
+            "event_rate": 0.245,
+            "lift": 1.107762,
+            "n": 600,
+            "n_positive": 147
+          },
+          {
+            "capture_rate": 0.09269,
+            "cumulative_capture_rate": 0.694047,
+            "cumulative_population_share": 0.4,
+            "decile": 4,
+            "event_rate": 0.205,
+            "lift": 0.926903,
+            "n": 600,
+            "n_positive": 123
+          },
+          {
+            "capture_rate": 0.077619,
+            "cumulative_capture_rate": 0.771665,
+            "cumulative_population_share": 0.5,
+            "decile": 5,
+            "event_rate": 0.171667,
+            "lift": 0.776187,
+            "n": 600,
+            "n_positive": 103
+          },
+          {
+            "capture_rate": 0.051243,
+            "cumulative_capture_rate": 0.822909,
+            "cumulative_population_share": 0.6,
+            "decile": 6,
+            "event_rate": 0.113333,
+            "lift": 0.512434,
+            "n": 600,
+            "n_positive": 68
+          },
+          {
+            "capture_rate": 0.037679,
+            "cumulative_capture_rate": 0.860588,
+            "cumulative_population_share": 0.7,
+            "decile": 7,
+            "event_rate": 0.083333,
+            "lift": 0.37679,
+            "n": 600,
+            "n_positive": 50
+          },
+          {
+            "capture_rate": 0.057272,
+            "cumulative_capture_rate": 0.91786,
+            "cumulative_population_share": 0.8,
+            "decile": 8,
+            "event_rate": 0.126667,
+            "lift": 0.57272,
+            "n": 600,
+            "n_positive": 76
+          },
+          {
+            "capture_rate": 0.042954,
+            "cumulative_capture_rate": 0.960814,
+            "cumulative_population_share": 0.9,
+            "decile": 9,
+            "event_rate": 0.095,
+            "lift": 0.42954,
+            "n": 600,
+            "n_positive": 57
+          },
+          {
+            "capture_rate": 0.039186,
+            "cumulative_capture_rate": 1.0,
+            "cumulative_population_share": 1.0,
+            "decile": 10,
+            "event_rate": 0.086667,
+            "lift": 0.391861,
+            "n": 600,
+            "n_positive": 52
+          }
+        ]
+      },
+      "threshold_dependent": {
+        "balanced_accuracy": 0.61244,
+        "f1": 0.375479,
+        "false_negative": 984,
+        "false_positive": 157,
+        "n_flagged": 500,
+        "n_total": 6000,
+        "precision": 0.686,
+        "recall": 0.258478,
+        "specificity": 0.966403,
+        "threshold": 0.5,
+        "true_negative": 4516,
+        "true_positive": 343
+      }
+    },
+    "vif_elimination_steps": [
+      {
+        "removed": "total_bill_amount",
+        "vif_at_removal": Infinity
+      },
+      {
+        "removed": "total_payment_amount",
+        "vif_at_removal": Infinity
+      },
+      {
+        "removed": "utilization_ratio",
+        "vif_at_removal": 17127.2398
+      },
+      {
+        "removed": "months_delinquent_count",
+        "vif_at_removal": 60.1743
+      }
+    ]
+  },
+  "preprocessing": "median imputation + standardization (reduced feature set)",
+  "robustness_summary": {},
+  "seed": 42,
+  "split_hash": "reused_from:EXP_behavioral_default_v1",
+  "status": "evaluated",
+  "subgroup_audit_summary": {},
+  "target_column": "Y",
+  "threshold_policy": "Illustrative review-capacity scenario (never profit-optimized)",
+  "warnings": []
+}

@@ -230,21 +230,25 @@ jobs:
       - name: Model Lab - AppTest execution of the 9th dashboard page
         run: uv run pytest tests/test_dashboard_model_lab.py -q
 
-      # Independent model validation (Phase 9): the same CI-scoped
-      # CI_MODEL_SMOKE_v1 candidate from the Phase 8 steps above, run
-      # through credlens.model_validation. `--ci` uses the reduced
-      # permutation count (10, not 100) - with alpha=0.01 the smallest
-      # achievable empirical p-value at n=10 is 1/11 ~ 0.09, so the
-      # negative_controls gate (and therefore the overall decision)
-      # CANNOT mathematically pass at this scale - this step proves the
-      # pipeline RUNS end to end without error, not that it passes; full-
-      # rigor validation (100 permutations) is proven separately by
-      # tests/test_model_validation_*.py and the committed official
-      # decision.json (see the restorative step below for why decision
-      # .json/validation_report.md are regenerated one final time here).
-      - name: Model validation - independent re-validation (CI-scoped, reduced permutations)
+      # Independent model validation (Phase 9, hardened Phase 10 gate B):
+      # the same CI-scoped CI_MODEL_SMOKE_v1 candidate from the Phase 8
+      # steps above, run through credlens.model_validation. `--ci` uses
+      # the reduced permutation counts (99 for both controls, not 999/
+      # 100) - at n=99 the smallest achievable empirical p-value is
+      # 1/100 = 0.01, which DOES satisfy `p <= alpha` at alpha=0.01, so
+      # this is now a real, unmasked gate rather than a mathematically
+      # unwinnable one. A timed measurement on the real 30,000-row UCI
+      # benchmark showed 99 pipeline-retrain permutations cost well under
+      # 4 seconds, so this adds negligible CI time. There is deliberately
+      # no `|| true` here any more: a genuine validation_failed decision
+      # must fail this job. Full-rigor validation (999/100 permutations)
+      # is proven separately by tests/test_model_validation_*.py and the
+      # committed official decision.json (see the restorative step below
+      # for why decision.json/validation_report.md are regenerated one
+      # final time against the OFFICIAL model at full scale).
+      - name: Model validation - independent re-validation (CI-scoped permutation counts)
         run: |
-          uv run credlens model validate-independent --model-id CI_MODEL_SMOKE_v1 --ci || true
+          uv run credlens model validate-independent --model-id CI_MODEL_SMOKE_v1 --ci
           uv run credlens model audit-collinearity --model-id CI_MODEL_SMOKE_v1
           uv run credlens model audit-negative-controls --experiment-id CI_MODEL_SMOKE --ci
 

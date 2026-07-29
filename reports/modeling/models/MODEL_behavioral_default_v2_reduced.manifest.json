@@ -1,0 +1,169 @@
+{
+  "model_id": "MODEL_behavioral_default_v2_reduced",
+  "status": "remediation_candidate",
+  "experiment_id": "EXP_behavioral_default_v2_reduced",
+  "artifact_relative_path": "MODEL_behavioral_default_v2_reduced.joblib",
+  "artifact_sha256": "a2bbed770e7df60caaec96762f9d5cb40bd1d4b0fadb9e9233db7ea27c3d1808",
+  "input_schema": {
+    "max_delinquency_status": "float64",
+    "months_delinquent_count": "float64",
+    "most_recent_delinquency_status": "float64",
+    "delinquency_trend": "float64",
+    "avg_bill_amount": "float64",
+    "utilization_ratio": "float64",
+    "avg_payment_amount": "float64",
+    "payment_to_bill_ratio": "float64",
+    "months_without_payment": "float64",
+    "payment_coverage_rate": "float64",
+    "payment_variation": "float64"
+  },
+  "output_schema": {
+    "pseudonymous_record_id": "string",
+    "predicted_default_probability": "float64",
+    "risk_band": "string",
+    "model_version": "string",
+    "scoring_timestamp": "string",
+    "input_schema_version": "string"
+  },
+  "benchmark_source_id": "uci-default-credit",
+  "feature_registry_version": "1.0.0",
+  "test_metrics": {
+    "calibration": {
+      "brier_score": 0.142886,
+      "calibration_intercept": -0.044034,
+      "calibration_slope": 0.95313,
+      "expected_calibration_error": 0.012242,
+      "log_loss": 0.452576
+    },
+    "discrimination": {
+      "ks_statistic": 0.384603,
+      "pr_auc": 0.501553,
+      "roc_auc": 0.742282
+    },
+    "prevalence": 0.221167,
+    "ranking": {
+      "decile_table": [
+        {
+          "capture_rate": 0.290128,
+          "cumulative_capture_rate": 0.290128,
+          "cumulative_population_share": 0.1,
+          "decile": 1,
+          "event_rate": 0.641667,
+          "lift": 2.901281,
+          "n": 600,
+          "n_positive": 385
+        },
+        {
+          "capture_rate": 0.195931,
+          "cumulative_capture_rate": 0.486059,
+          "cumulative_population_share": 0.2,
+          "decile": 2,
+          "event_rate": 0.433333,
+          "lift": 1.959307,
+          "n": 600,
+          "n_positive": 260
+        },
+        {
+          "capture_rate": 0.110776,
+          "cumulative_capture_rate": 0.596835,
+          "cumulative_population_share": 0.3,
+          "decile": 3,
+          "event_rate": 0.245,
+          "lift": 1.107762,
+          "n": 600,
+          "n_positive": 147
+        },
+        {
+          "capture_rate": 0.08214,
+          "cumulative_capture_rate": 0.678975,
+          "cumulative_population_share": 0.4,
+          "decile": 4,
+          "event_rate": 0.181667,
+          "lift": 0.821402,
+          "n": 600,
+          "n_positive": 109
+        },
+        {
+          "capture_rate": 0.07159,
+          "cumulative_capture_rate": 0.750565,
+          "cumulative_population_share": 0.5,
+          "decile": 5,
+          "event_rate": 0.158333,
+          "lift": 0.715901,
+          "n": 600,
+          "n_positive": 95
+        },
+        {
+          "capture_rate": 0.058026,
+          "cumulative_capture_rate": 0.808591,
+          "cumulative_population_share": 0.6,
+          "decile": 6,
+          "event_rate": 0.128333,
+          "lift": 0.580256,
+          "n": 600,
+          "n_positive": 77
+        },
+        {
+          "capture_rate": 0.060286,
+          "cumulative_capture_rate": 0.868877,
+          "cumulative_population_share": 0.7,
+          "decile": 7,
+          "event_rate": 0.133333,
+          "lift": 0.602864,
+          "n": 600,
+          "n_positive": 80
+        },
+        {
+          "capture_rate": 0.051243,
+          "cumulative_capture_rate": 0.920121,
+          "cumulative_population_share": 0.8,
+          "decile": 8,
+          "event_rate": 0.113333,
+          "lift": 0.512434,
+          "n": 600,
+          "n_positive": 68
+        },
+        {
+          "capture_rate": 0.041447,
+          "cumulative_capture_rate": 0.961567,
+          "cumulative_population_share": 0.9,
+          "decile": 9,
+          "event_rate": 0.091667,
+          "lift": 0.414469,
+          "n": 600,
+          "n_positive": 55
+        },
+        {
+          "capture_rate": 0.038433,
+          "cumulative_capture_rate": 1.0,
+          "cumulative_population_share": 1.0,
+          "decile": 10,
+          "event_rate": 0.085,
+          "lift": 0.384326,
+          "n": 600,
+          "n_positive": 51
+        }
+      ]
+    },
+    "threshold_dependent": {
+      "balanced_accuracy": 0.614836,
+      "f1": 0.382821,
+      "false_negative": 966,
+      "false_positive": 198,
+      "n_flagged": 559,
+      "n_total": 6000,
+      "precision": 0.645796,
+      "recall": 0.272042,
+      "specificity": 0.957629,
+      "threshold": 0.5,
+      "true_negative": 4475,
+      "true_positive": 361
+    }
+  },
+  "limitations": [
+    "Historical public benchmark (UCI, Taiwan, 2005) - not a Brazilian population.",
+    "Post-validation remediation model (Phase 10 gate D) - built AFTER the frozen test set had already been repeatedly observed across Phases 8-10; carries an indirect-adaptation risk. Never a new independent external validation.",
+    "Not suitable for real lending decisions."
+  ],
+  "risk_band_cuts": []
+}

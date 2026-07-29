@@ -247,6 +247,16 @@ class TestGenerateReportsAndFigures:
             assert (
                 "Not suitable for real lending decisions" in content or "Não é adequado" in content
             )
+        # Phase 10 gate C - model cards must disclose holdout reuse, not
+        # claim an "untouched"/"opened only once" test set.
+        assert (
+            "Frozen evaluation holdout reused across documented validation phases"
+            in written["model_card.md"].read_text(encoding="utf-8")
+        )
+        assert (
+            "Holdout de avaliação congelado, reutilizado em fases documentadas de validação"
+            in written["model_card.pt-BR.md"].read_text(encoding="utf-8")
+        )
 
     def test_manifest_fingerprint_excludes_the_timestamp(
         self, isolated_repo_root: Path, evaluated_experiment_id: str

@@ -1158,6 +1158,15 @@ SEXO, EDUCAÇÃO, ESTADO CIVIL, IDADE - apenas auditoria pós-hoc
 - Brier: {cal.get("brier_score", "n/d")}
 - Calibration slope/intercept: {cal_slope} / {cal_intercept}
 
+## Uso do holdout
+**Holdout de avaliação congelado, reutilizado em fases documentadas de validação** - não
+"nunca tocado" nem "aberto uma única vez". O split nunca foi alterado e as previsões de
+teste permanecem congeladas (nenhum ajuste original usou o teste), mas o mesmo teste foi
+consultado repetidamente entre as Fases 8-10 (comparação de modelos, métricas, robustez,
+subgrupo, threshold, candidato/challenger). Ver seção 6 de
+`reports/model_validation/validation_report.pt-BR.md` para a divulgação completa e o
+risco de adaptação indireta em qualquer modelo remediado.
+
 ## Calibração
 Método selecionado: `{cal_method}`. {cal_reason}
 
@@ -1257,6 +1266,15 @@ SEX, EDUCATION, MARRIAGE, AGE - post-hoc audit only
 - Brier: {cal.get("brier_score", "n/a")}
 - Calibration slope/intercept: {cal_slope} / {cal_intercept}
 
+## Holdout usage
+**Frozen evaluation holdout reused across documented validation phases** - not "untouched"
+and not "opened only once". The split has never been altered and the test predictions
+remain frozen (no original tuning ever used the test set), but this same test set has been
+repeatedly consulted across Phases 8-10 (model comparison, metrics, robustness, subgroup
+audit, threshold validation, candidate/challenger comparison). See section 6 of
+`reports/model_validation/validation_report.md` for the full disclosure and the
+indirect-adaptation risk carried by any remediated model.
+
 ## Calibration
 Selected method: `{cal_method}`. {cal_reason}
 
@@ -1355,7 +1373,10 @@ Calibração: {exp.calibration.get("selected_method")}.
 
 ## 11. Avaliação (teste bloqueado) / 12. Operating points / 13. Incerteza
 Ver tabelas `reports/modeling/tables/{experiment_id}__*.csv` e
-`{experiment_id}__bootstrap.json`.
+`{experiment_id}__bootstrap.json`. **Holdout de avaliação congelado, reutilizado em fases
+documentadas de validação** - o split e as previsões de teste nunca mudaram, mas o mesmo
+teste foi consultado repetidamente entre as Fases 8-10 (ver seção 6 de
+`reports/model_validation/validation_report.pt-BR.md` para a divulgação completa).
 
 ## 14. Interpretabilidade / 15. Diagnóstico de subgrupo / 16. Robustez
 Ver `{experiment_id}__coefficients.csv`, `{experiment_id}__subgroup_audit.csv`,
@@ -1412,7 +1433,10 @@ Calibration: {exp.calibration.get("selected_method")}.
 
 ## 11. Evaluation (locked test) / 12. Operating points / 13. Uncertainty
 See tables `reports/modeling/tables/{experiment_id}__*.csv` and
-`{experiment_id}__bootstrap.json`.
+`{experiment_id}__bootstrap.json`. **Frozen evaluation holdout reused across documented
+validation phases** - the split and test predictions have never changed, but this same
+test set has been repeatedly consulted across Phases 8-10 (see section 6 of
+`reports/model_validation/validation_report.md` for the full disclosure).
 
 ## 14. Interpretability / 15. Subgroup diagnostics / 16. Robustness
 See `{experiment_id}__coefficients.csv`, `{experiment_id}__subgroup_audit.csv`,

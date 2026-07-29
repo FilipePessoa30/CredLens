@@ -25,6 +25,9 @@ LifecycleState = Literal[
     "validation_passed_with_limitations",
     "validation_failed",
     "retired",
+    "remediation_candidate",
+    "remediation_rejected",
+    "requires_new_external_validation",
 ]
 
 _ALLOWED_STATES: frozenset[str] = frozenset(
@@ -36,6 +39,14 @@ _ALLOWED_STATES: frozenset[str] = frozenset(
         "validation_passed_with_limitations",
         "validation_failed",
         "retired",
+        # Phase 10 gate D - a remediated regression (post-validation, built
+        # AFTER the frozen holdout has already been repeatedly observed -
+        # see gate C) is never called "candidate" or auto-promoted; it gets
+        # its own distinct vocabulary, still excluded from
+        # production/deployed/champion by _FORBIDDEN_STATES below.
+        "remediation_candidate",
+        "remediation_rejected",
+        "requires_new_external_validation",
     }
 )
 

@@ -1,0 +1,240 @@
+# CredLens - Phase 10 gate D remediation policy.
+#
+# The official EXP_behavioral_default_v1/MODEL_behavioral_default_v1 (18
+# features) is NEVER overwritten or retrained by this file - it documents
+# the feature-selection decisions for a SEPARATE, new experiment
+# (EXP_behavioral_default_v2_reduced / MODEL_behavioral_default_v2_reduced),
+# built to address the methodological limitations
+# `credlens.model_validation.coefficient_audit` found in v1: 4 features
+# classified `redundant` (2 of them VIF-infinite, perfectly collinear
+# pairs), 5 classified `unstable_direction` (bootstrap/CV sign-flip rate
+# >=5%, three of them >=33%) - 9 of 18 features not fully stable, exactly
+# matching the limitation recorded in v1's decision.json.
+#
+# Per Phase 10 gate D, this is NOT a pure "drop everything VIF/stability
+# flags" exercise (that mechanical rule is deliberately ALSO built - see
+# `stability_reduced_feature_set` in remediation.py - specifically to
+# demonstrate why it is too aggressive: it would drop BOTH members of
+# every redundant pair, discarding delinquency-count, bill-amount, and
+# payment-amount information entirely). Each decision below instead
+# weighs: meaning, stability, predictive power, redundancy, monotonicity,
+# simplicity, business rationale, and calibration impact - keeping the
+# more defensible member of each redundant pair rather than dropping both.
+
+remediation_policy_version: "1.0.0"
+
+# Final remediated feature set (gate D "final remediated logistic").
+# `action: keep` features (11) become EXP_behavioral_default_v2_reduced's
+# feature_set, in FEATURE_COLUMNS order. `action: drop` features (6) are
+# excluded. Every row's `reason` is written into the remediation report -
+# nothing here is silent.
+final_remediated_feature_decisions:
+  - feature: max_delinquency_status
+    action: keep
+    category: stable_direction
+    reason: >
+      VIF 3.96, 0% bootstrap/CV sign-flip rate, positive and monotonic
+      with domain expectation (worse delinquency status this window ->
+      higher risk). No redundancy, no calibration concern. Reason-code
+      eligible.
+
+  - feature: most_recent_delinquency_status
+    action: keep
+    category: stable_direction
+    reason: >
+      VIF 2.72, 0% sign-flip rate, positive, intuitive (most recent
+      month's delinquency status). Reason-code eligible.
+
+  - feature: delinquency_trend
+    action: keep
+    category: stable_direction
+    reason: >
+      VIF 2.62, 0% sign-flip rate, positive, monotonic (worsening trend
+      -> higher risk). Reason-code eligible.
+
+  - feature: payment_coverage_rate
+    action: keep
+    category: stable_direction
+    reason: >
+      VIF 2.98, 0% sign-flip rate, positive, business-intuitive (higher
+      coverage of billed amount by payments correlates with the model's
+      risk score in the expected direction given how the target and
+      other delinquency features co-vary in this benchmark). Reason-code
+      eligible.
+
+  - feature: utilization_ratio
+    action: keep
+    category: stable_direction
+    reason: >
+      VIF 2.09, 0% sign-flip rate, positive, textbook credit-risk
+      variable (higher utilization -> higher risk). Reason-code eligible.
+
+  - feature: months_without_payment
+    action: keep
+    category: stable_direction
+    reason: >
+      VIF 3.03, 0% sign-flip rate, positive, intuitive. Reason-code
+      eligible.
+
+  - feature: payment_to_bill_ratio
+    action: keep
+    category: stable_direction
+    reason: >
+      VIF 2.45, 0% sign-flip rate, positive. Reason-code eligible.
+
+  - feature: payment_variation
+    action: keep
+    category: low_magnitude
+    reason: >
+      VIF 1.88, 0% bootstrap/2% CV sign-flip rate (stable in direction),
+      but its odds ratio (0.951) falls inside the low-magnitude band
+      (0.95-1.05) - kept for predictive completeness (small but real
+      contribution to PR-AUC/ROC-AUC), but NOT reason-code eligible under
+      `config/model_validation/reason_codes.yml` (effect too small to
+      support an executive-facing claim).
+
+  - feature: limit_exposure_distance
+    action: drop
+    category: not_interpretable_individually
+    paired_with: utilization_ratio
+    reason: >
+      DROPPED after a re-audit finding not visible in the original
+      18-feature model's VIF table: `limit_exposure_distance` and
+      `utilization_ratio` are near-perfectly algebraically complementary
+      (`limit_exposure_distance = (limit - avg_bill_amount) / limit = 1 -
+      utilization_ratio` for every non-capped row - Pearson correlation
+      -0.99997 on the train partition). In the original 18-feature model
+      both showed a modest VIF (~2.09 each) because the presence of the
+      total_bill_amount/avg_bill_amount duplicate pair dominated that
+      model's (already severely ill-conditioned) VIF computation and
+      numerically masked this second, independent near-exact
+      collinearity. Once total_bill_amount/total_payment_amount were
+      removed, re-running the collinearity audit on the smaller kept set
+      (gate D's `_build_experiment_from_feature_set` always re-audits,
+      never reuses the original 18-feature classification) exposed it
+      directly: VIF 17122.80/17088.69 for utilization_ratio/
+      limit_exposure_distance respectively when both were kept. Resolved
+      by keeping `utilization_ratio` (the more standard, directly
+      interpretable credit-risk concept - "share of credit line used" -
+      already `stable_direction` with an intuitive positive sign) and
+      dropping `limit_exposure_distance` (already the less interpretable
+      of the two: `not_interpretable_individually` in the original
+      model, a mathematically redundant complement carrying no
+      additional information once utilization_ratio is present).
+
+  - feature: months_delinquent_count
+    action: keep
+    category: redundant
+    paired_with: consecutive_months_delinquent
+    reason: >
+      Kept over consecutive_months_delinquent (see below): positive,
+      intuitive sign (coefficient +1.088 in the 18-feature model - more
+      delinquent months -> higher risk), a simpler concept for an
+      executive reason code ("N of the last 6 months delinquent"), and
+      once its redundant twin is removed its own VIF (56.83 in the
+      18-feature model, driven by consecutive_months_delinquent's
+      presence) drops sharply. Reason-code eligible in the remediated
+      model.
+
+  - feature: consecutive_months_delinquent
+    action: drop
+    category: redundant
+    paired_with: months_delinquent_count
+    reason: >
+      Dropped. Derived from the same 6 delinquency-status source columns
+      as months_delinquent_count (`credlens.modeling.features`), VIF
+      52.80 in the 18-feature model. Its coefficient sign (-0.553) is
+      counter-intuitive once both features are in the same model (more
+      consecutive delinquency months appearing to REDUCE the score) -
+      textbook redundant-regressor sign reversal, not a real protective
+      effect. Its own bootstrap/CV sign-flip rate is 0% in isolation, so
+      this is a redundancy/business-rationale decision, not a raw
+      instability one - exactly the "reason-code-inappropriate
+      conditional interpretation" case Phase 10 gate D calls out.
+
+  - feature: avg_bill_amount
+    action: keep
+    category: unstable_direction
+    paired_with: total_bill_amount
+    reason: >
+      Kept over total_bill_amount (see below): `avg_bill_amount =
+      total_bill_amount / 6` exactly (`credlens.modeling.features`
+      computes both as `.mean(axis=1)` / `.sum(axis=1)` over the same 6
+      monthly columns) - a deterministic linear rescaling, so keeping
+      only one loses zero information. Per-cycle average bill is more
+      directly comparable across customers than a 6-month total.
+
+  - feature: total_bill_amount
+    action: drop
+    category: unstable_direction
+    paired_with: avg_bill_amount
+    reason: >
+      Dropped. Perfectly collinear with avg_bill_amount (VIF undefined/
+      infinite for both in the 18-feature model - one of the two
+      "VIF-infinite pairs" in v1's decision.json) - including both is a
+      mathematically degenerate design matrix, not merely a stability
+      concern. Its reported instability (12.5% bootstrap sign-flip rate,
+      identical -0.017128 coefficient to avg_bill_amount) is the direct
+      symptom of this exact collinearity, not independent evidence.
+
+  - feature: avg_payment_amount
+    action: keep
+    category: redundant
+    paired_with: total_payment_amount
+    reason: >
+      Kept over total_payment_amount (see below) for the same
+      deterministic-rescaling reason as avg_bill_amount:
+      `avg_payment_amount = total_payment_amount / 6` exactly. Per-cycle
+      average payment is more directly comparable across customers.
+
+  - feature: total_payment_amount
+    action: drop
+    category: redundant
+    paired_with: avg_payment_amount
+    reason: >
+      Dropped. Perfectly collinear with avg_payment_amount (VIF
+      undefined/infinite for both - the second of the two "VIF-infinite
+      pairs") - a mathematically degenerate pairing, resolved by keeping
+      the per-cycle average.
+
+  - feature: bill_trend
+    action: drop
+    category: unstable_direction
+    paired_with: null
+    reason: >
+      Dropped. No redundant "better" alternative feature exists for this
+      one - it is unreliable on its own terms: 33.5% bootstrap / 40% CV
+      sign-flip rate. A coefficient whose sign is not even reproducible
+      in the majority of resamples cannot support a stable reason code
+      or a stable causal narrative, remediated or not.
+
+  - feature: bill_variability
+    action: drop
+    category: unstable_direction
+    paired_with: null
+    reason: >
+      Dropped. 34% bootstrap / 40% CV sign-flip rate, AND its sign also
+      changes across the regularization-sensitivity grid
+      (`regularization_sign_changes=true`) - the least stable feature in
+      the 18-feature model by every stability criterion measured. No
+      redundant substitute exists; dropped outright.
+
+  - feature: worst_payment_to_bill_ratio
+    action: drop
+    category: unstable_direction
+    paired_with: null
+    reason: >
+      Dropped. 41.5% bootstrap / 20% CV sign-flip rate - sign is
+      essentially a coin flip across bootstrap resamples of the training
+      set. No redundant substitute exists; dropped outright.
+
+# Stability-reduced feature set (gate D "stability-reduced logistic") is
+# NOT listed here - it is computed mechanically (drop every feature
+# whose 18-feature-model category is `redundant` or `unstable_direction`,
+# with no pairwise judgment) directly from
+# `reports/model_validation/tables/<experiment_id>__coefficient_classification.csv`
+# at run time, by `remediation.stability_reduced_feature_set`. It is
+# INTENTIONALLY a comparison baseline, not a recommended feature set -
+# see its own docstring for why it is expected to under-perform the
+# final remediated model on interpretability/coverage despite similar
+# discrimination.

@@ -75,6 +75,16 @@ class TestValidationReports:
         pt_text = written["validation_report.pt-BR.md"].read_text(encoding="utf-8")
         assert "Not suitable for real lending decisions" in en_text
         assert "Não é adequado para decisões reais" in pt_text
+        # Phase 10 gate C - the holdout must never be called "untouched"
+        # or "opened only once"; both bilingual reports must carry the
+        # explicit reuse disclosure instead (the disclosure text itself
+        # quotes "untouched" only to disclaim it, so this checks for the
+        # affirmative reuse statement, not a blanket absence of the word).
+        assert "Frozen evaluation holdout reused across documented validation phases" in en_text
+        assert (
+            "Holdout de avaliação congelado, reutilizado em fases documentadas de validação"
+            in pt_text
+        )
 
 
 class TestRegisterChallenger:

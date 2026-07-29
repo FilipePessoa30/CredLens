@@ -39,7 +39,10 @@ from credlens.model_validation.evidence import (
     write_evidence,
 )
 from credlens.model_validation.lifecycle import record_transition
-from credlens.model_validation.negative_controls import run_permutation_negative_control
+from credlens.model_validation.negative_controls import (
+    run_pipeline_retrain_permutation_control,
+    run_score_label_permutation_control,
+)
 from credlens.model_validation.recomputation import run_recomputation
 from credlens.model_validation.robustness_review import spot_check_robustness
 from credlens.model_validation.subgroup_validation import run_subgroup_validation
@@ -106,14 +109,16 @@ class IndependentValidationResult:
     model_id: str
     evidence: EvidenceManifest
     decision: Any
-    n_permutations: int
+    n_permutations_control1: int
+    n_permutations_control2: int
 
     def to_dict(self) -> dict[str, Any]:
         return {
             "experiment_id": self.experiment_id,
             "model_id": self.model_id,
             "decision": self.decision.to_dict(),
-            "n_permutations": self.n_permutations,
+            "n_permutations_control1": self.n_permutations_control1,
+            "n_permutations_control2": self.n_permutations_control2,
         }
 
 
@@ -138,19 +143,31 @@ def validate_independent(
     )
 
     perm_cfg = validation_config.permutation_test
-    n_permutations = (
-        int(perm_cfg["n_permutations_full"])
-        if full_permutations
-        else int(perm_cfg["n_permutations_ci"])
+    control1_cfg = perm_cfg["control1_score_label"]
+    control2_cfg = perm_cfg["control2_pipeline_retrain"]
+    centering_sigma = float(perm_cfg["centering_sigma_multiplier"])
+    n_permutations_c1 = int(
+        control1_cfg["n_permutations_full"] if full_permutations else control1_cfg["n_permutations_ci"]
     )
-    permutation_report = run_permutation_negative_control(
+    n_permutations_c2 = int(
+        control2_cfg["n_permutations_full"] if full_permutations else control2_cfg["n_permutations_ci"]
+    )
+    score_label_report = run_score_label_permutation_control(
         experiment_id,
-        n_permutations=n_permutations,
-        base_seed=int(perm_cfg["base_seed"]),
-        alpha=float(perm_cfg["alpha"]),
-        max_permutation_mean_deviation=float(
-            perm_cfg["max_permutation_mean_deviation_from_random_roc_auc"]
-        ),
+        n_permutations=n_permutations_c1,
+        base_seed=int(control1_cfg["base_seed"]),
+        alpha=float(control1_cfg["alpha"]),
+        centering_sigma_multiplier=centering_sigma,
+        amplitude_ratio_min=float(perm_cfg["amplitude_se_ratio_min"]),
+        amplitude_ratio_max=float(perm_cfg["amplitude_se_ratio_max"]),
+        repo_root=repo_root,
+    )
+    pipeline_retrain_report = run_pipeline_retrain_permutation_control(
+        experiment_id,
+        n_permutations=n_permutations_c2,
+        base_seed=int(control2_cfg["base_seed"]),
+        alpha=float(control2_cfg["alpha"]),
+        centering_sigma_multiplier=centering_sigma,
         repo_root=repo_root,
     )
 
@@ -294,11 +311,17 @@ def validate_independent(
     gates.append(
         build_gate(
             "negative_controls",
-            permutation_report.passed,
+            score_label_report.passed and pipeline_retrain_report.passed,
             severity="blocking",
-            evidence=permutation_report.reason,
-            threshold=f"empirical p<={permutation_report.alpha}, |null mean - 0.5|<="
-            f"{permutation_report.max_permutation_mean_deviation_from_random_roc_auc}",
+            evidence=(
+                f"Control 1 (score-label): {score_label_report.reason} | "
+                f"Control 2 (pipeline retrain): {pipeline_retrain_report.reason}"
+            ),
+            threshold=(
+                f"both controls: empirical p<={control1_cfg['alpha']}, centering within "
+                f"{centering_sigma} sigma; Control 1 additionally: amplitude ratio in "
+                f"[{perm_cfg['amplitude_se_ratio_min']:.2f}, {perm_cfg['amplitude_se_ratio_max']:.2f}]"
+            ),
         )
     )
     gates.append(
@@ -442,8 +465,17 @@ def validate_independent(
     pd.DataFrame([c.to_dict() for c in recomputation.operating_point_comparisons]).to_csv(
         out_dir / f"{experiment_id}__recomputed_operating_points.csv", index=False
     )
-    (out_dir / f"{experiment_id}__permutation_test.json").write_text(
-        json.dumps(permutation_report.to_dict(), indent=2), encoding="utf-8"
+    (out_dir / f"{experiment_id}__permutation_control1_score_label.json").write_text(
+        json.dumps(score_label_report.to_dict(), indent=2), encoding="utf-8"
+    )
+    pd.DataFrame([row.to_dict() for row in score_label_report.audit_table]).to_csv(
+        out_dir / f"{experiment_id}__permutation_control1_audit.csv", index=False
+    )
+    (out_dir / f"{experiment_id}__permutation_control2_pipeline_retrain.json").write_text(
+        json.dumps(pipeline_retrain_report.to_dict(), indent=2), encoding="utf-8"
+    )
+    pd.DataFrame([row.to_dict() for row in pipeline_retrain_report.audit_table]).to_csv(
+        out_dir / f"{experiment_id}__permutation_control2_audit.csv", index=False
     )
     pd.DataFrame([row.to_dict() for row in collinearity.vif_table]).to_csv(
         out_dir / f"{experiment_id}__vif.csv", index=False
@@ -475,7 +507,8 @@ def validate_independent(
         model_id=model_id,
         evidence=evidence,
         decision=decision,
-        n_permutations=n_permutations,
+        n_permutations_control1=n_permutations_c1,
+        n_permutations_control2=n_permutations_c2,
     )
 
 
@@ -588,6 +621,33 @@ def build_reduced_experiment(
     import joblib
 
     joblib.dump(tuned.fitted.pipeline, models_dir / "logistic_regression_reduced.joblib")
+
+    # Frozen predictions, same convention as credlens.modeling.reporting.
+    # evaluate_experiment - lets Phase 10 gate D's remediation comparison
+    # (and, incidentally, control1's permutation test) reuse this reduced
+    # experiment exactly like an official one, without re-scoring.
+    ids_val = df.loc[assignment.validation_index, contract.identifier_column]
+    ids_test = df.loc[assignment.test_index, contract.identifier_column]
+    pd.DataFrame(
+        {
+            "id": ids_val.to_numpy(),
+            "y_true": y_val.to_numpy(),
+            "logistic_regression": p_val.to_numpy(),
+        }
+    ).to_csv(
+        repo_root / MODELING_TABLES_DIR / f"{reduced_experiment_id}__predictions_val.csv",
+        index=False,
+    )
+    pd.DataFrame(
+        {
+            "id": ids_test.to_numpy(),
+            "y_true": y_test.to_numpy(),
+            "logistic_regression": p_test.to_numpy(),
+        }
+    ).to_csv(
+        repo_root / MODELING_TABLES_DIR / f"{reduced_experiment_id}__predictions_test.csv",
+        index=False,
+    )
 
     stability_seeds = list(config.uncertainty["split_stability"]["seeds"])[:3]
     stability_roc_aucs = []
@@ -871,6 +931,24 @@ copiada do relatório original da Fase 8.
 Benchmark público histórico (UCI, Taiwan, 2005). Esta validação independente não constitui
 certificação de fairness, avaliação de conformidade legal, nem aprovação para uso em decisões
 reais de crédito. **Não é adequado para decisões reais de concessão de crédito.**
+
+## 6. Divulgação de reutilização do holdout
+**Holdout de avaliação congelado, reutilizado em fases documentadas de validação.**
+
+O split treino/validação/teste (`split_assignment.csv`) nunca foi alterado desde sua criação na
+Fase 8. As previsões originais do teste (`predictions_test.csv`) permanecem congeladas - nenhum
+ajuste de hiperparâmetro, seleção de feature ou decisão de threshold originais usou o teste. Ainda
+assim, este mesmo conjunto de teste foi consultado repetidamente ao longo das Fases 8-10 para:
+comparação de modelos candidatos, cálculo de métricas de discriminação/calibração, análise de
+robustez, auditoria de subgrupos, validação de threshold e comparação candidato/challenger. Cada
+consulta observou (sem re-treinar sobre) os resultados do teste. Por isso, este relatório NÃO
+descreve o holdout como "nunca tocado" ou "aberto uma única vez" - essa descrição deixou de ser
+precisa. Qualquer modelo NOVO criado depois dessas observações repetidas (por exemplo, uma
+regressão remediada da Fase 10) carrega um risco de adaptação indireta: mesmo sem re-treinar
+diretamente sobre o teste, decisões de design humanas podem ter sido influenciadas por resultados
+já observados nele. Não existe um segundo holdout externo independente neste projeto. Qualquer
+modelo remediado é chamado de **"modelo de remediação pós-validação"**, nunca de uma nova
+validação externa independente.
 """
 
     return f"""# Independent Validation Report (Phase 9)
@@ -898,6 +976,23 @@ the original Phase 8 report.
 Historical public benchmark (UCI, Taiwan, 2005). This independent validation is not a fairness
 certification, not a legal compliance assessment, and not an approval for use in real lending
 decisions. **Not suitable for real lending decisions.**
+
+## 6. Holdout reuse disclosure
+**Frozen evaluation holdout reused across documented validation phases.**
+
+The train/validation/test split (`split_assignment.csv`) has never been altered since it was
+created in Phase 8. The original test predictions (`predictions_test.csv`) remain frozen - no
+original hyperparameter tuning, feature selection, or threshold decision ever used the test set.
+That said, this same test set has been repeatedly consulted across Phases 8-10 for: candidate
+model comparison, discrimination/calibration metric computation, robustness analysis, subgroup
+auditing, threshold validation, and candidate/challenger comparison. Each consultation observed
+(without retraining on) the test set's results. For that reason, this report deliberately does
+NOT describe the holdout as "untouched" or "opened only once" - that description stopped being
+accurate. Any NEW model created after these repeated observations (for example, a Phase 10
+remediated regression) carries an indirect-adaptation risk: even without directly retraining on
+the test set, human design decisions may have been shaped by results already observed on it. No
+second, independent external holdout exists in this project. Any remediated model is called a
+**"post-validation remediation model"**, never a new independent external validation.
 """
 
 
@@ -969,22 +1064,29 @@ def generate_validation_figures(experiment_id: str, *, repo_root: Path | None = 
         ax.set_title("Multicollinearity audit - VIF (top 10)")
         _save(fig, "01_vif")
 
-    perm_path = tables_dir / f"{experiment_id}__permutation_test.json"
-    if perm_path.is_file():
-        perm = json.loads(perm_path.read_text(encoding="utf-8"))
-        fig, ax = plt.subplots(figsize=(6, 4))
-        ax.hist(perm["roc_auc_distribution"], bins=20, color="#1f5fa8")
-        ax.axvline(
-            perm["real_model_validation_roc_auc"],
-            color="#8b1a1a",
-            linestyle="--",
-            label="Real model",
+    c1_path = tables_dir / f"{experiment_id}__permutation_control1_score_label.json"
+    c2_path = tables_dir / f"{experiment_id}__permutation_control2_pipeline_retrain.json"
+    if c1_path.is_file() and c2_path.is_file():
+        c1 = json.loads(c1_path.read_text(encoding="utf-8"))
+        c2 = json.loads(c2_path.read_text(encoding="utf-8"))
+        fig, axes = plt.subplots(1, 2, figsize=(11, 4), sharey=False)
+        axes[0].hist(c1["roc_auc_distribution"], bins=30, color="#1f5fa8")
+        axes[0].axvline(c1["real_roc_auc"], color="#8b1a1a", linestyle="--", label="Real model")
+        axes[0].axvline(0.5, color="gray", linestyle=":", label="Random (0.5)")
+        axes[0].set_xlabel("Validation ROC-AUC")
+        axes[0].set_title(f"Control 1: score-label (n={c1['n_permutations']})")
+        axes[0].legend(fontsize=7)
+
+        axes[1].hist(c2["roc_auc_distribution"], bins=30, color="#e6842e")
+        axes[1].axvline(
+            c2["real_model_validation_roc_auc"], color="#8b1a1a", linestyle="--", label="Real model"
         )
-        ax.axvline(0.5, color="gray", linestyle=":", label="Random (0.5)")
-        ax.set_xlabel("Validation ROC-AUC under permuted target")
-        ax.set_title(f"Permutation null distribution (n={perm['n_permutations']})")
-        ax.legend()
-        _save(fig, "02_permutation_null_distribution")
+        axes[1].axvline(0.5, color="gray", linestyle=":", label="Random (0.5)")
+        axes[1].set_xlabel("Validation ROC-AUC")
+        axes[1].set_title(f"Control 2: pipeline retrain (n={c2['n_permutations']})")
+        axes[1].legend(fontsize=7)
+        fig.suptitle("Permutation null distributions - two independent controls")
+        _save(fig, "02_permutation_null_distributions")
 
     gaps_path = tables_dir / f"{experiment_id}__subgroup_gaps.csv"
     if gaps_path.is_file():

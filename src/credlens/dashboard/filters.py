@@ -59,7 +59,10 @@ def derive_filter_options(data: DashboardData) -> FilterOptions:
         df = data.tables.get(table)
         if df is None or column not in df.columns or df.empty:
             return None, None
-        dates = pd.to_datetime(df[column], errors="coerce").dropna()
+        # format="ISO8601" avoids pandas's per-element dateutil fallback (and its
+        # "Could not infer format" UserWarning) for the ISO-8601 date strings this
+        # column always holds (dbt mart / demo Parquet - see data/README.md).
+        dates = pd.to_datetime(df[column], errors="coerce", format="ISO8601").dropna()
         if dates.empty:
             return None, None
         return str(dates.min().date()), str(dates.max().date())

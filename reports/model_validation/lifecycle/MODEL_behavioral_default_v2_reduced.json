@@ -1,0 +1,22 @@
+{
+  "subject_id": "MODEL_behavioral_default_v2_reduced",
+  "current_state": "remediation_candidate",
+  "transitions": [
+    {
+      "from_state": "experiment",
+      "to_state": "remediation_candidate",
+      "evidence_ref": "reports/modeling/models/MODEL_behavioral_default_v2_reduced.manifest.json",
+      "gate_summary": "Phase 10 gate D remediation decision: remediation_candidate.",
+      "triggered_by": "manual_validation_run",
+      "timestamp_utc": "2026-07-29T19:25:12.807154+00:00"
+    },
+    {
+      "from_state": "remediation_candidate",
+      "to_state": "remediation_candidate",
+      "evidence_ref": "reports/modeling/models/MODEL_behavioral_default_v2_reduced.manifest.json",
+      "gate_summary": "Phase 10 gate D remediation decision: remediation_candidate.",
+      "triggered_by": "manual_validation_run",
+      "timestamp_utc": "2026-07-29T19:28:40.921309+00:00"
+    }
+  ]
+}
