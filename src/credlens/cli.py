@@ -842,6 +842,59 @@ def _build_parser() -> argparse.ArgumentParser:
     monitor_validate_parser.add_argument("--run-id", required=True)
     monitor_validate_parser.add_argument("--json", action="store_true")
 
+    # --- Phase 10: release command group ------------------------------------
+
+    release_parser = subparsers.add_parser(
+        "release",
+        help="Release-engineering checks (Phase 10) - integrity validation, license "
+        "inventory, SBOM, deterministic release manifest, readiness decision. All local "
+        "only - no network access, no external service.",
+    )
+    release_subparsers = release_parser.add_subparsers(dest="release_command")
+
+    release_validate_parser = release_subparsers.add_parser(
+        "validate",
+        help="Runs the release integrity checklist (version, lockfile, license, "
+        "secrets, large files, bilingual reports, model artifacts, CI masking patterns).",
+    )
+    release_validate_parser.add_argument("--json", action="store_true")
+
+    release_licenses_parser = release_subparsers.add_parser(
+        "licenses",
+        help="Dependency license inventory from installed package metadata - engineering "
+        "inventory, not legal advice.",
+    )
+    release_licenses_parser.add_argument("--json", action="store_true")
+
+    release_sbom_parser = release_subparsers.add_parser(
+        "sbom", help="Generates a CycloneDX-format SBOM from installed package metadata."
+    )
+    release_sbom_parser.add_argument("--json", action="store_true")
+
+    release_manifest_parser = release_subparsers.add_parser(
+        "manifest",
+        help="Builds the deterministic release manifest and readiness decision, and writes "
+        "it to reports/release/release_manifest.json.",
+    )
+    release_manifest_parser.add_argument(
+        "--visual-qa-status",
+        default="not_verified",
+        choices=["not_verified", "verified_locally"],
+    )
+    release_manifest_parser.add_argument(
+        "--docker-status",
+        default="not_executed",
+        choices=["not_executed", "built_and_validated", "build_failed"],
+    )
+    release_manifest_parser.add_argument("--ci-status", default="not_run_remotely_this_session")
+    release_manifest_parser.add_argument("--test-total", type=int, default=None)
+    release_manifest_parser.add_argument("--json", action="store_true")
+
+    release_status_parser = release_subparsers.add_parser(
+        "status", help="Prints the last written release manifest, if any."
+    )
+    release_status_parser.add_argument("--json", action="store_true")
+
     return parser
 
 
@@ -2344,6 +2397,133 @@ def _cmd_analysis_reproduce(
     return 0 if matched else 1
 
 
+# --- Phase 10: release command handlers -------------------------------------
+
+
+def _release_error_types() -> tuple[type[Exception], ...]:
+    from credlens.release.manifest import ReleaseManifestError
+
+    return (ReleaseManifestError,)
+
+
+def _cmd_release_validate(as_json: bool) -> int:
+    from credlens.release.integrity import run_release_integrity_checks
+
+    report = run_release_integrity_checks()
+    if as_json:
+        print(json.dumps(report.to_dict(), indent=2))
+    else:
+        print("CredLens release validate")
+        print("=" * 40)
+        for check in report.checks:
+            print(f"[{check.status.upper()}] {check.name}: {check.detail}")
+        print(f"Overall: {report.to_dict()['overall']}")
+    return 1 if report.has_failure else 0
+
+
+def _cmd_release_licenses(as_json: bool) -> int:
+    from credlens.release.licenses import inventory_dependency_licenses
+
+    inventory = inventory_dependency_licenses()
+    if as_json:
+        print(json.dumps(inventory.to_dict(), indent=2))
+    else:
+        print("CredLens release licenses")
+        print("=" * 40)
+        print(inventory.disclaimer_en)
+        print(f"Project license: {inventory.project_license}")
+        print(
+            f"{len(inventory.dependencies)} dependencies, {inventory.unknown_count} unknown, "
+            f"{inventory.copyleft_count} copyleft"
+        )
+        for dep in inventory.dependencies:
+            if dep.compatibility != "permissive_compatible":
+                print(f"  REVIEW: {dep.name} {dep.version} - {dep.license} ({dep.compatibility})")
+    return 0
+
+
+def _cmd_release_sbom(as_json: bool) -> int:
+    from credlens.release.sbom import generate_sbom, write_sbom
+
+    report = generate_sbom()
+    path = write_sbom(report)
+    if as_json:
+        print(json.dumps(report.to_dict(), indent=2))
+    else:
+        print("CredLens release sbom")
+        print("=" * 40)
+        print(f"Components: {report.n_components}")
+        print(f"Content fingerprint: {report.content_fingerprint}")
+        print(f"Written to: {path}")
+    return 0
+
+
+def _cmd_release_manifest(
+    visual_qa_status: str, docker_status: str, ci_status: str, test_total: int | None, as_json: bool
+) -> int:
+    from credlens.release.manifest import build_release_manifest, write_release_manifest
+
+    try:
+        manifest = build_release_manifest(
+            test_counts={"total": test_total} if test_total is not None else {},
+            visual_qa_status=visual_qa_status,
+            docker_status=docker_status,
+            ci_status=ci_status,
+        )
+    except _release_error_types() as exc:
+        print(f"Error: {exc}")
+        return 1
+    path = write_release_manifest(manifest)
+    if as_json:
+        print(json.dumps(manifest.to_dict(), indent=2))
+    else:
+        print("CredLens release manifest")
+        print("=" * 40)
+        print(f"release_id: {manifest.release_id}")
+        print(f"readiness_decision: {manifest.readiness_decision}")
+        print(f"release_blockers: {manifest.release_blockers}")
+        print(f"Written to: {path}")
+    return 0 if manifest.readiness_decision != "release_candidate_not_ready" else 1
+
+
+def _cmd_release_status(as_json: bool) -> int:
+    path = Path("reports/release/release_manifest.json")
+    if not path.is_file():
+        print("No release manifest found - run 'credlens release manifest' first.")
+        return 1
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    if as_json:
+        print(json.dumps(payload, indent=2))
+    else:
+        print("CredLens release status")
+        print("=" * 40)
+        print(f"release_id: {payload.get('release_id')}")
+        print(f"project_version: {payload.get('project_version')}")
+        print(f"readiness_decision: {payload.get('readiness_decision')}")
+        print(f"release_blockers: {payload.get('release_blockers')}")
+        print(f"generated_at_utc: {payload.get('generated_at_utc')}")
+    return 0
+
+
+def _dispatch_release_command(args: argparse.Namespace) -> int:
+    if args.release_command == "validate":
+        return _cmd_release_validate(args.json)
+    if args.release_command == "licenses":
+        return _cmd_release_licenses(args.json)
+    if args.release_command == "sbom":
+        return _cmd_release_sbom(args.json)
+    if args.release_command == "manifest":
+        return _cmd_release_manifest(
+            args.visual_qa_status, args.docker_status, args.ci_status, args.test_total, args.json
+        )
+    if args.release_command == "status":
+        return _cmd_release_status(args.json)
+
+    print("usage: credlens release {validate,licenses,sbom,manifest,status} ...")
+    print("Run 'credlens release <command> --help' for details.")
+    return 1
+
+
 # --- main --------------------------------------------------------------------
 
 
@@ -2377,6 +2557,8 @@ def main(argv: list[str] | None = None) -> int:
         return _dispatch_model_command(args)
     if args.command == "monitor":
         return _dispatch_monitor_command(args)
+    if args.command == "release":
+        return _dispatch_release_command(args)
 
     parser.print_help()
     return 0

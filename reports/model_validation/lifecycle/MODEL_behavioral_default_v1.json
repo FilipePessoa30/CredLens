@@ -57,6 +57,22 @@
       "gate_summary": "All blocking gates passed; non-blocking gate(s) raised limitations: coefficient_stability.",
       "triggered_by": "manual_validation_run",
       "timestamp_utc": "2026-07-29T18:32:56.275362+00:00"
+    },
+    {
+      "from_state": "validation_passed_with_limitations",
+      "to_state": "validation_passed_with_limitations",
+      "evidence_ref": "reports/model_validation/evidence/EXP_behavioral_default_v1.json",
+      "gate_summary": "All blocking gates passed; non-blocking gate(s) raised limitations: coefficient_stability.",
+      "triggered_by": "manual_validation_run",
+      "timestamp_utc": "2026-08-01T15:13:46.932091+00:00"
+    },
+    {
+      "from_state": "validation_passed_with_limitations",
+      "to_state": "validation_passed_with_limitations",
+      "evidence_ref": "reports/model_validation/evidence/EXP_behavioral_default_v1.json",
+      "gate_summary": "All blocking gates passed; non-blocking gate(s) raised limitations: coefficient_stability.",
+      "triggered_by": "manual_validation_run",
+      "timestamp_utc": "2026-08-01T15:28:09.711116+00:00"
     }
   ]
 }

@@ -18,6 +18,7 @@ def test_version_is_exposed() -> None:
 
 
 def test_version_looks_like_semver() -> None:
-    # Accepts the installed-package case (e.g. "0.1.0") and the
+    # Accepts the installed-package case (e.g. "0.1.0"), a PEP 440
+    # pre-release/release-candidate (e.g. "1.0.0rc1"), and the
     # not-installed fallback (e.g. "0.0.0+unknown").
-    assert re.match(r"^\d+\.\d+\.\d+(\+\w+)?$", credlens.__version__)
+    assert re.match(r"^\d+\.\d+\.\d+(rc\d+)?(\+\w+)?$", credlens.__version__)

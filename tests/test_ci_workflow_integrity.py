@@ -18,20 +18,16 @@ from typing import Any
 import pytest
 import yaml
 
+from credlens.release.integrity import CI_WORKFLOW_MASKING_PATTERNS
+
 WORKFLOW_PATH = Path(__file__).resolve().parent.parent / ".github" / "workflows" / "ci.yml"
 
-# Substrings that, if found inside a step's `run:` block, indicate a
-# command's exit status is being deliberately discarded. This is a
-# denylist of KNOWN masking idioms, not an attempt at a general shell
-# parser - anything added here must be something we have actually seen
-# used (or could plausibly be used) to hide a failure.
-_TOLERANCE_MASKING_PATTERNS = (
-    "|| true",
-    "|| exit 0",
-    "; true",
-    "2>/dev/null; true",
-    "|| echo",
-)
+# Shared with credlens.release.integrity (the `credlens release validate`
+# CLI check runs the exact same denylist/parser against this same file) -
+# a denylist of KNOWN masking idioms, not an attempt at a general shell
+# parser; anything added here must be something actually seen (or
+# plausibly used) to hide a failure.
+_TOLERANCE_MASKING_PATTERNS = CI_WORKFLOW_MASKING_PATTERNS
 
 # Commands that represent a critical validation/gate check - if any of
 # these substrings appear in a step's `run:` text, that step is treated
@@ -51,14 +47,15 @@ _CRITICAL_VALIDATION_COMMANDS = (
 )
 
 
-def _load_workflow() -> dict[str, Any]:
+def _load_workflow() -> tuple[dict[str, Any], str]:
     assert WORKFLOW_PATH.is_file(), f"CI workflow not found at {WORKFLOW_PATH}"
     with WORKFLOW_PATH.open(encoding="utf-8") as handle:
         raw_text = handle.read()
     # PyYAML chokes on the bare `on:` workflow-trigger key only when it is
     # parsed as a boolean by very old YAML 1.1 loaders; the modern
     # safe_load handles it correctly, so no special-casing is needed here.
-    return yaml.safe_load(raw_text), raw_text  # type: ignore[return-value]
+    workflow: dict[str, Any] = yaml.safe_load(raw_text)
+    return workflow, raw_text
 
 
 def _iter_steps(workflow: dict[str, Any]) -> list[tuple[str, str, dict[str, Any]]]:

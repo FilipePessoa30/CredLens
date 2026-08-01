@@ -51,6 +51,15 @@ logistic_regression (main) / hist_gradient_boosting (challenger). Comparação c
 - Brier: 0.142587
 - Calibration slope/intercept: 0.947505 / -0.045965
 
+## Uso do holdout
+**Holdout de avaliação congelado, reutilizado em fases documentadas de validação** - não
+"nunca tocado" nem "aberto uma única vez". O split nunca foi alterado e as previsões de
+teste permanecem congeladas (nenhum ajuste original usou o teste), mas o mesmo teste foi
+consultado repetidamente entre as Fases 8-10 (comparação de modelos, métricas, robustez,
+subgrupo, threshold, candidato/challenger). Ver seção 6 de
+`reports/model_validation/validation_report.pt-BR.md` para a divulgação completa e o
+risco de adaptação indireta em qualquer modelo remediado.
+
 ## Calibração
 Método selecionado: `none`. No calibration method produced a consistent improvement over the uncalibrated model on validation (best Brier 0.141257 vs. uncalibrated 0.141384) - the uncalibrated model is preserved.
 
@@ -70,6 +79,11 @@ fairness nem avaliação de conformidade legal.
 Coeficientes/odds ratios, permutation importance, partial dependence e reason codes
 descritivos - ver `reports/modeling/tables/TEST_cli_pipeline__coefficients.csv`,
 `TEST_cli_pipeline__permutation_importance.csv`, `TEST_cli_pipeline__local_explanations.json`.
+Reason codes são governados por `config/model_validation/reason_codes.yml` (Fase 10,
+gate E): apenas features com direção estável e VIF aceitável geram reason code em
+linguagem causal ("allowed"); features redundantes/de baixa magnitude podem aparecer
+apenas em linguagem matemática, nunca causal ("conditional"); features com inversão de
+sinal frequente ou interpretação individual inadequada nunca aparecem ("prohibited").
 
 ## Robustez
 Ver `reports/modeling/tables/TEST_cli_pipeline__robustness.csv` - testes técnicos de

@@ -1,9 +1,9 @@
 {
-  "content_fingerprint": "505fba3dc381958e4a84148f9fd4d4b5c89e820902d94647c1127140df427d83",
+  "content_fingerprint": "72ac467f702961b5e6516a52496485b74792da471fdc1f6b6cdc90aa032ce204",
   "experiment_id": "TEST_cli_pipeline",
-  "generated_at_utc": "2026-07-29T17:51:55.202690+00:00",
+  "generated_at_utc": "2026-08-01T15:43:05.445168+00:00",
   "model_id": "TEST_cli_model",
-  "package_version": "0.10.0",
+  "package_version": "1.0.0rc1",
   "reports_written": [
     "model_card.md",
     "model_card.pt-BR.md",

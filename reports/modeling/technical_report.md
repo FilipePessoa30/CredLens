@@ -33,7 +33,10 @@ Calibration: none.
 
 ## 11. Evaluation (locked test) / 12. Operating points / 13. Uncertainty
 See tables `reports/modeling/tables/TEST_cli_pipeline__*.csv` and
-`TEST_cli_pipeline__bootstrap.json`.
+`TEST_cli_pipeline__bootstrap.json`. **Frozen evaluation holdout reused across documented
+validation phases** - the split and test predictions have never changed, but this same
+test set has been repeatedly consulted across Phases 8-10 (see section 6 of
+`reports/model_validation/validation_report.md` for the full disclosure).
 
 ## 14. Interpretability / 15. Subgroup diagnostics / 16. Robustness
 See `TEST_cli_pipeline__coefficients.csv`, `TEST_cli_pipeline__subgroup_audit.csv`,

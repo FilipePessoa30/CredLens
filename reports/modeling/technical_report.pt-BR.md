@@ -33,7 +33,10 @@ Calibração: none.
 
 ## 11. Avaliação (teste bloqueado) / 12. Operating points / 13. Incerteza
 Ver tabelas `reports/modeling/tables/TEST_cli_pipeline__*.csv` e
-`TEST_cli_pipeline__bootstrap.json`.
+`TEST_cli_pipeline__bootstrap.json`. **Holdout de avaliação congelado, reutilizado em fases
+documentadas de validação** - o split e as previsões de teste nunca mudaram, mas o mesmo
+teste foi consultado repetidamente entre as Fases 8-10 (ver seção 6 de
+`reports/model_validation/validation_report.pt-BR.md` para a divulgação completa).
 
 ## 14. Interpretabilidade / 15. Diagnóstico de subgrupo / 16. Robustez
 Ver `TEST_cli_pipeline__coefficients.csv`, `TEST_cli_pipeline__subgroup_audit.csv`,

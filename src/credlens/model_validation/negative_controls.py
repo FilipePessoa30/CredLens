@@ -201,7 +201,9 @@ def run_score_label_permutation_control(
 
     structural_ok = not duplicate_indices and n_single_class == 0
     p_value_ok = empirical_p_value <= alpha
-    passed = structural_ok and p_value_ok and centering.centered and amplitude.within_expected_amplitude
+    passed = (
+        structural_ok and p_value_ok and centering.centered and amplitude.within_expected_amplitude
+    )
 
     if not structural_ok:
         reason = (
@@ -364,7 +366,11 @@ def run_pipeline_retrain_permutation_control(
 
         # Alignment guard - train features/labels must remain positionally
         # identical to before the shuffle; only VALUES may have moved.
-        if list(y_train_shuffled.index) != y_train_index_before or list(x_train.index) != x_train_index_before:
+        index_shifted = (
+            list(y_train_shuffled.index) != y_train_index_before
+            or list(x_train.index) != x_train_index_before
+        )
+        if index_shifted:
             raise PermutationTestError(
                 f"Index misalignment detected at permutation {i} (seed={seed})."
             )
@@ -441,9 +447,10 @@ def run_pipeline_retrain_permutation_control(
             f"{len(roc_arr) - n_at_or_above}/{len(roc_arr)} permuted-target refits (empirical "
             f"p={empirical_p_value:.4f}); null mean {centering.observed_mean:.4f} "
             f"(z={centering.z_statistic:.2f}) is centered. Observed std "
-            f"{float(roc_arr.std(ddof=1)) if len(roc_arr) > 1 else 0.0:.5f} is wider than Control "
-            f"1's theoretical label-permutation-only SE ({control1_theoretical_se:.5f}) - expected, "
-            "since this control's variance includes model-refitting noise (see module docstring)."
+            f"{float(roc_arr.std(ddof=1)) if len(roc_arr) > 1 else 0.0:.5f} "
+            f"is wider than Control 1's theoretical label-permutation-only SE "
+            f"({control1_theoretical_se:.5f}) - expected, since this control's "
+            "variance includes model-refitting noise (see module docstring)."
         )
 
     return PipelineRetrainPermutationReport(
