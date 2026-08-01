@@ -294,7 +294,9 @@ def _build_experiment_from_feature_set(
                 "values": stability_roc_aucs,
                 "mean": float(np.mean(stability_roc_aucs)),
                 "stdev": (
-                    float(np.std(stability_roc_aucs, ddof=1)) if len(stability_roc_aucs) > 1 else 0.0
+                    float(np.std(stability_roc_aucs, ddof=1))
+                    if len(stability_roc_aucs) > 1
+                    else 0.0
                 ),
             },
         },
