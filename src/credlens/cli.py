@@ -3054,14 +3054,28 @@ def _cmd_model_audit_negative_controls(experiment_id: str, ci: bool, as_json: bo
 
     both_passed = control1.passed and control2.passed
     if as_json:
-        print(json.dumps({"control1_score_label": control1.to_dict(), "control2_pipeline_retrain": control2.to_dict()}, indent=2))
+        print(
+            json.dumps(
+                {
+                    "control1_score_label": control1.to_dict(),
+                    "control2_pipeline_retrain": control2.to_dict(),
+                },
+                indent=2,
+            )
+        )
     else:
         print(f"CredLens model audit-negative-controls: {experiment_id}")
         print("=" * 40)
-        print(f"Control 1 (score-label, n={control1.n_permutations}): "
-              f"p={control1.empirical_p_value}, {'PASS' if control1.passed else 'FAIL'} - {control1.reason}")
-        print(f"Control 2 (pipeline retrain, n={control2.n_permutations}): "
-              f"p={control2.empirical_p_value}, {'PASS' if control2.passed else 'FAIL'} - {control2.reason}")
+        print(
+            f"Control 1 (score-label, n={control1.n_permutations}): "
+            f"p={control1.empirical_p_value}, {'PASS' if control1.passed else 'FAIL'} - "
+            f"{control1.reason}"
+        )
+        print(
+            f"Control 2 (pipeline retrain, n={control2.n_permutations}): "
+            f"p={control2.empirical_p_value}, {'PASS' if control2.passed else 'FAIL'} - "
+            f"{control2.reason}"
+        )
         print(f"Result: {'PASS' if both_passed else 'FAIL'}")
     return 0 if both_passed else 1
 
@@ -3103,7 +3117,9 @@ def _cmd_model_register_challenger(experiment_id: str, model_id: str | None, as_
     return 0
 
 
-def _cmd_model_remediate(model_id: str, new_experiment_id: str, new_model_id: str, as_json: bool) -> int:
+def _cmd_model_remediate(
+    model_id: str, new_experiment_id: str, new_model_id: str, as_json: bool
+) -> int:
     try:
         from credlens.model_validation.remediation import run_remediation
         from credlens.model_validation.reporting import resolve_experiment_id_from_model

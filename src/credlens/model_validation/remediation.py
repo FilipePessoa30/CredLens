@@ -134,9 +134,8 @@ def stability_reduced_feature_set(classification_table: pd.DataFrame) -> list[st
     or `unstable_direction`, no pairwise judgment. See module docstring
     for why this is intentionally naive."""
     dropped_categories = {"redundant", "unstable_direction"}
-    dropped = set(
-        classification_table.loc[classification_table["category"].isin(dropped_categories), "feature"]
-    )
+    is_dropped = classification_table["category"].isin(dropped_categories)
+    dropped = set(classification_table.loc[is_dropped, "feature"])
     return [f for f in FEATURE_COLUMNS if f not in dropped]
 
 
@@ -186,12 +185,20 @@ def _build_experiment_from_feature_set(
     ids_val = df.loc[assignment.validation_index, contract.identifier_column]
     ids_test = df.loc[assignment.test_index, contract.identifier_column]
     pd.DataFrame(
-        {"id": ids_val.to_numpy(), "y_true": y_val.to_numpy(), "logistic_regression": p_val.to_numpy()}
+        {
+            "id": ids_val.to_numpy(),
+            "y_true": y_val.to_numpy(),
+            "logistic_regression": p_val.to_numpy(),
+        }
     ).to_csv(
         repo_root / MODELING_TABLES_DIR / f"{new_experiment_id}__predictions_val.csv", index=False
     )
     pd.DataFrame(
-        {"id": ids_test.to_numpy(), "y_true": y_test.to_numpy(), "logistic_regression": p_test.to_numpy()}
+        {
+            "id": ids_test.to_numpy(),
+            "y_true": y_test.to_numpy(),
+            "logistic_regression": p_test.to_numpy(),
+        }
     ).to_csv(
         repo_root / MODELING_TABLES_DIR / f"{new_experiment_id}__predictions_test.csv", index=False
     )
