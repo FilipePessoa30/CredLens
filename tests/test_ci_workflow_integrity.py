@@ -86,8 +86,7 @@ class TestNoToleranceMasking:
                 if pattern in run_text:
                     offenders.append(f"job={job_name!r} step={step_name!r} pattern={pattern!r}")
         assert offenders == [], (
-            "Found tolerance-masking pattern(s) hiding a possible critical "
-            f"failure: {offenders}"
+            f"Found tolerance-masking pattern(s) hiding a possible critical failure: {offenders}"
         )
 
     def test_no_continue_on_error_true_anywhere(self) -> None:
@@ -133,7 +132,10 @@ class TestNoToleranceMasking:
         i.e. 1/(n_ci+1) <= alpha - otherwise the gate is unwinnable and a
         future author would be tempted to reintroduce `|| true`."""
         validation_cfg_path = (
-            Path(__file__).resolve().parent.parent / "config" / "model_validation" / "validation.yml"
+            Path(__file__).resolve().parent.parent
+            / "config"
+            / "model_validation"
+            / "validation.yml"
         )
         cfg = yaml.safe_load(validation_cfg_path.read_text(encoding="utf-8"))
         perm_cfg = cfg["permutation_test"]

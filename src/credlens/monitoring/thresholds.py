@@ -24,7 +24,13 @@ from credlens.model_validation.calibration import independent_brier
 from credlens.model_validation.discrimination import independent_pr_auc, independent_roc_auc
 from credlens.monitoring.drift import population_stability_index
 
+
+class ThresholdsError(Exception):
+    """Raised when calibrated thresholds cannot be found or loaded."""
+
+
 THRESHOLDS_STATE_ORDER = (
+    "insufficient_sample",
     "within_reference_variability",
     "review",
     "material_deviation",
@@ -55,8 +61,15 @@ class CalibratedThreshold:
 def classify_state(
     observed_absolute_value: float, calibrated: CalibratedThreshold, n_sample: int
 ) -> str:
+    """Phase 10 gate F/batch-size-study: a sample too small to trust this
+    metric's estimate is explicitly distinguished from a metric that WAS
+    reliably checked and found within normal variability - never
+    conflated into the same "nothing to see here" status, and never
+    escalated to a high alert (`credlens.monitoring.alerts.build_alert`
+    treats both `insufficient_sample` and `within_reference_variability`
+    identically: no Alert record)."""
     if n_sample < calibrated.min_sample_size_for_alert:
-        return "within_reference_variability"
+        return "insufficient_sample"
     if observed_absolute_value >= calibrated.material_deviation_cutoff:
         return "material_deviation"
     if observed_absolute_value >= calibrated.review_cutoff:
@@ -165,6 +178,6 @@ def load_calibrated_thresholds(
         / f"{reference_id}__alert_thresholds.json"
     )
     if not path.is_file():
-        raise FileNotFoundError(f"No calibrated thresholds found at '{path}'.")
+        raise ThresholdsError(f"No calibrated thresholds found at '{path}'.")
     raw = json.loads(path.read_text(encoding="utf-8"))
     return {k: CalibratedThreshold(**v) for k, v in raw.items()}

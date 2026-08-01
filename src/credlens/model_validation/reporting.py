@@ -147,10 +147,14 @@ def validate_independent(
     control2_cfg = perm_cfg["control2_pipeline_retrain"]
     centering_sigma = float(perm_cfg["centering_sigma_multiplier"])
     n_permutations_c1 = int(
-        control1_cfg["n_permutations_full"] if full_permutations else control1_cfg["n_permutations_ci"]
+        control1_cfg["n_permutations_full"]
+        if full_permutations
+        else control1_cfg["n_permutations_ci"]
     )
     n_permutations_c2 = int(
-        control2_cfg["n_permutations_full"] if full_permutations else control2_cfg["n_permutations_ci"]
+        control2_cfg["n_permutations_full"]
+        if full_permutations
+        else control2_cfg["n_permutations_ci"]
     )
     score_label_report = run_score_label_permutation_control(
         experiment_id,
@@ -320,7 +324,8 @@ def validate_independent(
             threshold=(
                 f"both controls: empirical p<={control1_cfg['alpha']}, centering within "
                 f"{centering_sigma} sigma; Control 1 additionally: amplitude ratio in "
-                f"[{perm_cfg['amplitude_se_ratio_min']:.2f}, {perm_cfg['amplitude_se_ratio_max']:.2f}]"
+                f"[{perm_cfg['amplitude_se_ratio_min']:.2f}, "
+                f"{perm_cfg['amplitude_se_ratio_max']:.2f}]"
             ),
         )
     )

@@ -105,25 +105,25 @@ class TestStabilityReducedFeatureSet:
 
 
 def _row(**overrides: object) -> RemediationComparisonRow:
-    defaults: dict[str, object] = dict(
-        model="test",
-        n_features=11,
-        pr_auc=0.50,
-        roc_auc=0.74,
-        brier_score=0.14,
-        log_loss=0.45,
-        ks_statistic=0.38,
-        calibration_slope=0.95,
-        max_vif=5.0,
-        condition_number=6.0,
-        mean_sign_flip_rate=0.01,
-        split_stability_roc_auc_stdev=0.008,
-        bootstrap_roc_auc_width=0.03,
-        scoring_latency_ms=2.0,
-        artifact_size_bytes=3500,
-        reason_code_eligible_features=9,
-        dropped_features=[],
-    )
+    defaults: dict[str, object] = {
+        "model": "test",
+        "n_features": 11,
+        "pr_auc": 0.50,
+        "roc_auc": 0.74,
+        "brier_score": 0.14,
+        "log_loss": 0.45,
+        "ks_statistic": 0.38,
+        "calibration_slope": 0.95,
+        "max_vif": 5.0,
+        "condition_number": 6.0,
+        "mean_sign_flip_rate": 0.01,
+        "split_stability_roc_auc_stdev": 0.008,
+        "bootstrap_roc_auc_width": 0.03,
+        "scoring_latency_ms": 2.0,
+        "artifact_size_bytes": 3500,
+        "reason_code_eligible_features": 9,
+        "dropped_features": [],
+    }
     defaults.update(overrides)
     return RemediationComparisonRow(**defaults)  # type: ignore[arg-type]
 
@@ -147,7 +147,9 @@ class TestDecideRemediation:
 
     def test_high_vif_is_rejected(self) -> None:
         original = _row(model="original logistic (v1)", pr_auc=0.502, roc_auc=0.745)
-        final = _row(model="Final remediated (gate D)", pr_auc=0.5016, roc_auc=0.7423, max_vif=500.0)
+        final = _row(
+            model="Final remediated (gate D)", pr_auc=0.5016, roc_auc=0.7423, max_vif=500.0
+        )
         decision = decide_remediation(original, final, _CFG)
         assert decision.decision == "remediation_rejected"
         assert "VIF" in decision.reason
@@ -155,7 +157,10 @@ class TestDecideRemediation:
     def test_high_sign_flip_rate_is_rejected(self) -> None:
         original = _row(model="original logistic (v1)", pr_auc=0.502, roc_auc=0.745)
         final = _row(
-            model="Final remediated (gate D)", pr_auc=0.5016, roc_auc=0.7423, mean_sign_flip_rate=0.5
+            model="Final remediated (gate D)",
+            pr_auc=0.5016,
+            roc_auc=0.7423,
+            mean_sign_flip_rate=0.5,
         )
         decision = decide_remediation(original, final, _CFG)
         assert decision.decision == "remediation_rejected"
@@ -175,7 +180,11 @@ class TestDecideRemediation:
         assert "degraded" in decision.reason
 
     def test_never_returns_a_promotion_label(self) -> None:
-        allowed = {"remediation_candidate", "remediation_rejected", "requires_new_external_validation"}
+        allowed = {
+            "remediation_candidate",
+            "remediation_rejected",
+            "requires_new_external_validation",
+        }
         original = _row(model="original logistic (v1)", pr_auc=0.50, roc_auc=0.74)
         for final_overrides in (
             {"pr_auc": 0.5016, "roc_auc": 0.7423},
@@ -251,7 +260,9 @@ class TestRunRemediationIntegration:
             "HistGBM (challenger)",
         ]
 
-        final_row = next(r for r in result["comparison"] if r["model"] == "Final remediated (gate D)")
+        final_row = next(
+            r for r in result["comparison"] if r["model"] == "Final remediated (gate D)"
+        )
         # This is the real gate D finding on the real 30,000-row benchmark:
         # the documented policy resolves the original max VIF (56.83) and
         # ALSO the utilization_ratio/limit_exposure_distance collinearity
@@ -272,7 +283,9 @@ class TestRunRemediationIntegration:
         }
 
         if result["decision"]["decision"] == "remediation_candidate":
-            manifest_path = repo_root / "reports/modeling/models/TEST_p10_remediated_model.manifest.json"
+            manifest_path = (
+                repo_root / "reports/modeling/models/TEST_p10_remediated_model.manifest.json"
+            )
             assert manifest_path.is_file()
 
         # v1 must never be touched by any of this.

@@ -1251,5 +1251,13 @@
       "undocumented_code": 47
     }
   },
-  "created_at_utc": "2026-07-28T17:32:56.225655+00:00"
+  "performance_reference": {
+    "source": "validation_only",
+    "reason_en": "train+validation combined is optimistic as a performance reference point (train dominates it by row count and the model was fit on train); validation-only, never used to fit model parameters, is much closer to true holdout performance - see credlens.monitoring.reference module docstring for the measured gap.",
+    "n_rows": 6000,
+    "roc_auc": 0.7502717675704729,
+    "pr_auc": 0.5041667225133937,
+    "brier": 0.1413841359477956
+  },
+  "created_at_utc": "2026-08-01T03:28:28.995845+00:00"
 }

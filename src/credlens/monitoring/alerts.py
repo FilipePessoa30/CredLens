@@ -92,10 +92,12 @@ def build_alert(
     sample_size: int,
 ) -> Alert | None:
     """Returns `None` (no alert) when the observed deviation is within
-    reference variability - only `review`/`material_deviation` produce an
-    Alert record."""
+    reference variability OR the sample was too small to trust the
+    estimate at all (`insufficient_sample`, Phase 10 gate F - never
+    escalated to an alert, high or otherwise) - only `review`/
+    `material_deviation` produce an Alert record."""
     state = classify_state(abs(observed_value - reference_value), calibrated, sample_size)
-    if state == "within_reference_variability":
+    if state in ("within_reference_variability", "insufficient_sample"):
         return None
     severity = "high" if state == "material_deviation" else "medium"
     return Alert(

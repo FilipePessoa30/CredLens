@@ -1,0 +1,216 @@
+# CredLens - Phase 10 gate E reason-code policy.
+#
+# Governs which of MODEL_behavioral_default_v1's 18 engineered features
+# may generate an EXECUTIVE-FACING reason code (local explanations -
+# reports/modeling/tables/<experiment_id>__local_explanations.json -,
+# the dashboard's Model Lab page, model cards, and bilingual reports).
+# Never touches the model's own coefficients/predictions - this is a
+# PRESENTATION-LAYER filter over `credlens.modeling.interpretability.
+# local_explanation`'s top-K contribution ranking.
+#
+# A feature may only reach `allowed_features` if ALL of the following
+# hold (Phase 10 gate E's explicit criteria):
+#   - direction is stable (bootstrap/CV sign-flip rate below
+#     config/model_validation/validation.yml's
+#     collinearity.sign_flip_rate_unstable_threshold, 0.05)
+#   - VIF is acceptable (below collinearity.vif_action_threshold, 10.0,
+#     in the ORIGINAL 18-feature model - the model this policy governs)
+#   - not a sensitive attribute (SEX/EDUCATION/MARRIAGE/AGE are already
+#     structurally excluded from training - see
+#     config/modeling/feature_registry.yml - so this is satisfied for
+#     every trained feature by construction, never re-checked here)
+#   - not an identifier (the pseudonymized id is never a feature)
+#   - no uninterpretable interaction dependency (category !=
+#     `not_interpretable_individually`)
+#   - no frequent sign inversion (category != `unstable_direction`)
+#   - has an approved description (description_en/description_pt_br
+#     below)
+#
+# Features that fail ONLY the VIF/redundancy criterion (multicollinear
+# with another named feature, but individually stable in direction and
+# sign) go to `conditional_features` - they MAY still generate a reason
+# code, but ONLY in mathematical language (the standardized linear
+# contribution, with an explicit multicollinearity caveat), never
+# causal/narrative language ("this drove the customer's risk").
+#
+# Features in `prohibited_features` must NEVER appear in a reason code,
+# local explanation, model card, or report, regardless of how large
+# their raw contribution to a specific row's score is - the ranking
+# algorithm in credlens.modeling.interpretability must skip them and
+# move to the next eligible feature.
+#
+# Every row's classification/VIF/sign-flip evidence is the real,
+# currently-registered v1 numbers from
+# reports/model_validation/tables/EXP_behavioral_default_v1__
+# coefficient_classification.csv - re-audit this file (via `credlens
+# model validate-independent`) before editing this policy, since the
+# numbers will change if the official model is ever retrained.
+
+reason_code_policy_version: "1.0.0"
+governed_model_id: "MODEL_behavioral_default_v1"
+
+reason_codes:
+  allowed_features:
+    - feature: max_delinquency_status
+      category: stable_direction
+      description_en: "Worst delinquency status observed across the 6-month observation window."
+      description_pt_br: "Pior status de inadimplência observado na janela de 6 meses."
+    - feature: most_recent_delinquency_status
+      category: stable_direction
+      description_en: "Delinquency status in the most recent month of the observation window."
+      description_pt_br: "Status de inadimplência no mês mais recente da janela de observação."
+    - feature: delinquency_trend
+      category: stable_direction
+      description_en: "Change in delinquency status from the oldest to the most recent month."
+      description_pt_br: "Variação do status de inadimplência do mês mais antigo ao mais recente."
+    - feature: payment_coverage_rate
+      category: stable_direction
+      description_en: "Share of billed amounts actually covered by payments over the window."
+      description_pt_br: "Parcela dos valores faturados efetivamente coberta pelos pagamentos."
+    - feature: utilization_ratio
+      category: stable_direction
+      description_en: "Average bill amount as a share of the credit limit (capped)."
+      description_pt_br: "Valor médio da fatura como fração do limite de crédito (com teto)."
+    - feature: months_without_payment
+      category: stable_direction
+      description_en: "Count of months in the window with a recorded zero payment."
+      description_pt_br: "Número de meses na janela com pagamento zero registrado."
+    - feature: payment_to_bill_ratio
+      category: stable_direction
+      description_en: "Total payments as a share of total billed amount over the window."
+      description_pt_br: "Total de pagamentos como fração do total faturado na janela."
+
+  conditional_features:
+    - feature: months_delinquent_count
+      category: redundant
+      description_en: "Count of months in the window with a positive delinquency status."
+      description_pt_br: "Número de meses na janela com status de inadimplência positivo."
+      caveat_en: >
+        VIF 56.83 in the 18-feature model - strongly correlated with
+        consecutive_months_delinquent (both derive from the same 6
+        delinquency-status columns). Reported only as a standardized
+        linear-score contribution, never as an independent causal driver.
+      caveat_pt_br: >
+        VIF 56,83 no modelo de 18 features - fortemente correlacionada com
+        consecutive_months_delinquent (ambas derivam das mesmas 6 colunas
+        de status de inadimplência). Reportada apenas como contribuição
+        linear padronizada ao score, nunca como um fator causal
+        independente.
+    - feature: consecutive_months_delinquent
+      category: redundant
+      description_en: "Longest run of consecutive delinquent months in the window."
+      description_pt_br: "Maior sequência de meses consecutivos em inadimplência na janela."
+      caveat_en: >
+        VIF 52.80 in the 18-feature model; its coefficient sign
+        (negative) is a redundant-regressor artifact of co-occurring
+        with months_delinquent_count, not a protective effect. Reported
+        only as a standardized linear-score contribution, in
+        mathematical terms, never as a causal claim.
+      caveat_pt_br: >
+        VIF 52,80 no modelo de 18 features; o sinal do coeficiente
+        (negativo) é um artefato de regressor redundante por coocorrer
+        com months_delinquent_count, não um efeito protetor. Reportada
+        apenas como contribuição linear padronizada, em termos
+        matemáticos, nunca como uma alegação causal.
+    - feature: avg_payment_amount
+      category: redundant
+      description_en: "Average monthly payment amount over the 6-month window."
+      description_pt_br: "Valor médio de pagamento mensal na janela de 6 meses."
+      caveat_en: >
+        Perfectly collinear with total_payment_amount (VIF undefined/
+        infinite in the 18-feature model - avg = total / 6 exactly).
+        Reported only as a standardized linear-score contribution.
+      caveat_pt_br: >
+        Perfeitamente colinear com total_payment_amount (VIF indefinido/
+        infinito no modelo de 18 features - média = total / 6
+        exatamente). Reportada apenas como contribuição linear
+        padronizada.
+    - feature: total_payment_amount
+      category: redundant
+      description_en: "Total payment amount over the 6-month window."
+      description_pt_br: "Valor total de pagamentos na janela de 6 meses."
+      caveat_en: >
+        Perfectly collinear with avg_payment_amount (VIF undefined/
+        infinite). Reported only as a standardized linear-score
+        contribution - never alongside avg_payment_amount in the same
+        explanation (they carry identical information).
+      caveat_pt_br: >
+        Perfeitamente colinear com avg_payment_amount (VIF indefinido/
+        infinito). Reportada apenas como contribuição linear padronizada
+        - nunca junto de avg_payment_amount na mesma explicação (ambas
+        carregam informação idêntica).
+    - feature: payment_variation
+      category: low_magnitude
+      description_en: "Coefficient of variation of monthly payment amounts over the window."
+      description_pt_br: "Coeficiente de variação dos valores de pagamento mensais na janela."
+      caveat_en: >
+        Odds ratio 0.951, inside the low-magnitude band (0.95-1.05) -
+        direction is stable but the effect size is small. Reported only
+        as a standardized linear-score contribution, never framed as a
+        strong driver.
+      caveat_pt_br: >
+        Odds ratio 0,951, dentro da faixa de baixa magnitude (0,95-1,05)
+        - a direção é estável mas o efeito é pequeno. Reportada apenas
+        como contribuição linear padronizada, nunca como um fator forte.
+
+  prohibited_features:
+    - feature: avg_bill_amount
+      category: unstable_direction
+      reason_en: >
+        Bootstrap sign-flip rate 12.5% and perfectly collinear with
+        total_bill_amount (VIF undefined/infinite) - fails both the
+        stable-direction and acceptable-VIF criteria.
+      reason_pt_br: >
+        Taxa de inversão de sinal no bootstrap de 12,5% e perfeitamente
+        colinear com total_bill_amount (VIF indefinido/infinito) - falha
+        nos critérios de direção estável e VIF aceitável.
+    - feature: total_bill_amount
+      category: unstable_direction
+      reason_en: >
+        Bootstrap sign-flip rate 12.5%, perfectly collinear with
+        avg_bill_amount (VIF undefined/infinite).
+      reason_pt_br: >
+        Taxa de inversão de sinal no bootstrap de 12,5%, perfeitamente
+        colinear com avg_bill_amount (VIF indefinido/infinito).
+    - feature: bill_trend
+      category: unstable_direction
+      reason_en: >
+        Bootstrap sign-flip rate 33.5%, CV sign-flip rate 40% - sign is
+        not reproducible across resamples.
+      reason_pt_br: >
+        Taxa de inversão de sinal no bootstrap de 33,5%, taxa no CV de
+        40% - o sinal não é reproduzível entre reamostragens.
+    - feature: bill_variability
+      category: unstable_direction
+      reason_en: >
+        Bootstrap sign-flip rate 34%, CV sign-flip rate 40%, AND sign
+        changes across the regularization-sensitivity grid - the least
+        stable feature in the 18-feature model by every measured
+        criterion.
+      reason_pt_br: >
+        Taxa de inversão de sinal no bootstrap de 34%, taxa no CV de
+        40%, e o sinal muda ao longo da grade de sensibilidade à
+        regularização - a feature menos estável no modelo de 18 features
+        por todos os critérios medidos.
+    - feature: worst_payment_to_bill_ratio
+      category: unstable_direction
+      reason_en: >
+        Bootstrap sign-flip rate 41.5%, CV sign-flip rate 20% - sign is
+        essentially a coin flip across bootstrap resamples.
+      reason_pt_br: >
+        Taxa de inversão de sinal no bootstrap de 41,5%, taxa no CV de
+        20% - o sinal é essencialmente aleatório entre reamostragens do
+        bootstrap.
+    - feature: limit_exposure_distance
+      category: not_interpretable_individually
+      reason_en: >
+        Its effect is only meaningful jointly with utilization_ratio (a
+        Phase 10 gate D re-audit found these two near-perfectly
+        algebraically complementary, correlation -0.99997) - individual
+        attribution would be misleading even in mathematical framing.
+      reason_pt_br: >
+        Seu efeito só é significativo em conjunto com utilization_ratio
+        (uma reauditoria do gate D da Fase 10 encontrou essas duas
+        quase perfeitamente complementares algebricamente, correlação
+        -0,99997) - a atribuição individual seria enganosa mesmo em
+        formato matemático.

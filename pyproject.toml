@@ -140,6 +140,7 @@ dev = [
   "types-requests>=2.31,<3",
   "responses>=0.25,<1",
   "pandas-stubs>=2.2,<3",
+  "selenium>=4.46.0",
 ]
 
 [build-system]

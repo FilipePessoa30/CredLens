@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import hashlib
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
 
 import numpy as np
@@ -25,6 +26,11 @@ from sklearn.inspection import partial_dependence, permutation_importance
 from sklearn.pipeline import Pipeline
 
 from credlens.modeling.features import FEATURE_COLUMNS
+from credlens.modeling.reason_code_policy import (
+    ReasonCodePolicyError,
+    filter_and_rank_for_reason_codes,
+    load_reason_code_policy,
+)
 from credlens.modeling.training import FittedModel
 
 SHAP_NOT_USED_REASON_EN = (
@@ -175,12 +181,18 @@ class ReasonCode:
     feature: str
     contribution: float
     direction: str
+    tier: str = "ungoverned"
+    caveat_en: str | None = None
+    caveat_pt_br: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return {
             "feature": self.feature,
             "contribution": round(self.contribution, 6),
             "direction": self.direction,
+            "tier": self.tier,
+            "caveat_en": self.caveat_en,
+            "caveat_pt_br": self.caveat_pt_br,
         }
 
 
@@ -210,8 +222,44 @@ class LocalExplanation:
         }
 
 
+def _reason_codes_from_pairs(
+    contribution_pairs: list[tuple[str, float]], top_k: int, *, repo_root: Path | None
+) -> list[ReasonCode]:
+    """Phase 10 gate E: applies `config/model_validation/reason_codes.yml`
+    before ranking - `prohibited`/`ungoverned` features are dropped, never
+    ranked, never back-filled. Falls back to the unfiltered ranking only
+    when no policy file is present on disk (e.g. an isolated test repo
+    that only copies `config/modeling/`) - the real repo always has the
+    policy, so this never silently disables enforcement there."""
+    try:
+        policy = load_reason_code_policy(repo_root)
+    except ReasonCodePolicyError:
+        ranked = sorted(contribution_pairs, key=lambda pair: abs(pair[1]), reverse=True)[:top_k]
+        return [
+            ReasonCode(
+                feature=feature,
+                contribution=value,
+                direction="increases_risk" if value > 0 else "decreases_risk",
+            )
+            for feature, value in ranked
+        ]
+
+    filtered = filter_and_rank_for_reason_codes(contribution_pairs, policy, top_k=top_k)
+    return [
+        ReasonCode(
+            feature=feature,
+            contribution=value,
+            direction="increases_risk" if value > 0 else "decreases_risk",
+            tier=tier,
+            caveat_en=policy.caveat(feature, "en"),
+            caveat_pt_br=policy.caveat(feature, "pt-BR"),
+        )
+        for feature, value, tier in filtered
+    ]
+
+
 def _logistic_reason_codes(
-    fitted: FittedModel, row: pd.DataFrame, top_k: int = 3
+    fitted: FittedModel, row: pd.DataFrame, top_k: int = 3, *, repo_root: Path | None = None
 ) -> list[ReasonCode]:
     """contribution_i = coefficient_i * standardized_value_i - the exact
     per-feature additive term inside the logistic model's own linear
@@ -223,15 +271,11 @@ def _logistic_reason_codes(
         standardized.to_numpy() if hasattr(standardized, "to_numpy") else standardized
     )
     contributions = standardized_arr[0] * estimator.coef_[0]
-    rows = [
-        ReasonCode(
-            feature=feature,
-            contribution=float(value),
-            direction="increases_risk" if value > 0 else "decreases_risk",
-        )
+    pairs = [
+        (feature, float(value))
         for feature, value in zip(fitted.feature_columns, contributions, strict=True)
     ]
-    return sorted(rows, key=lambda r: abs(r.contribution), reverse=True)[:top_k]
+    return _reason_codes_from_pairs(pairs, top_k, repo_root=repo_root)
 
 
 def local_explanation(
@@ -241,19 +285,30 @@ def local_explanation(
     predicted_probability: float,
     actual_label: int | None,
     case_label: str,
+    *,
+    repo_root: Path | None = None,
 ) -> LocalExplanation:
     if fitted.model_kind == "logistic_regression":
-        reason_codes = _logistic_reason_codes(fitted, x_row)
+        reason_codes = _logistic_reason_codes(fitted, x_row, repo_root=repo_root)
     else:
         # Non-linear challenger: fall back to a permutation-free,
-        # feature-value-only ranking within this single row (largest
-        # absolute standardized deviation from the feature's median in
-        # the reference frame passed to reporting.py) - still descriptive
-        # only, never claimed as an exact decomposition the way the
-        # logistic case is.
+        # feature-value-only ranking (raw value, not a magnitude ranking)
+        # within this single row - still descriptive only, never claimed
+        # as an exact decomposition the way the logistic case is. Still
+        # governed by the same reason-code policy (never HistGBM
+        # surfacing a prohibited feature either).
+        pairs = [(col, float(x_row[col].iloc[0])) for col in FEATURE_COLUMNS]
+        reason_codes = _reason_codes_from_pairs(pairs, 3, repo_root=repo_root)
         reason_codes = [
-            ReasonCode(feature=col, contribution=float(x_row[col].iloc[0]), direction="see_value")
-            for col in FEATURE_COLUMNS[:3]
+            ReasonCode(
+                feature=r.feature,
+                contribution=r.contribution,
+                direction="see_value",
+                tier=r.tier,
+                caveat_en=r.caveat_en,
+                caveat_pt_br=r.caveat_pt_br,
+            )
+            for r in reason_codes
         ]
     return LocalExplanation(
         case_label=case_label,

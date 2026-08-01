@@ -26,7 +26,11 @@ from credlens.monitoring.provenance import (
 )
 from credlens.monitoring.reference import build_reference, write_reference
 from credlens.monitoring.runner import load_run, run_monitoring
-from credlens.monitoring.thresholds import calibrate_thresholds, write_calibrated_thresholds
+from credlens.monitoring.thresholds import (
+    calibrate_thresholds,
+    load_calibrated_thresholds,
+    write_calibrated_thresholds,
+)
 
 REPORTS_DIR = Path("reports/monitoring")
 
@@ -54,6 +58,47 @@ def create_reference(model_id: str, *, repo_root: Path | None = None) -> str:
     )
     write_calibrated_thresholds(reference.reference_id, calibrated, repo_root=repo_root)
     return reference.reference_id
+
+
+def calibrate_reference_family_wise(
+    reference_id: str, *, repo_root: Path | None = None
+) -> dict[str, Any]:
+    """Phase 10 gate F - adds the family-wise PSI threshold (metric
+    `psi_family_wise`) to an ALREADY-BUILT reference's calibrated-
+    thresholds file, alongside (never replacing) the existing per-feature
+    entries `calibrate_thresholds` already wrote. An empirical audit
+    (`credlens.monitoring.calibration_study`) found the per-feature
+    calibration alone produces a ~60% family-wise false-alert rate across
+    18 simultaneous PSI checks; this threshold, calibrated on the MAX PSI
+    across all features per resample, is what
+    `credlens.monitoring.runner` and the gate G/H incident/severity logic
+    use to decide whether a batch's feature drift is family-wise
+    significant. Requires `credlens monitor create-reference` to have
+    already run."""
+    repo_root = repo_root or Path.cwd()
+    from credlens.monitoring.calibration_study import calibrate_family_wise_psi_threshold
+    from credlens.monitoring.reference import load_reference, load_reference_population
+
+    reference = load_reference(reference_id, repo_root=repo_root)
+    reference_population = load_reference_population(reference_id, repo_root=repo_root)
+    thresholds_config = load_thresholds_config(repo_root)
+    mc_cfg = thresholds_config.multiple_comparisons
+    study_cfg = thresholds_config.calibration_study
+    scenarios_config = load_scenarios_config(repo_root)
+
+    family_wise = calibrate_family_wise_psi_threshold(
+        reference_population,
+        reference,
+        batch_size=scenarios_config.batch_size,
+        n_resamples=int(mc_cfg["family_wise_n_resamples"]),
+        review_percentile=float(mc_cfg["family_wise_review_percentile"]),
+        material_percentile=float(mc_cfg["family_wise_material_deviation_percentile"]),
+        seed=int(study_cfg["seed"]),
+    )
+    calibrated = load_calibrated_thresholds(reference_id, repo_root=repo_root)
+    calibrated["psi_family_wise"] = family_wise
+    write_calibrated_thresholds(reference_id, calibrated, repo_root=repo_root)
+    return {"reference_id": reference_id, "psi_family_wise": family_wise.to_dict()}
 
 
 def simulate_batches(reference_id: str, *, repo_root: Path | None = None) -> str:

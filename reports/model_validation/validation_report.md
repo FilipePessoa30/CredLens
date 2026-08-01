@@ -36,3 +36,20 @@ All blocking gates passed; non-blocking gate(s) raised limitations: coefficient_
 Historical public benchmark (UCI, Taiwan, 2005). This independent validation is not a fairness
 certification, not a legal compliance assessment, and not an approval for use in real lending
 decisions. **Not suitable for real lending decisions.**
+
+## 6. Holdout reuse disclosure
+**Frozen evaluation holdout reused across documented validation phases.**
+
+The train/validation/test split (`split_assignment.csv`) has never been altered since it was
+created in Phase 8. The original test predictions (`predictions_test.csv`) remain frozen - no
+original hyperparameter tuning, feature selection, or threshold decision ever used the test set.
+That said, this same test set has been repeatedly consulted across Phases 8-10 for: candidate
+model comparison, discrimination/calibration metric computation, robustness analysis, subgroup
+auditing, threshold validation, and candidate/challenger comparison. Each consultation observed
+(without retraining on) the test set's results. For that reason, this report deliberately does
+NOT describe the holdout as "untouched" or "opened only once" - that description stopped being
+accurate. Any NEW model created after these repeated observations (for example, a Phase 10
+remediated regression) carries an indirect-adaptation risk: even without directly retraining on
+the test set, human design decisions may have been shaped by results already observed on it. No
+second, independent external holdout exists in this project. Any remediated model is called a
+**"post-validation remediation model"**, never a new independent external validation.

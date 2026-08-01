@@ -36,3 +36,21 @@ All blocking gates passed; non-blocking gate(s) raised limitations: coefficient_
 Benchmark público histórico (UCI, Taiwan, 2005). Esta validação independente não constitui
 certificação de fairness, avaliação de conformidade legal, nem aprovação para uso em decisões
 reais de crédito. **Não é adequado para decisões reais de concessão de crédito.**
+
+## 6. Divulgação de reutilização do holdout
+**Holdout de avaliação congelado, reutilizado em fases documentadas de validação.**
+
+O split treino/validação/teste (`split_assignment.csv`) nunca foi alterado desde sua criação na
+Fase 8. As previsões originais do teste (`predictions_test.csv`) permanecem congeladas - nenhum
+ajuste de hiperparâmetro, seleção de feature ou decisão de threshold originais usou o teste. Ainda
+assim, este mesmo conjunto de teste foi consultado repetidamente ao longo das Fases 8-10 para:
+comparação de modelos candidatos, cálculo de métricas de discriminação/calibração, análise de
+robustez, auditoria de subgrupos, validação de threshold e comparação candidato/challenger. Cada
+consulta observou (sem re-treinar sobre) os resultados do teste. Por isso, este relatório NÃO
+descreve o holdout como "nunca tocado" ou "aberto uma única vez" - essa descrição deixou de ser
+precisa. Qualquer modelo NOVO criado depois dessas observações repetidas (por exemplo, uma
+regressão remediada da Fase 10) carrega um risco de adaptação indireta: mesmo sem re-treinar
+diretamente sobre o teste, decisões de design humanas podem ter sido influenciadas por resultados
+já observados nele. Não existe um segundo holdout externo independente neste projeto. Qualquer
+modelo remediado é chamado de **"modelo de remediação pós-validação"**, nunca de uma nova
+validação externa independente.

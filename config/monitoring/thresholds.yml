@@ -45,3 +45,58 @@ metric_families:
 # credlens.modeling.input_contract's strict mode rejects a batch-level
 # schema violation (missing/extra/wrong-typed column), independent of any
 # statistical threshold.
+
+# Phase 10 gate F - multiple-comparisons calibration. An empirical audit
+# (credlens.monitoring.calibration_study, 100 genuinely unperturbed
+# 500-row batches drawn from the locked test set) found the ORIGINAL
+# per-feature PSI calibration above produces a 60% family-wise false-
+# alert rate (>=1 of the 18 simultaneous per-feature PSI checks firing),
+# because each feature's 95th-percentile cutoff controls only ITS OWN
+# marginal false-alert rate, not the probability that ANY of 18
+# simultaneous checks fires. This section adds a SEPARATE, additional
+# family-wise threshold (metric "psi_family_wise" in
+# reports/monitoring/reference/<reference_id>__alert_thresholds.json),
+# calibrated on the MAX PSI across all 18 features per resample rather
+# than one feature's own marginal null - re-measured on the same 100
+# baseline batches, this brought the family-wise rate to 4% (review) /
+# 1% (material), matching the target. The original per-feature
+# thresholds above are UNCHANGED and still drive individual "signal"
+# records (Phase 10 gate G) - the family-wise threshold instead decides
+# whether a batch's signals for a category escalate to "alert"-level
+# review, and gate H's severity policy additionally requires persistence
+# across consecutive batches before "high".
+multiple_comparisons:
+  strategy_description_en: >
+    Family-wise max-statistic calibration decides alert-level escalation
+    per category; Benjamini-Hochberg (FDR) ranks individual per-feature
+    signals for exploratory drill-down without driving escalation on its
+    own; consecutive-batch confirmation is required before any signal
+    may reach "high" severity (gate H) or become an incident (gate G).
+    Never a naive uncorrected per-metric p-value used as if it controlled
+    the batch-level false-alert rate.
+  family_wise_review_percentile: 95
+  family_wise_material_deviation_percentile: 99.5
+  family_wise_n_resamples: 500
+  benjamini_hochberg_fdr: 0.10
+  consecutive_batches_for_high_severity: 2
+  consecutive_batches_for_incident: 2
+
+# Phase 10 gate F calibration study parameters
+# (credlens.monitoring.calibration_study.run_false_alert_rate_study /
+# run_batch_size_study) - batches are unperturbed i.i.d. samples from the
+# LOCKED TEST SET (the same population real monitored batches are drawn
+# from - never the train+validation reference itself, which would be
+# circular since the per-metric thresholds are already calibrated by
+# resampling the reference).
+calibration_study:
+  n_baseline_batches: 100
+  batch_size: 500
+  seed: 20260728
+  batch_sizes_studied: [250, 500, 1000, 2000]
+
+# Demonstrative targets (Phase 10 gate F) - illustrative for this
+# benchmark and calibration recipe, never a market/regulatory standard.
+demonstrative_targets:
+  max_false_alert_rate_per_metric: 0.05
+  max_material_alert_rate_per_batch: 0.10
+  max_high_severity_rate_in_normal_batch: 0.02

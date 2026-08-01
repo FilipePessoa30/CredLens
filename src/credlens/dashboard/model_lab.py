@@ -40,6 +40,32 @@ def _list_experiment_ids() -> list[str]:
 
 
 @st.cache_data(show_spinner=False)
+def _default_experiment_index(experiment_ids: tuple[str, ...]) -> int:
+    """Prefers the experiment behind a registered `candidate` model (the
+    one an operator actually cares about by default) over "whichever
+    experiment_id happens to sort last alphabetically" - Phase 10 gate D
+    added sibling comparison experiments
+    (EXP_behavioral_default_v2_reduced and its _vif_only/_stability_only
+    baselines) that sort AFTER v1 and have no full Phase 8 evaluation
+    (no thresholds/local_explanations/champion-challenger tables), so a
+    purely positional default silently showed an all-zero overview by
+    default - a real regression a headless-browser visual QA pass caught
+    (Phase 10 gate: dashboard visual validation)."""
+    models_dir = _MODELING_ROOT / "models"
+    if models_dir.is_dir():
+        for manifest_path in sorted(models_dir.glob("*.manifest.json")):
+            try:
+                manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            except (OSError, json.JSONDecodeError):
+                continue
+            if manifest.get("status") == "candidate" and manifest.get("experiment_id") in (
+                experiment_ids
+            ):
+                return experiment_ids.index(manifest["experiment_id"])
+    return len(experiment_ids) - 1
+
+
+@st.cache_data(show_spinner=False)
 def _load_experiment(experiment_id: str) -> dict[str, Any] | None:
     path = _EXPERIMENTS_DIR / f"{experiment_id}.json"
     if not path.is_file():
@@ -81,7 +107,8 @@ def render_model_lab() -> None:
         )
         return
 
-    experiment_id = st.selectbox("Experiment", experiment_ids, index=len(experiment_ids) - 1)
+    default_index = _default_experiment_index(tuple(experiment_ids))
+    experiment_id = st.selectbox("Experiment", experiment_ids, index=default_index)
     experiment = _load_experiment(experiment_id)
     if experiment is None or experiment.get("status") not in (
         "evaluated",
@@ -223,7 +250,17 @@ def render_model_lab() -> None:
                 f"Predicted P(default)={case['predicted_probability']:.3f} | "
                 f"Actual label={case['actual_label']}"
             )
-            st.dataframe(pd.DataFrame(case["reason_codes"]), width="stretch", hide_index=True)
+            reason_codes_df = pd.DataFrame(case["reason_codes"])
+            if "caveat_pt_br" in reason_codes_df.columns:
+                reason_codes_df = reason_codes_df.drop(columns=["caveat_pt_br"]).rename(
+                    columns={"caveat_en": "caveat"}
+                )
+            st.dataframe(reason_codes_df, width="stretch", hide_index=True)
+            st.caption(
+                "Reason codes are governed by config/model_validation/reason_codes.yml "
+                "(Phase 10 gate E) - `conditional` tier codes use mathematical, not causal, "
+                "language; `prohibited` features never appear here."
+            )
             st.caption(case.get("note_en", ""))
 
     with tab_subgroup:

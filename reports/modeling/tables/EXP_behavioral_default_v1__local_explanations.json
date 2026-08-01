@@ -8,17 +8,26 @@
       {
         "feature": "months_delinquent_count",
         "contribution": 3.614288,
-        "direction": "increases_risk"
+        "direction": "increases_risk",
+        "tier": "conditional",
+        "caveat_en": "VIF 56.83 in the 18-feature model - strongly correlated with consecutive_months_delinquent (both derive from the same 6 delinquency-status columns). Reported only as a standardized linear-score contribution, never as an independent causal driver.",
+        "caveat_pt_br": "VIF 56,83 no modelo de 18 features - fortemente correlacionada com consecutive_months_delinquent (ambas derivam das mesmas 6 colunas de status de inadimpl\u00eancia). Reportada apenas como contribui\u00e7\u00e3o linear padronizada ao score, nunca como um fator causal independente."
       },
       {
         "feature": "consecutive_months_delinquent",
         "contribution": -1.903556,
-        "direction": "decreases_risk"
+        "direction": "decreases_risk",
+        "tier": "conditional",
+        "caveat_en": "VIF 52.80 in the 18-feature model; its coefficient sign (negative) is a redundant-regressor artifact of co-occurring with months_delinquent_count, not a protective effect. Reported only as a standardized linear-score contribution, in mathematical terms, never as a causal claim.",
+        "caveat_pt_br": "VIF 52,80 no modelo de 18 features; o sinal do coeficiente (negativo) \u00e9 um artefato de regressor redundante por coocorrer com months_delinquent_count, n\u00e3o um efeito protetor. Reportada apenas como contribui\u00e7\u00e3o linear padronizada, em termos matem\u00e1ticos, nunca como uma alega\u00e7\u00e3o causal."
       },
       {
         "feature": "most_recent_delinquency_status",
         "contribution": 1.262041,
-        "direction": "increases_risk"
+        "direction": "increases_risk",
+        "tier": "allowed",
+        "caveat_en": null,
+        "caveat_pt_br": null
       }
     ],
     "note_en": "Descriptive only - never a regulatory reason-code and never used for an automated decision.",
@@ -33,17 +42,26 @@
       {
         "feature": "avg_payment_amount",
         "contribution": -4.137918,
-        "direction": "decreases_risk"
+        "direction": "decreases_risk",
+        "tier": "conditional",
+        "caveat_en": "Perfectly collinear with total_payment_amount (VIF undefined/ infinite in the 18-feature model - avg = total / 6 exactly). Reported only as a standardized linear-score contribution.",
+        "caveat_pt_br": "Perfeitamente colinear com total_payment_amount (VIF indefinido/ infinito no modelo de 18 features - m\u00e9dia = total / 6 exatamente). Reportada apenas como contribui\u00e7\u00e3o linear padronizada."
       },
       {
         "feature": "total_payment_amount",
         "contribution": -4.137918,
-        "direction": "decreases_risk"
+        "direction": "decreases_risk",
+        "tier": "conditional",
+        "caveat_en": "Perfectly collinear with avg_payment_amount (VIF undefined/ infinite). Reported only as a standardized linear-score contribution - never alongside avg_payment_amount in the same explanation (they carry identical information).",
+        "caveat_pt_br": "Perfeitamente colinear com avg_payment_amount (VIF indefinido/ infinito). Reportada apenas como contribui\u00e7\u00e3o linear padronizada - nunca junto de avg_payment_amount na mesma explica\u00e7\u00e3o (ambas carregam informa\u00e7\u00e3o id\u00eantica)."
       },
       {
         "feature": "months_delinquent_count",
         "contribution": -0.589549,
-        "direction": "decreases_risk"
+        "direction": "decreases_risk",
+        "tier": "conditional",
+        "caveat_en": "VIF 56.83 in the 18-feature model - strongly correlated with consecutive_months_delinquent (both derive from the same 6 delinquency-status columns). Reported only as a standardized linear-score contribution, never as an independent causal driver.",
+        "caveat_pt_br": "VIF 56,83 no modelo de 18 features - fortemente correlacionada com consecutive_months_delinquent (ambas derivam das mesmas 6 colunas de status de inadimpl\u00eancia). Reportada apenas como contribui\u00e7\u00e3o linear padronizada ao score, nunca como um fator causal independente."
       }
     ],
     "note_en": "Descriptive only - never a regulatory reason-code and never used for an automated decision.",
@@ -58,17 +76,26 @@
       {
         "feature": "months_delinquent_count",
         "contribution": 2.913649,
-        "direction": "increases_risk"
+        "direction": "increases_risk",
+        "tier": "conditional",
+        "caveat_en": "VIF 56.83 in the 18-feature model - strongly correlated with consecutive_months_delinquent (both derive from the same 6 delinquency-status columns). Reported only as a standardized linear-score contribution, never as an independent causal driver.",
+        "caveat_pt_br": "VIF 56,83 no modelo de 18 features - fortemente correlacionada com consecutive_months_delinquent (ambas derivam das mesmas 6 colunas de status de inadimpl\u00eancia). Reportada apenas como contribui\u00e7\u00e3o linear padronizada ao score, nunca como um fator causal independente."
       },
       {
         "feature": "consecutive_months_delinquent",
         "contribution": -1.537468,
-        "direction": "decreases_risk"
+        "direction": "decreases_risk",
+        "tier": "conditional",
+        "caveat_en": "VIF 52.80 in the 18-feature model; its coefficient sign (negative) is a redundant-regressor artifact of co-occurring with months_delinquent_count, not a protective effect. Reported only as a standardized linear-score contribution, in mathematical terms, never as a causal claim.",
+        "caveat_pt_br": "VIF 52,80 no modelo de 18 features; o sinal do coeficiente (negativo) \u00e9 um artefato de regressor redundante por coocorrer com months_delinquent_count, n\u00e3o um efeito protetor. Reportada apenas como contribui\u00e7\u00e3o linear padronizada, em termos matem\u00e1ticos, nunca como uma alega\u00e7\u00e3o causal."
       },
       {
         "feature": "most_recent_delinquency_status",
         "contribution": 0.789419,
-        "direction": "increases_risk"
+        "direction": "increases_risk",
+        "tier": "allowed",
+        "caveat_en": null,
+        "caveat_pt_br": null
       }
     ],
     "note_en": "Descriptive only - never a regulatory reason-code and never used for an automated decision.",
@@ -83,17 +110,26 @@
       {
         "feature": "months_delinquent_count",
         "contribution": 1.51237,
-        "direction": "increases_risk"
+        "direction": "increases_risk",
+        "tier": "conditional",
+        "caveat_en": "VIF 56.83 in the 18-feature model - strongly correlated with consecutive_months_delinquent (both derive from the same 6 delinquency-status columns). Reported only as a standardized linear-score contribution, never as an independent causal driver.",
+        "caveat_pt_br": "VIF 56,83 no modelo de 18 features - fortemente correlacionada com consecutive_months_delinquent (ambas derivam das mesmas 6 colunas de status de inadimpl\u00eancia). Reportada apenas como contribui\u00e7\u00e3o linear padronizada ao score, nunca como um fator causal independente."
       },
       {
         "feature": "consecutive_months_delinquent",
         "contribution": -0.805292,
-        "direction": "decreases_risk"
+        "direction": "decreases_risk",
+        "tier": "conditional",
+        "caveat_en": "VIF 52.80 in the 18-feature model; its coefficient sign (negative) is a redundant-regressor artifact of co-occurring with months_delinquent_count, not a protective effect. Reported only as a standardized linear-score contribution, in mathematical terms, never as a causal claim.",
+        "caveat_pt_br": "VIF 52,80 no modelo de 18 features; o sinal do coeficiente (negativo) \u00e9 um artefato de regressor redundante por coocorrer com months_delinquent_count, n\u00e3o um efeito protetor. Reportada apenas como contribui\u00e7\u00e3o linear padronizada, em termos matem\u00e1ticos, nunca como uma alega\u00e7\u00e3o causal."
       },
       {
         "feature": "most_recent_delinquency_status",
         "contribution": 0.316797,
-        "direction": "increases_risk"
+        "direction": "increases_risk",
+        "tier": "allowed",
+        "caveat_en": null,
+        "caveat_pt_br": null
       }
     ],
     "note_en": "Descriptive only - never a regulatory reason-code and never used for an automated decision.",
@@ -108,17 +144,26 @@
       {
         "feature": "months_delinquent_count",
         "contribution": 3.614288,
-        "direction": "increases_risk"
+        "direction": "increases_risk",
+        "tier": "conditional",
+        "caveat_en": "VIF 56.83 in the 18-feature model - strongly correlated with consecutive_months_delinquent (both derive from the same 6 delinquency-status columns). Reported only as a standardized linear-score contribution, never as an independent causal driver.",
+        "caveat_pt_br": "VIF 56,83 no modelo de 18 features - fortemente correlacionada com consecutive_months_delinquent (ambas derivam das mesmas 6 colunas de status de inadimpl\u00eancia). Reportada apenas como contribui\u00e7\u00e3o linear padronizada ao score, nunca como um fator causal independente."
       },
       {
         "feature": "consecutive_months_delinquent",
         "contribution": -1.903556,
-        "direction": "decreases_risk"
+        "direction": "decreases_risk",
+        "tier": "conditional",
+        "caveat_en": "VIF 52.80 in the 18-feature model; its coefficient sign (negative) is a redundant-regressor artifact of co-occurring with months_delinquent_count, not a protective effect. Reported only as a standardized linear-score contribution, in mathematical terms, never as a causal claim.",
+        "caveat_pt_br": "VIF 52,80 no modelo de 18 features; o sinal do coeficiente (negativo) \u00e9 um artefato de regressor redundante por coocorrer com months_delinquent_count, n\u00e3o um efeito protetor. Reportada apenas como contribui\u00e7\u00e3o linear padronizada, em termos matem\u00e1ticos, nunca como uma alega\u00e7\u00e3o causal."
       },
       {
         "feature": "most_recent_delinquency_status",
         "contribution": 1.262041,
-        "direction": "increases_risk"
+        "direction": "increases_risk",
+        "tier": "allowed",
+        "caveat_en": null,
+        "caveat_pt_br": null
       }
     ],
     "note_en": "Descriptive only - never a regulatory reason-code and never used for an automated decision.",
@@ -133,17 +178,26 @@
       {
         "feature": "avg_payment_amount",
         "contribution": -4.137918,
-        "direction": "decreases_risk"
+        "direction": "decreases_risk",
+        "tier": "conditional",
+        "caveat_en": "Perfectly collinear with total_payment_amount (VIF undefined/ infinite in the 18-feature model - avg = total / 6 exactly). Reported only as a standardized linear-score contribution.",
+        "caveat_pt_br": "Perfeitamente colinear com total_payment_amount (VIF indefinido/ infinito no modelo de 18 features - m\u00e9dia = total / 6 exatamente). Reportada apenas como contribui\u00e7\u00e3o linear padronizada."
       },
       {
         "feature": "total_payment_amount",
         "contribution": -4.137918,
-        "direction": "decreases_risk"
+        "direction": "decreases_risk",
+        "tier": "conditional",
+        "caveat_en": "Perfectly collinear with avg_payment_amount (VIF undefined/ infinite). Reported only as a standardized linear-score contribution - never alongside avg_payment_amount in the same explanation (they carry identical information).",
+        "caveat_pt_br": "Perfeitamente colinear com avg_payment_amount (VIF indefinido/ infinito). Reportada apenas como contribui\u00e7\u00e3o linear padronizada - nunca junto de avg_payment_amount na mesma explica\u00e7\u00e3o (ambas carregam informa\u00e7\u00e3o id\u00eantica)."
       },
       {
         "feature": "months_delinquent_count",
         "contribution": -0.589549,
-        "direction": "decreases_risk"
+        "direction": "decreases_risk",
+        "tier": "conditional",
+        "caveat_en": "VIF 56.83 in the 18-feature model - strongly correlated with consecutive_months_delinquent (both derive from the same 6 delinquency-status columns). Reported only as a standardized linear-score contribution, never as an independent causal driver.",
+        "caveat_pt_br": "VIF 56,83 no modelo de 18 features - fortemente correlacionada com consecutive_months_delinquent (ambas derivam das mesmas 6 colunas de status de inadimpl\u00eancia). Reportada apenas como contribui\u00e7\u00e3o linear padronizada ao score, nunca como um fator causal independente."
       }
     ],
     "note_en": "Descriptive only - never a regulatory reason-code and never used for an automated decision.",
@@ -158,17 +212,26 @@
       {
         "feature": "months_delinquent_count",
         "contribution": -0.589549,
-        "direction": "decreases_risk"
+        "direction": "decreases_risk",
+        "tier": "conditional",
+        "caveat_en": "VIF 56.83 in the 18-feature model - strongly correlated with consecutive_months_delinquent (both derive from the same 6 delinquency-status columns). Reported only as a standardized linear-score contribution, never as an independent causal driver.",
+        "caveat_pt_br": "VIF 56,83 no modelo de 18 features - fortemente correlacionada com consecutive_months_delinquent (ambas derivam das mesmas 6 colunas de status de inadimpl\u00eancia). Reportada apenas como contribui\u00e7\u00e3o linear padronizada ao score, nunca como um fator causal independente."
       },
       {
         "feature": "consecutive_months_delinquent",
         "contribution": 0.292972,
-        "direction": "increases_risk"
+        "direction": "increases_risk",
+        "tier": "conditional",
+        "caveat_en": "VIF 52.80 in the 18-feature model; its coefficient sign (negative) is a redundant-regressor artifact of co-occurring with months_delinquent_count, not a protective effect. Reported only as a standardized linear-score contribution, in mathematical terms, never as a causal claim.",
+        "caveat_pt_br": "VIF 52,80 no modelo de 18 features; o sinal do coeficiente (negativo) \u00e9 um artefato de regressor redundante por coocorrer com months_delinquent_count, n\u00e3o um efeito protetor. Reportada apenas como contribui\u00e7\u00e3o linear padronizada, em termos matem\u00e1ticos, nunca como uma alega\u00e7\u00e3o causal."
       },
       {
         "feature": "payment_coverage_rate",
         "contribution": -0.100474,
-        "direction": "decreases_risk"
+        "direction": "decreases_risk",
+        "tier": "allowed",
+        "caveat_en": null,
+        "caveat_pt_br": null
       }
     ],
     "note_en": "Descriptive only - never a regulatory reason-code and never used for an automated decision.",

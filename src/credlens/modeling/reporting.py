@@ -621,6 +621,7 @@ def explain_experiment(experiment_id: str, *, repo_root: Path | None = None) -> 
             float(p_test.iloc[positional_idx]),
             int(y_test.iloc[positional_idx]),
             label,
+            repo_root=repo_root,
         )
         explanation_rows.append(explanation.to_dict())
     (repo_root / TABLES_DIR / f"{experiment_id}__local_explanations.json").write_text(
@@ -1186,6 +1187,11 @@ fairness nem avaliação de conformidade legal.
 Coeficientes/odds ratios, permutation importance, partial dependence e reason codes
 descritivos - ver `reports/modeling/tables/{experiment_id}__coefficients.csv`,
 `{experiment_id}__permutation_importance.csv`, `{experiment_id}__local_explanations.json`.
+Reason codes são governados por `config/model_validation/reason_codes.yml` (Fase 10,
+gate E): apenas features com direção estável e VIF aceitável geram reason code em
+linguagem causal ("allowed"); features redundantes/de baixa magnitude podem aparecer
+apenas em linguagem matemática, nunca causal ("conditional"); features com inversão de
+sinal frequente ou interpretação individual inadequada nunca aparecem ("prohibited").
 
 ## Robustez
 Ver `reports/modeling/tables/{experiment_id}__robustness.csv` - testes técnicos de
@@ -1294,6 +1300,11 @@ certification, not a legal compliance assessment.
 Coefficients/odds ratios, permutation importance, partial dependence, and descriptive
 reason codes - see `reports/modeling/tables/{experiment_id}__coefficients.csv`,
 `{experiment_id}__permutation_importance.csv`, `{experiment_id}__local_explanations.json`.
+Reason codes are governed by `config/model_validation/reason_codes.yml` (Phase 10 gate
+E): only features with a stable direction and acceptable VIF generate a causal-language
+reason code (`allowed`); redundant/low-magnitude features may appear only in
+mathematical, never causal, language (`conditional`); features with frequent sign
+inversion or an uninterpretable individual effect never appear (`prohibited`).
 
 ## Robustness
 See `reports/modeling/tables/{experiment_id}__robustness.csv` - technical perturbation

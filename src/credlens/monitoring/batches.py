@@ -136,7 +136,7 @@ def _subgroup_composition_shift(
     return pd.concat([matching_sample, other_sample], ignore_index=False)
 
 
-def _sorted_locked_test_set(model_id: str, *, repo_root: Path) -> pd.DataFrame:
+def sorted_locked_test_set(model_id: str, *, repo_root: Path) -> pd.DataFrame:
     manifest = load_model_candidate_manifest(model_id, repo_root / MODELS_DIR)
     experiment_id = manifest.experiment_id
     contract = load_target_contract(repo_root)
@@ -160,7 +160,7 @@ def load_unperturbed_partition(
     ONLY to compute rank-stability twins in `credlens.monitoring.runner`,
     never written to disk as a batch itself."""
     repo_root = repo_root or Path.cwd()
-    test_df = _sorted_locked_test_set(model_id, repo_root=repo_root)
+    test_df = sorted_locked_test_set(model_id, repo_root=repo_root)
     start = (source_partition - 1) * batch_size
     return test_df.iloc[start : start + batch_size].copy()
 
@@ -169,7 +169,7 @@ def build_batches(
     model_id: str, scenarios_config: Any, *, repo_root: Path | None = None
 ) -> list[tuple[dict[str, Any], pd.DataFrame]]:
     repo_root = repo_root or Path.cwd()
-    test_df = _sorted_locked_test_set(model_id, repo_root=repo_root)
+    test_df = sorted_locked_test_set(model_id, repo_root=repo_root)
 
     batch_size = scenarios_config.batch_size
     batches = scenarios_config.batches

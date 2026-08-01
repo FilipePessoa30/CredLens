@@ -167,6 +167,34 @@ def _process_batch(
             if alert is not None:
                 alerts.append(alert)
 
+    # Phase 10 gate F - family-wise check: `calibrated["psi"]` above only
+    # controls EACH feature's OWN marginal false-alert rate; checking 18
+    # features independently at that same marginal cutoff produces a
+    # ~60% family-wise false-alert rate (empirically measured - see
+    # credlens.monitoring.calibration_study module docstring). This
+    # SEPARATE check, against a threshold calibrated on the MAX PSI
+    # across all features (only present once `credlens monitor
+    # calibrate-reference` has been run), is what gate G/H's incident/
+    # severity logic uses to decide whether a batch's feature drift is
+    # family-wise significant - never a substitute for the per-feature
+    # alerts above, which remain untouched and keep firing at the same
+    # rate as before.
+    if "psi_family_wise" in calibrated and feature_drift_results:
+        max_psi_row = max(feature_drift_results, key=lambda d: abs(d["psi"]))
+        family_wise_alert = build_alert(
+            run_id=run_id,
+            batch_sequence=batch_sequence,
+            model_id=manifest.model_id,
+            category="feature_drift",
+            metric=f"psi_family_wise__{max_psi_row['feature']}",
+            reference_value=0.0,
+            observed_value=max_psi_row["psi"],
+            calibrated=calibrated["psi_family_wise"],
+            sample_size=len(engineered),
+        )
+        if family_wise_alert is not None:
+            alerts.append(family_wise_alert)
+
     # Rank stability needs an unperturbed "twin" scoring of the exact same
     # rows; batches that change row membership/count (prevalence_drift,
     # subgroup_composition_shift, corrupted_schema) have no valid twin, so
@@ -211,11 +239,24 @@ def _process_batch(
     if spec["label_availability"] == "available" and "Y" in clean_batch.columns:
         y_batch = clean_batch["Y"].reset_index(drop=True)
         p_batch = pd.Series(scores)
-        y_full = reference_population["y_true"].to_numpy()
-        p_full = reference_population["score"].to_numpy()
-        reference_roc_auc = independent_roc_auc(pd.Series(y_full), pd.Series(p_full))
-        reference_pr_auc = independent_pr_auc(pd.Series(y_full), pd.Series(p_full))
-        reference_brier = independent_brier(pd.Series(y_full), pd.Series(p_full))
+        # Phase 10 gate F performance-reference audit: train+validation
+        # combined is a systematically OPTIMISTIC performance reference
+        # point (train dominates it and the model was fit on train) -
+        # `reference.performance_reference` (validation-only, computed at
+        # `credlens monitor create-reference` time - see
+        # credlens.monitoring.reference module) is used here instead when
+        # present. Falls back to recomputing from the combined population
+        # for a reference built before this field existed.
+        if reference.performance_reference:
+            reference_roc_auc = float(reference.performance_reference["roc_auc"])
+            reference_pr_auc = float(reference.performance_reference["pr_auc"])
+            reference_brier = float(reference.performance_reference["brier"])
+        else:
+            y_full = reference_population["y_true"].to_numpy()
+            p_full = reference_population["score"].to_numpy()
+            reference_roc_auc = independent_roc_auc(pd.Series(y_full), pd.Series(p_full))
+            reference_pr_auc = independent_pr_auc(pd.Series(y_full), pd.Series(p_full))
+            reference_brier = independent_brier(pd.Series(y_full), pd.Series(p_full))
         try:
             perf = compute_performance_drift(
                 y_batch,

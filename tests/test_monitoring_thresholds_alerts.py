@@ -96,9 +96,13 @@ class TestClassifyState:
         calibrated = CalibratedThreshold("psi", 0.05, 0.1, 100, 500, 30)
         assert classify_state(0.15, calibrated, n_sample=500) == "material_deviation"
 
-    def test_small_sample_never_alerts(self) -> None:
+    def test_small_sample_is_insufficient_sample_not_within_variability(self) -> None:
+        # Phase 10 gate F: a sample too small to trust is a DISTINCT
+        # status from "checked and found normal" - never silently
+        # conflated, and (test_alert_is_none_for_insufficient_sample
+        # below) never escalated to an alert either way.
         calibrated = CalibratedThreshold("psi", 0.05, 0.1, 100, 500, 30)
-        assert classify_state(0.5, calibrated, n_sample=5) == "within_reference_variability"
+        assert classify_state(0.5, calibrated, n_sample=5) == "insufficient_sample"
 
 
 class TestAlerts:
@@ -114,6 +118,23 @@ class TestAlerts:
             observed_value=0.01,
             calibrated=calibrated,
             sample_size=500,
+        )
+        assert alert is None
+
+    def test_alert_is_none_for_insufficient_sample(self) -> None:
+        # Even a huge deviation must never alert if the sample is too
+        # small to trust (Phase 10 gate F) - same as within-variability.
+        calibrated = CalibratedThreshold("psi", 0.05, 0.1, 100, 500, 30)
+        alert = build_alert(
+            run_id="RUN_1",
+            batch_sequence=1,
+            model_id="M1",
+            category="feature_drift",
+            metric="psi__a",
+            reference_value=0.0,
+            observed_value=0.9,
+            calibrated=calibrated,
+            sample_size=5,
         )
         assert alert is None
 

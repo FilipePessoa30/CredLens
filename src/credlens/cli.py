@@ -777,6 +777,33 @@ def _build_parser() -> argparse.ArgumentParser:
     monitor_create_reference_parser.add_argument("--model-id", required=True)
     monitor_create_reference_parser.add_argument("--json", action="store_true")
 
+    monitor_calibrate_reference_parser = monitor_subparsers.add_parser(
+        "calibrate-reference",
+        help="Phase 10 gate F - adds a family-wise PSI threshold (calibrated on the max PSI "
+        "across all features) to an already-built reference, fixing the ~60% family-wise "
+        "false-alert rate the per-feature-only calibration produces.",
+    )
+    monitor_calibrate_reference_parser.add_argument("--reference-id", required=True)
+    monitor_calibrate_reference_parser.add_argument("--json", action="store_true")
+
+    monitor_evaluate_false_alerts_parser = monitor_subparsers.add_parser(
+        "evaluate-false-alerts",
+        help="Phase 10 gate F - measures real false-alert rates over >=100 unperturbed "
+        "baseline-like batches drawn from the locked test set.",
+    )
+    monitor_evaluate_false_alerts_parser.add_argument("--reference-id", required=True)
+    monitor_evaluate_false_alerts_parser.add_argument("--n-batches", type=int, default=100)
+    monitor_evaluate_false_alerts_parser.add_argument("--batch-size", type=int, default=500)
+    monitor_evaluate_false_alerts_parser.add_argument("--json", action="store_true")
+
+    monitor_evaluate_detection_parser = monitor_subparsers.add_parser(
+        "evaluate-detection",
+        help="Phase 10 gate F/G - detection matrix across the 12 perturbation scenarios "
+        "(expected vs. detected signal/alert/incident, severity, blocking).",
+    )
+    monitor_evaluate_detection_parser.add_argument("--reference-id", required=True)
+    monitor_evaluate_detection_parser.add_argument("--json", action="store_true")
+
     monitor_simulate_batches_parser = monitor_subparsers.add_parser(
         "simulate-batches", help="Builds the 12 simulated batches from the locked test set."
     )
@@ -2628,10 +2655,13 @@ def _model_error_types() -> tuple[type[Exception], ...]:
 def _monitor_error_types() -> tuple[type[Exception], ...]:
     from credlens.modeling.input_contract import InputContractError
     from credlens.monitoring.batches import BatchBuildError
+    from credlens.monitoring.calibration_study import CalibrationStudyError
     from credlens.monitoring.contracts import MonitoringConfigError
+    from credlens.monitoring.detection_eval import DetectionEvalError
     from credlens.monitoring.reference import ReferenceError
     from credlens.monitoring.reporting import MonitoringReportingError
     from credlens.monitoring.runner import MonitoringRunError
+    from credlens.monitoring.thresholds import ThresholdsError
 
     return (
         InputContractError,
@@ -2640,6 +2670,9 @@ def _monitor_error_types() -> tuple[type[Exception], ...]:
         ReferenceError,
         MonitoringReportingError,
         MonitoringRunError,
+        CalibrationStudyError,
+        DetectionEvalError,
+        ThresholdsError,
     )
 
 
@@ -3125,9 +3158,7 @@ def _cmd_model_remediate(
         from credlens.model_validation.reporting import resolve_experiment_id_from_model
 
         original_experiment_id = resolve_experiment_id_from_model(model_id, Path.cwd())
-        result = run_remediation(
-            original_experiment_id, new_experiment_id, model_id=new_model_id
-        )
+        result = run_remediation(original_experiment_id, new_experiment_id, model_id=new_model_id)
     except _model_error_types() as exc:
         print(f"Error: {exc}")
         return 1
@@ -3245,6 +3276,104 @@ def _cmd_monitor_create_reference(model_id: str, as_json: bool) -> int:
         print(f"CredLens monitor create-reference: {model_id}")
         print("=" * 40)
         print(f"reference_id: {reference_id}")
+    return 0
+
+
+def _cmd_monitor_calibrate_reference(reference_id: str, as_json: bool) -> int:
+    try:
+        from credlens.monitoring.reporting import calibrate_reference_family_wise
+
+        result = calibrate_reference_family_wise(reference_id)
+    except _monitor_error_types() as exc:
+        print(f"Error: {exc}")
+        return 1
+
+    if as_json:
+        print(json.dumps(result, indent=2))
+    else:
+        print(f"CredLens monitor calibrate-reference: {reference_id}")
+        print("=" * 40)
+        fw = result["psi_family_wise"]
+        print(
+            f"psi_family_wise: review={fw['review_cutoff']} "
+            f"material={fw['material_deviation_cutoff']}"
+        )
+    return 0
+
+
+def _cmd_monitor_evaluate_false_alerts(
+    reference_id: str, n_batches: int, batch_size: int, as_json: bool
+) -> int:
+    try:
+        from credlens.monitoring.calibration_study import (
+            calibrate_family_wise_psi_threshold,
+            run_false_alert_rate_study,
+        )
+        from credlens.monitoring.contracts import load_thresholds_config
+        from credlens.monitoring.reference import load_reference, load_reference_population
+
+        thresholds_config = load_thresholds_config()
+        mc_cfg = thresholds_config.multiple_comparisons
+        reference = load_reference(reference_id)
+        reference_population = load_reference_population(reference_id)
+        family_wise = calibrate_family_wise_psi_threshold(
+            reference_population,
+            reference,
+            batch_size=batch_size,
+            n_resamples=int(mc_cfg["family_wise_n_resamples"]),
+            review_percentile=float(mc_cfg["family_wise_review_percentile"]),
+            material_percentile=float(mc_cfg["family_wise_material_deviation_percentile"]),
+            seed=int(thresholds_config.calibration_study["seed"]),
+        )
+        study = run_false_alert_rate_study(
+            reference_id,
+            n_batches=n_batches,
+            batch_size=batch_size,
+            seed=int(thresholds_config.calibration_study["seed"]),
+            family_wise_threshold=family_wise,
+        )
+    except _monitor_error_types() as exc:
+        print(f"Error: {exc}")
+        return 1
+
+    if as_json:
+        print(json.dumps(study.to_dict(), indent=2))
+    else:
+        print(f"CredLens monitor evaluate-false-alerts: {reference_id}")
+        print("=" * 40)
+        print(f"n_batches={study.n_batches} batch_size={study.batch_size}")
+        print(f"family_wise_marginal_rate (uncorrected): {study.family_wise_marginal_rate}")
+        print(f"family_wise_corrected_review_rate: {study.family_wise_corrected_review_rate}")
+        print(f"family_wise_corrected_material_rate: {study.family_wise_corrected_material_rate}")
+        print(f"score_false_alert_rate: {study.score_false_alert_rate}")
+        print(f"performance_false_alert_rate: {study.performance_false_alert_rate}")
+    return 0
+
+
+def _cmd_monitor_evaluate_detection(reference_id: str, as_json: bool) -> int:
+    try:
+        from credlens.monitoring.detection_eval import run_detection_evaluation
+
+        report = run_detection_evaluation(reference_id)
+    except _monitor_error_types() as exc:
+        print(f"Error: {exc}")
+        return 1
+
+    if as_json:
+        print(json.dumps(report.to_dict(), indent=2))
+    else:
+        print(f"CredLens monitor evaluate-detection: {reference_id}")
+        print("=" * 40)
+        for row in report.rows:
+            print(
+                f"  {row.scenario}: expected={row.expected_category} detected={row.detected} "
+                f"severity={row.detected_severity} correctly_blocked={row.correctly_blocked}"
+            )
+        print(f"scenario_detection_rate: {report.scenario_detection_rate}")
+        print(f"blocked_input_recall: {report.blocked_input_recall}")
+        print(f"severity_precision: {report.severity_precision}")
+        print(f"alert_compression_ratio: {report.incident_report.alert_compression_ratio}")
+        print(f"incident_compression_ratio: {report.incident_report.incident_compression_ratio}")
     return 0
 
 
@@ -3387,10 +3516,18 @@ def _dispatch_monitor_command(args: argparse.Namespace) -> int:
         return _cmd_monitor_report(args.run_id, args.json)
     if args.monitor_command == "validate":
         return _cmd_monitor_validate(args.run_id, args.json)
+    if args.monitor_command == "calibrate-reference":
+        return _cmd_monitor_calibrate_reference(args.reference_id, args.json)
+    if args.monitor_command == "evaluate-false-alerts":
+        return _cmd_monitor_evaluate_false_alerts(
+            args.reference_id, args.n_batches, args.batch_size, args.json
+        )
+    if args.monitor_command == "evaluate-detection":
+        return _cmd_monitor_evaluate_detection(args.reference_id, args.json)
 
     print(
-        "usage: credlens monitor {create-reference,simulate-batches,run,status,alerts,report,"
-        "validate} ..."
+        "usage: credlens monitor {create-reference,calibrate-reference,simulate-batches,run,"
+        "status,alerts,report,validate,evaluate-false-alerts,evaluate-detection} ..."
     )
     print("Run 'credlens monitor <command> --help' for details.")
     return 1

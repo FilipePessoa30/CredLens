@@ -468,14 +468,21 @@ def _row_from_reduced_experiment(
     classification = experiment.metrics["coefficient_classification"]
     flip_rates = [row["bootstrap_sign_flip_rate"] for row in classification]
     n_eligible = sum(1 for row in classification if row["category"] == "stable_direction")
-    vif_values = [row["vif"] for row in experiment.metrics["collinearity"]["vif_table"] if row["vif"] is not None]
+    vif_table = experiment.metrics["collinearity"]["vif_table"]
+    vif_values = [row["vif"] for row in vif_table if row["vif"] is not None]
 
     predictions = pd.read_csv(
         repo_root / MODELING_TABLES_DIR / f"{experiment.experiment_id}__predictions_test.csv"
     )
     y_arr = predictions["y_true"].to_numpy()
     p_arr = predictions["logistic_regression"].to_numpy()
-    artifact_path = repo_root / EXPERIMENTS_DIR / experiment.experiment_id / "models" / "logistic_regression.joblib"
+    artifact_path = (
+        repo_root
+        / EXPERIMENTS_DIR
+        / experiment.experiment_id
+        / "models"
+        / "logistic_regression.joblib"
+    )
     pipeline = joblib.load(artifact_path)
     x_test_sample = pd.DataFrame(
         [dict.fromkeys(experiment.feature_set, 0.0)] * 5, columns=experiment.feature_set
@@ -518,7 +525,9 @@ def compare_five_models(
     recomputing metrics that already exist and are independently tested,
     and building fresh rows for models 2-4."""
     repo_root = repo_root or Path.cwd()
-    pareto_path = repo_root / VALIDATION_TABLES_DIR / f"{original_experiment_id}__pareto_comparison.csv"
+    pareto_path = (
+        repo_root / VALIDATION_TABLES_DIR / f"{original_experiment_id}__pareto_comparison.csv"
+    )
     if not pareto_path.is_file():
         raise RemediationError(
             f"No Pareto comparison table at '{pareto_path}' - run 'credlens model "
@@ -530,12 +539,15 @@ def compare_five_models(
     challenger_row = pareto[pareto["model"] == "hist_gradient_boosting (challenger)"].iloc[0]
 
     original_classification_path = (
-        repo_root / VALIDATION_TABLES_DIR / f"{original_experiment_id}__coefficient_classification.csv"
+        repo_root
+        / VALIDATION_TABLES_DIR
+        / f"{original_experiment_id}__coefficient_classification.csv"
     )
     original_classification = pd.read_csv(original_classification_path)
     original_vif_path = repo_root / VALIDATION_TABLES_DIR / f"{original_experiment_id}__vif.csv"
     original_vif = pd.read_csv(original_vif_path)
-    original_experiment = load_experiment(repo_root / EXPERIMENTS_DIR / f"{original_experiment_id}.json")
+    original_experiment_path = repo_root / EXPERIMENTS_DIR / f"{original_experiment_id}.json"
+    original_experiment = load_experiment(original_experiment_path)
 
     original_predictions = pd.read_csv(
         repo_root / MODELING_TABLES_DIR / f"{original_experiment_id}__predictions_test.csv"
@@ -558,7 +570,9 @@ def compare_five_models(
         log_loss=float(original_row["log_loss"]),
         ks_statistic=float(original_row["ks_statistic"]),
         calibration_slope=float(original_row["calibration_slope"]),
-        max_vif=float(original_vif["vif"].dropna().max()) if original_vif["vif"].notna().any() else None,
+        max_vif=(
+            float(original_vif["vif"].dropna().max()) if original_vif["vif"].notna().any() else None
+        ),
         condition_number=None,
         mean_sign_flip_rate=float(original_classification["bootstrap_sign_flip_rate"].mean()),
         split_stability_roc_auc_stdev=float(original_row["split_stability_roc_auc_stdev"]),
@@ -595,7 +609,9 @@ def compare_five_models(
     )
     _ = original_experiment  # kept for parity/traceability, not otherwise needed
 
-    vif_experiment = load_experiment(repo_root / EXPERIMENTS_DIR / f"{vif_reduced_experiment_id}.json")
+    vif_experiment = load_experiment(
+        repo_root / EXPERIMENTS_DIR / f"{vif_reduced_experiment_id}.json"
+    )
     stability_experiment = load_experiment(
         repo_root / EXPERIMENTS_DIR / f"{stability_reduced_experiment_id}.json"
     )
@@ -605,7 +621,9 @@ def compare_five_models(
 
     rows = [row_original]
     if "collinearity" in vif_experiment.metrics:
-        rows.append(_row_from_reduced_experiment("VIF-reduced", vif_experiment, repo_root=repo_root))
+        rows.append(
+            _row_from_reduced_experiment("VIF-reduced", vif_experiment, repo_root=repo_root)
+        )
     else:
         # build_reduced_experiment (Phase 9) doesn't re-run the coefficient
         # audit - report what it DOES have, with VIF/stability/reason-code
@@ -641,16 +659,24 @@ def compare_five_models(
                     / vif_reduced_experiment_id
                     / "models"
                     / "logistic_regression_reduced.joblib"
-                ).stat().st_size,
+                )
+                .stat()
+                .st_size,
                 reason_code_eligible_features=None,
-                dropped_features=[f for f in FEATURE_COLUMNS if f not in vif_experiment.feature_set],
+                dropped_features=[
+                    f for f in FEATURE_COLUMNS if f not in vif_experiment.feature_set
+                ],
             )
         )
     rows.append(
-        _row_from_reduced_experiment("Stability-reduced (mechanical)", stability_experiment, repo_root=repo_root)
+        _row_from_reduced_experiment(
+            "Stability-reduced (mechanical)", stability_experiment, repo_root=repo_root
+        )
     )
     rows.append(
-        _row_from_reduced_experiment("Final remediated (gate D)", final_experiment, repo_root=repo_root)
+        _row_from_reduced_experiment(
+            "Final remediated (gate D)", final_experiment, repo_root=repo_root
+        )
     )
     rows.append(row_challenger)
     return rows
@@ -710,7 +736,9 @@ def decide_remediation(
 
     structural_problems = []
     if final_row.max_vif is not None and final_row.max_vif >= max_vif_threshold:
-        structural_problems.append(f"max VIF among kept features is {final_row.max_vif:.2f} (>= {max_vif_threshold})")
+        structural_problems.append(
+            f"max VIF among kept features is {final_row.max_vif:.2f} (>= {max_vif_threshold})"
+        )
     if final_row.mean_sign_flip_rate is not None and final_row.mean_sign_flip_rate >= max_flip_rate:
         structural_problems.append(
             f"mean bootstrap sign-flip rate among kept features is "
@@ -775,13 +803,22 @@ def decide_remediation(
 
 
 def register_remediation_candidate(
-    experiment_id: str, model_id: str, decision: RemediationDecisionLabel, *, repo_root: Path | None = None
+    experiment_id: str,
+    model_id: str,
+    decision: RemediationDecisionLabel,
+    *,
+    repo_root: Path | None = None,
 ) -> dict[str, Any]:
     """Registers the final-remediated pipeline under its OWN model_id,
     with `status` set to the Phase 10 gate D decision label - never
     `candidate`/`production`, and never touching
     MODEL_behavioral_default_v1's manifest."""
-    if decision not in ("remediation_candidate", "remediation_rejected", "requires_new_external_validation"):
+    allowed_decisions = (
+        "remediation_candidate",
+        "remediation_rejected",
+        "requires_new_external_validation",
+    )
+    if decision not in allowed_decisions:
         raise RemediationError(f"Unknown remediation decision label '{decision}'.")
     repo_root = repo_root or Path.cwd()
     experiment = load_experiment(repo_root / EXPERIMENTS_DIR / f"{experiment_id}.json")
@@ -900,7 +937,10 @@ def run_remediation(
         )
 
     write_remediation_report(
-        new_experiment_id, rows, decision, model_id=model_id if manifest is not None else None,
+        new_experiment_id,
+        rows,
+        decision,
+        model_id=model_id if manifest is not None else None,
         repo_root=repo_root,
     )
 
@@ -923,7 +963,9 @@ def _comparison_markdown_table(rows: list[RemediationComparisonRow]) -> str:
     lines = [header]
     for row in rows:
         max_vif_str = f"{row.max_vif:.2f}" if row.max_vif is not None else "n/a"
-        flip_str = f"{row.mean_sign_flip_rate:.4f}" if row.mean_sign_flip_rate is not None else "n/a"
+        flip_str = (
+            f"{row.mean_sign_flip_rate:.4f}" if row.mean_sign_flip_rate is not None else "n/a"
+        )
         stability_str = (
             f"{row.split_stability_roc_auc_stdev:.6f}"
             if row.split_stability_roc_auc_stdev is not None

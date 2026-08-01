@@ -54,6 +54,18 @@ class ThresholdsConfig:
     def metric_families(self) -> dict[str, Any]:
         return dict(self.raw["metric_families"])
 
+    @property
+    def multiple_comparisons(self) -> dict[str, Any]:
+        return dict(self.raw["multiple_comparisons"])
+
+    @property
+    def calibration_study(self) -> dict[str, Any]:
+        return dict(self.raw["calibration_study"])
+
+    @property
+    def demonstrative_targets(self) -> dict[str, Any]:
+        return dict(self.raw["demonstrative_targets"])
+
 
 @dataclass(frozen=True)
 class ScenariosConfig:
