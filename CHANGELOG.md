@@ -2,7 +2,31 @@
 
 All notable changes to this project are documented in this file. Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## [1.0.0rc1] - 2026-08-01
+## [Unreleased] - Release Candidate Acceptance Remediation (Phase 10B) - 2026-08-02
+
+### Fixed — a real, evidenced gap in RC1's own acceptance criteria
+
+`RC_1.0.0rc1_bc33e939` was declared `release_candidate_ready_with_limitations` with real coverage at 94% and a real `scenario_detection_rate` of 0.5 - `credlens.release.manifest.decide_readiness` never read a coverage number or a detection report at all, so neither could ever become a blocker. See `reports/release/release_errata.json` (append-only, RC1's original decision is preserved, never deleted).
+
+- **Monitoring detection defect found and fixed**: `credlens.monitoring.data_quality`/`subgroup` computed `missingness_rate`/`domain_violation_rate`/`range_violation_rate`/subgroup composition correctly on the RAW batch (already in the right pipeline position, before imputation) since Phase 9/10, but nothing ever turned them into an `Alert` - `missingness_drift`/`out_of_domain_codes`/`feature_range_violation`/`prevalence_drift`/`subgroup_composition_shift` could never be detected. Fixed by wiring 3 new alert categories (`data_quality`, `target_distribution_drift`, `subgroup_composition_drift`) into `credlens.monitoring.runner`, each with its own calibration (fixed cutoffs for `data_quality` - its reference null is a genuine zero-variance point mass on this clean benchmark; bootstrap-calibrated for the other two). Real result: `scenario_detection_rate` 0.5 → **1.0**.
+- **Two additional real bugs found and fixed during this work**: (1) `credlens.monitoring.subgroup.compute_subgroup_monitoring` was being called on batches that only ever carried raw `X2`/`X3`/`X4`/`X5` columns, never labeled `sex`/`education`/`marriage`/`age_bucket` - every real monitoring run's subgroup diagnostics had been silently empty since Phase 9; (2) the `feature_range_violation` scenario's `impossible_bill_multiplier` was not guaranteed to exceed the input contract's monetary sanity bound for every random row sample - now floored deterministically.
+- **New, evidenced, staleness-checked release gates**: `credlens.release.coverage_gate` (`credlens release measure-coverage` reads a real `coverage.json`, stamps it with a source-snapshot fingerprint) and `credlens.release.monitoring_gate` (reads persisted `monitor evaluate-detection`/`evaluate-false-alerts` evidence) - both wired into `credlens release validate` as real, evidenced, staleness-aware blocking checks, never a hand-typed number.
+- **`credlens.release.source_snapshot`** (new): a content-based fingerprint over every git-tracked file (not just `git rev-parse HEAD`, which is blind to uncommitted changes). Found and fixed a real self-reference bug of its own: the evidence files this same mechanism produces (`coverage_snapshot.json`, `detection_evaluation.json`, `false_alert_study.json`, `release_manifest.json`, `sbom.cyclonedx.json`) are themselves tracked, so writing any one of them shifted the fingerprint the others had just stamped themselves with - excluded from the digest (evidence *about* the code, never the code itself).
+- **Dependency license classification** (`credlens.release.licenses`): direct vs. transitive, tagged by role (`runtime`/`warehouse`/`analysis`/`dashboard`/`modeling`/`notebook`/`dev`). Found and fixed a real detection gap: several well-known permissively-licensed packages (numpy 2.x, pydantic 2.x, scikit-learn, mypy, ruff) ship only a PEP 639 `License-Expression` (SPDX) field, no legacy `License ::` classifier - the original classifier-only check showed them as "unknown". Real result: 63 → 3 unknown licenses (197 total, 26 direct, 0 copyleft).
+- **`credlens release errata`** (new): append-only log of corrections to a previously-emitted readiness decision.
+- Sensitivity analysis (`run_sensitivity_analysis`): real execution across weak/moderate/strong magnitudes for 6 perturbation types - `strong` (the documented canonical magnitude) reaches the 90% detection floor for every type; weaker magnitudes are not required to, and empirically do not always.
+- Deleted confirmed-dead code found along the way: `credlens.model_validation.provenance` (never imported anywhere) and two unused helper functions in `credlens.monitoring.calibration_study`.
+- ~140 new/updated tests across release-gate, monitoring, and dashboard-page test files.
+
+### Real, final, honest result of this remediation
+
+- `scenario_detection_rate` / `blocked_input_recall` / `raw_data_quality_detection_rate` / `strong_drift_detection_rate` / `overall_applicable_scenario_detection_rate`: **1.00** (was 0.5). `high_severity_false_alert_rate`: **0.00**. `combined_material_false_alert_rate`: **0.03** (≤ 0.10 floor). `monitoring_detection_gate`: **PASS**.
+- Coverage: 93% → **94.39%** (14,764 statements, 828 missed, 1,699 tests) - real, substantial improvement, but still below the 95% floor despite genuine, extensive effort. `coverage_gate`: **FAIL**.
+- `readiness_decision`: **`release_candidate_not_ready`** (single blocker: `coverage_gate`) - not forced to ready. No version bump to `1.0.0rc2` (reserved for a genuinely passing state); `1.0.0rc1` remains archived as `not_ready` per the errata.
+
+### Explicitly not included in this phase
+
+No new business feature, no forced coverage number, no commit, no push.
 
 ### Added — Model Remediation, Monitoring Calibration, CI Hardening, Visual QA and Portfolio Packaging (Phase 10)
 

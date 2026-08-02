@@ -85,6 +85,40 @@ class TestSourceSnapshot:
         assert after.fingerprint != before.fingerprint
         assert after.n_files == before.n_files - 1
 
+    def test_evidence_files_writing_each_other_does_not_create_a_fingerprint_cycle(
+        self, tmp_path: Path
+    ) -> None:
+        """Real, empirically-found bug (Phase 10B): coverage_snapshot.
+        json/detection_evaluation.json/false_alert_study.json each stamp
+        themselves with a fingerprint of 'every tracked file' - if all
+        three are themselves tracked, writing one invalidates the
+        others' stamped fingerprint, and no sequence of re-runs can ever
+        converge. Excluding these three specific evidence files from the
+        digest breaks the cycle: writing them must NEVER change the
+        fingerprint."""
+        (tmp_path / "a.txt").write_text("hello", encoding="utf-8")
+        reports_dir = tmp_path / "reports" / "release"
+        reports_dir.mkdir(parents=True)
+        (reports_dir / "coverage_snapshot.json").write_text('{"coverage_percent": 90}')
+        (reports_dir / "release_manifest.json").write_text('{"readiness_decision": "x"}')
+        (reports_dir / "sbom.cyclonedx.json").write_text('{"serialNumber": "urn:uuid:aaa"}')
+        monitoring_dir = tmp_path / "reports" / "monitoring"
+        monitoring_dir.mkdir(parents=True)
+        (monitoring_dir / "detection_evaluation.json").write_text('{"rate": 0.5}')
+        (monitoring_dir / "false_alert_study.json").write_text('{"rate": 0.1}')
+        _init_git_repo(tmp_path)
+
+        from credlens.release.source_snapshot import compute_source_snapshot
+
+        before = compute_source_snapshot(tmp_path)
+        (reports_dir / "coverage_snapshot.json").write_text('{"coverage_percent": 99}')
+        (reports_dir / "release_manifest.json").write_text('{"readiness_decision": "y"}')
+        (reports_dir / "sbom.cyclonedx.json").write_text('{"serialNumber": "urn:uuid:bbb"}')
+        (monitoring_dir / "detection_evaluation.json").write_text('{"rate": 1.0}')
+        (monitoring_dir / "false_alert_study.json").write_text('{"rate": 0.03}')
+        after = compute_source_snapshot(tmp_path)
+        assert before.fingerprint == after.fingerprint
+
     def test_excludes_cache_and_coverage_paths_even_if_tracked(self, tmp_path: Path) -> None:
         (tmp_path / "a.txt").write_text("hello", encoding="utf-8")
         (tmp_path / "__pycache__").mkdir()

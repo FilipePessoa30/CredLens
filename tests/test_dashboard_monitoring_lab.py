@@ -48,6 +48,58 @@ class TestEmptyStateWhenNoRunExists:
         assert any("No monitoring run" in info.value for info in at.info)
 
 
+class TestCacheHelperEmptyBranches:
+    """Phase 10B section 4.3 - direct unit tests for the `@st.cache_data`
+    helpers' missing-artifact branches, faster than driving a full
+    `AppTest` render for each one."""
+
+    def test_load_run_returns_none_when_run_json_missing(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        monkeypatch.setattr(monitoring_lab, "_RUNS_DIR", tmp_path)
+        assert monitoring_lab._load_run("RUN_never_existed") is None
+
+    def test_load_alerts_returns_empty_list_when_missing(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        monkeypatch.setattr(monitoring_lab, "_ALERTS_DIR", tmp_path)
+        assert monitoring_lab._load_alerts("RUN_never_existed") == []
+
+    def test_load_decision_returns_none_when_missing(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        monkeypatch.setattr(monitoring_lab, "_VALIDATION_DIR", tmp_path)
+        assert monitoring_lab._load_decision() is None
+
+    def test_load_pareto_returns_empty_dataframe_when_dir_missing(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        monkeypatch.setattr(monitoring_lab, "_VALIDATION_TABLES_DIR", tmp_path / "no_such_dir")
+        assert monitoring_lab._load_pareto().empty
+
+    def test_load_pareto_returns_empty_dataframe_when_no_matches(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        monkeypatch.setattr(monitoring_lab, "_VALIDATION_TABLES_DIR", tmp_path)
+        assert monitoring_lab._load_pareto().empty
+
+    @pytest.mark.skipif(
+        not _official_runs_exist(), reason="Requires an official Phase 9 monitoring run."
+    )
+    def test_render_shows_empty_state_when_run_json_disappears_after_listing(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A run listed by `_list_run_ids` but whose `run.json` can no
+        longer be loaded (deleted between listing and loading, or
+        corrupted) - `render_monitoring_lab`'s own `run_record is None`
+        guard, distinct from "no runs exist at all"."""
+        monkeypatch.setattr(monitoring_lab, "_load_run", lambda run_id: None)
+        at = AppTest.from_file(_PAGE_PATH)
+        at.run(timeout=30)
+        assert not at.exception
+        assert any("could not be loaded" in info.value for info in at.info)
+
+
 @pytest.mark.skipif(
     not _official_runs_exist(), reason="Requires an official Phase 9 monitoring run."
 )

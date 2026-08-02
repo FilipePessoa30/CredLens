@@ -55,6 +55,41 @@ class TestDefaultExperimentIndex:
         experiment_ids = ("EXP_a", "EXP_b")
         assert model_lab._default_experiment_index(experiment_ids) == 1
 
+    def test_falls_back_when_models_dir_missing(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(model_lab, "_MODELING_ROOT", tmp_path / "no_such_dir")
+        assert model_lab._default_experiment_index(("EXP_a", "EXP_b")) == 1
+
+    def test_corrupt_manifest_is_skipped_not_crashed_on(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        models_dir = tmp_path / "models"
+        models_dir.mkdir()
+        (models_dir / "MODEL_broken.manifest.json").write_text("{not valid json", encoding="utf-8")
+        monkeypatch.setattr(model_lab, "_MODELING_ROOT", tmp_path)
+        assert model_lab._default_experiment_index(("EXP_a", "EXP_b")) == 1
+
+
+class TestCacheHelperEmptyBranches:
+    def test_load_experiment_returns_none_when_missing(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(model_lab, "_EXPERIMENTS_DIR", tmp_path)
+        assert model_lab._load_experiment("EXP_never_existed") is None
+
+    def test_load_table_returns_empty_dataframe_when_missing(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(model_lab, "_TABLES_DIR", tmp_path)
+        assert model_lab._load_table("EXP_never_existed", "predictions_test").empty
+
+    def test_load_json_table_returns_none_when_missing(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(model_lab, "_TABLES_DIR", tmp_path)
+        assert model_lab._load_json_table("EXP_never_existed", "local_explanations") is None
+
 
 class TestEmptyStateWhenNoExperimentExists:
     def test_render_model_lab_shows_empty_state_not_a_crash(
@@ -65,6 +100,33 @@ class TestEmptyStateWhenNoExperimentExists:
         at.run(timeout=30)
         assert not at.exception
         assert any("No modeling experiment" in info.value for info in at.info)
+
+    def test_shows_empty_state_when_experiment_not_yet_evaluated(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(model_lab, "_list_experiment_ids", lambda: ["EXP_untrained"])
+        monkeypatch.setattr(
+            model_lab, "_load_experiment", lambda experiment_id: {"status": "created"}
+        )
+        at = AppTest.from_file(_PAGE_PATH)
+        at.run(timeout=30)
+        assert not at.exception
+        assert any("has not been evaluated yet" in info.value for info in at.info)
+
+    def test_shows_empty_state_when_no_test_predictions(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        import pandas as pd
+
+        monkeypatch.setattr(model_lab, "_list_experiment_ids", lambda: ["EXP_no_predictions"])
+        monkeypatch.setattr(
+            model_lab, "_load_experiment", lambda experiment_id: {"status": "evaluated"}
+        )
+        monkeypatch.setattr(model_lab, "_load_table", lambda experiment_id, name: pd.DataFrame())
+        at = AppTest.from_file(_PAGE_PATH)
+        at.run(timeout=30)
+        assert not at.exception
+        assert any("No test predictions found" in info.value for info in at.info)
 
 
 @pytest.mark.skipif(

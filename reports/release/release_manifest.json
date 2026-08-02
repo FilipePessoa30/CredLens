@@ -1,9 +1,9 @@
 {
-  "release_id": "RC_1.0.0rc1_bc33e939",
+  "release_id": "RC_1.0.0rc1_93c1b9ce",
   "project_version": "1.0.0rc1",
-  "base_commit": "bc33e939772475a4076929f47af9c1b339e5472e",
+  "base_commit": "93c1b9cef7d8c10ac700d41e064b17229dfce142",
   "working_tree_clean": false,
-  "modified_file_count": 90,
+  "modified_file_count": 253,
   "model_v1_present": true,
   "model_v2_remediated_present": true,
   "challenger_registered": true,
@@ -11,7 +11,7 @@
   "monitoring_run_present": true,
   "demo_package_present": true,
   "test_counts": {
-    "total": 1599
+    "total": 1699
   },
   "dbt_reconciliation_status": "reconciled_within_tolerance",
   "notebook_status": "executed_end_to_end",
@@ -21,7 +21,7 @@
   "ci_status": "not_run_remotely_this_session",
   "license_inventory_summary": {
     "n_dependencies": 197,
-    "unknown_count": 63,
+    "unknown_count": 3,
     "copyleft_count": 0
   },
   "sbom_summary": {
@@ -32,13 +32,15 @@
     "Historical public benchmark (UCI, Taiwan, 2005) - not a Brazilian population, not a real institution's data.",
     "Frozen evaluation holdout reused across documented validation phases (Phases 8-10) - not an untouched holdout; any remediated model carries an indirect-adaptation risk (see validation_report.md section 6).",
     "9 of 18 original features flagged unstable/redundant by the coefficient-stability audit; a post-validation remediated regression (v2, 11 features) is registered separately as a remediation_candidate, never promoted over v1.",
-    "Detection-evaluation scenario coverage is 50% (6/12): data_quality and subgroup-drift categories are profiled but not yet wired to the alerting/incident pipeline.",
+    "Detection-evaluation scenario coverage is 100% (10/10 applicable scenarios) as of Phase 10B; each scenario appears in only ONE batch (a single monitoring run, not a repeated stream), so gate H's persistence-based 'high' severity rarely has a genuine opportunity to fire from real repeated observation of one drift event within this evaluation.",
     "Visual QA was performed locally with a real headless browser (Selenium + Edge) in this development environment, not in the CI runner image (no browser available there).",
     "Docker image build was not executed - the local Docker daemon was not running during this release preparation; the Dockerfile is preserved and unvalidated.",
     "Not suitable for real lending decisions - no fairness certification, no legal compliance assessment, no financial-impact claim."
   ],
-  "release_blockers": [],
-  "readiness_decision": "release_candidate_ready_with_limitations",
-  "generated_at_utc": "2026-08-01T15:31:57.717842+00:00",
-  "content_fingerprint": "f203644d73c1093e70c30abc3ef8fdb61557c25fbc709feaf51127209256938b"
+  "release_blockers": [
+    "Release integrity check(s) failed: coverage_gate"
+  ],
+  "readiness_decision": "release_candidate_not_ready",
+  "generated_at_utc": "2026-08-02T21:42:26.931797+00:00",
+  "content_fingerprint": "a58292c7272a92d700e8ab3edc6e19bbb2c76d9b435cc672c6cfab2da77cf8ea"
 }

@@ -4,7 +4,7 @@
     "reason": "Not recalibrated for the stability-reduced (mechanical) model.",
     "selected_method": "none"
   },
-  "created_at_utc": "2026-08-01T15:28:18.277759+00:00",
+  "created_at_utc": "2026-08-02T21:07:55.770913+00:00",
   "cv_description": "StratifiedKFold(n_splits=5), scoring=average_precision, train-only",
   "dataset_hash": "45bcf4df62ff2e237a74eb155cabfb4bbbc171219a0637daef44fdad07503dd0",
   "dataset_id": "uci-default-credit",

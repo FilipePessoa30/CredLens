@@ -20,6 +20,24 @@ git-ignored in this repository already, so `git ls-files` never lists
 them - the exclusion list here is a second, explicit guard against ever
 including something timestamp-bearing or non-deterministic even if it
 were ever accidentally tracked).
+
+Also excludes the evidence/output files this fingerprint mechanism
+itself produces or that the release process regenerates every run with
+non-deterministic content (`coverage_snapshot.json`, `detection_
+evaluation.json`, `false_alert_study.json`, `release_manifest.json`,
+`sbom.cyclonedx.json` - the last one carries a fresh UUID `serialNumber`
+every generation, by CycloneDX's own spec) - a real, empirically-found
+self-reference bug (Phase 10B): each evidence file stamps itself with a
+snapshot of "every tracked file", but if these files are themselves
+tracked, writing ANY one of them changes the tracked-file set, which
+changes the fingerprint the OTHERS just stamped themselves with - no
+sequence of re-runs can ever converge on all of them agreeing, since
+each write invalidates the rest. Excluding these (evidence/output ABOUT
+the code, never the code itself, and in SBOM's case never even
+deterministic) breaks the cycle; a genuine source/config change
+(including a change to calibrated thresholds these evidence files
+actually depend on, e.g. `reference/*__alert_thresholds.json`) still
+correctly changes the fingerprint and invalidates stale evidence.
 """
 
 from __future__ import annotations
@@ -39,6 +57,11 @@ _EXCLUDED_PATH_FRAGMENTS = (
     "coverage.json",
     ".coverage",
     "htmlcov/",
+    "reports/release/coverage_snapshot.json",
+    "reports/monitoring/detection_evaluation.json",
+    "reports/monitoring/false_alert_study.json",
+    "reports/release/release_manifest.json",
+    "reports/release/sbom.cyclonedx.json",
 )
 
 

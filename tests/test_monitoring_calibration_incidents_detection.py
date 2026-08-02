@@ -151,6 +151,10 @@ class TestRunFalseAlertRateStudy:
         assert len(study.batch_results) == 5
         first: FalseAlertBatchResult = study.batch_results[0]
         assert len(first.per_feature_psi) == 18
+        assert first.to_dict()["n_rows"] == first.n_rows
+        study_payload = study.to_dict()
+        assert study_payload["n_batches"] == 5
+        assert len(study_payload["batch_results"]) == 5
         assert first.family_wise_max_feature in first.per_feature_psi
 
 
@@ -171,6 +175,7 @@ class TestRunBatchSizeStudy:
         for row in rows:
             assert row.family_wise_material_cutoff > row.family_wise_review_cutoff
             assert 0.0 <= row.family_wise_marginal_rate <= 1.0
+        assert rows[0].to_dict()["batch_size"] == 250
 
     def test_smaller_batches_have_wider_natural_variability(self) -> None:
         """Real Phase 10 finding: smaller batches are noisier on BOTH the
@@ -380,6 +385,7 @@ class TestSensitivityAnalysis:
         seen = {(r.perturbation_type, r.magnitude_label) for r in rows}
         assert ("utilization_shift", "strong") in seen
         assert ("prevalence_drift", "weak") in seen
+        assert rows[0].to_dict()["perturbation_type"] == rows[0].perturbation_type
 
     def test_strong_magnitude_never_detects_less_than_weak_on_average(
         self, official_run_id: str
@@ -462,6 +468,19 @@ class TestDetectionEvaluationReportEdgeCases:
 
         report = self._report([self._row(should_detect=True)])
         assert math.isnan(report.false_alert_rate_on_non_perturbed_scenarios)
+
+    def test_scenario_detection_rate_is_nan_when_no_row_should_be_detected(self) -> None:
+        import math
+
+        report = self._report([self._row(should_detect=False)])
+        assert math.isnan(report.scenario_detection_rate)
+        assert math.isnan(report.overall_applicable_scenario_detection_rate)
+
+    def test_strong_drift_detection_rate_is_nan_when_no_drift_row_should_be_detected(self) -> None:
+        import math
+
+        report = self._report([self._row(expected_category="data_quality", should_detect=True)])
+        assert math.isnan(report.strong_drift_detection_rate)
 
     def test_blocked_input_recall_is_nan_when_no_row_should_block(self) -> None:
         import math
