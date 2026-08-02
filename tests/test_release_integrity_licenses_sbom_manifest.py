@@ -14,7 +14,13 @@ from credlens.release.integrity import (
     ReleaseIntegrityReport,
     run_release_integrity_checks,
 )
-from credlens.release.licenses import DependencyLicense, inventory_dependency_licenses
+from credlens.release.licenses import (
+    DependencyLicense,
+    LicenseInventory,
+    _compatibility,
+    _spdx_compatibility,
+    inventory_dependency_licenses,
+)
 from credlens.release.manifest import build_release_manifest, decide_readiness
 from credlens.release.sbom import generate_sbom
 
@@ -69,6 +75,17 @@ class TestRunReleaseIntegrityChecksOnRealRepo:
         check = next(c for c in report.checks if c.name == "model_artifacts_present")
         assert check.status == "pass"
 
+    def test_phase10b_gates_are_present_in_the_report(self) -> None:
+        """Phase 10B added coverage_gate/monitoring_detection_gate/
+        direct_dependencies_have_licenses as REAL, evaluated checks -
+        this is the regression test that would have caught RC1's own gap
+        (a check simply not existing) had it existed at the time."""
+        report = run_release_integrity_checks(Path.cwd())
+        names = {c.name for c in report.checks}
+        assert "coverage_gate" in names
+        assert "monitoring_detection_gate" in names
+        assert "direct_dependencies_have_licenses" in names
+
 
 class TestLicenseInventory:
     def test_project_license_reads_the_license_file(self, tmp_path: Path) -> None:
@@ -90,15 +107,102 @@ class TestLicenseInventory:
         names = {d.name for d in inventory.dependencies}
         assert "pandas" in names or "scikit-learn" in names
 
+    @pytest.mark.slow
+    def test_real_direct_dependencies_are_classified_separately_from_transitive(self) -> None:
+        """Phase 10B section 15 - pandas/pyyaml/numpy (base runtime
+        deps) must be classified `direct`; something deep in the
+        dependency tree (e.g. a dbt-core sub-dependency never mentioned
+        in pyproject.toml) must be classified `transitive`."""
+        inventory = inventory_dependency_licenses(Path.cwd())
+        assert inventory.direct_count > 0
+        assert inventory.transitive_count > 0
+        by_name = {d.name.lower(): d for d in inventory.dependencies}
+        assert by_name["pyyaml"].dependency_kind == "direct"
+        assert "runtime" in by_name["pyyaml"].roles
+
+    @pytest.mark.slow
+    def test_pep639_license_expression_is_read_for_modern_packages(self) -> None:
+        """numpy 2.x/pydantic 2.x/scikit-learn ship ONLY a PEP 639
+        `License-Expression` field, no legacy `License ::` classifier -
+        an empirically-found real gap this project's original
+        classifier-only check missed entirely (showed as "unknown")."""
+        inventory = inventory_dependency_licenses(Path.cwd())
+        by_name = {d.name.lower(): d for d in inventory.dependencies}
+        for name in ("numpy", "pydantic"):
+            if name in by_name:
+                assert by_name[name].compatibility == "permissive_compatible", (
+                    f"{name}: {by_name[name].license!r}"
+                )
+
+    def test_missing_pyproject_toml_treats_everything_as_transitive(self, tmp_path: Path) -> None:
+        """`inventory_dependency_licenses` must not crash against an
+        isolated fixture directory that has no pyproject.toml at all -
+        it degrades to 'nothing is direct', never raises."""
+        inventory = inventory_dependency_licenses(tmp_path)
+        assert inventory.direct_count == 0
+        assert all(d.dependency_kind == "transitive" for d in inventory.dependencies)
+
+    def test_spdx_copyleft_expression_is_flagged(self) -> None:
+        assert _spdx_compatibility("GPL-3.0-only") == "review_needed_copyleft"
+
+    def test_spdx_mixed_permissive_expression_is_permissive(self) -> None:
+        assert _spdx_compatibility("MIT AND BSD-3-Clause") == "permissive_compatible"
+
+    def test_non_spdx_looking_label_returns_none(self) -> None:
+        assert _spdx_compatibility("See LICENSE file for details") is None
+
+    def test_direct_unknown_license_is_a_sharper_finding_than_transitive(self) -> None:
+        assert _compatibility("unknown", is_direct=True) == "direct_unknown_license_needs_review"
+        assert _compatibility("unknown", is_direct=False) == "unknown_review_needed"
+
+    def test_license_inventory_direct_unknown_license_count_property(self) -> None:
+        deps = [
+            DependencyLicense(
+                name="a",
+                version="1",
+                license="unknown",
+                compatibility="direct_unknown_license_needs_review",
+                dependency_kind="direct",
+                roles=["runtime"],
+            ),
+            DependencyLicense(
+                name="b",
+                version="1",
+                license="MIT",
+                compatibility="permissive_compatible",
+                dependency_kind="direct",
+                roles=["runtime"],
+            ),
+        ]
+        inventory = LicenseInventory(
+            project_license="MIT",
+            disclaimer_en="d",
+            disclaimer_pt_br="d",
+            dependencies=deps,
+            unknown_count=1,
+            copyleft_count=0,
+        )
+        assert inventory.direct_unknown_license_count == 1
+        assert inventory.direct_count == 2
+        assert inventory.transitive_count == 0
+        assert "n_dependencies" in inventory.to_dict()
+
     def test_dependency_to_dict_shape(self) -> None:
         dep = DependencyLicense(
-            name="foo", version="1.0", license="MIT License", compatibility="permissive_compatible"
+            name="foo",
+            version="1.0",
+            license="MIT License",
+            compatibility="permissive_compatible",
+            dependency_kind="direct",
+            roles=["runtime"],
         )
         assert dep.to_dict() == {
             "name": "foo",
             "version": "1.0",
             "license": "MIT License",
             "compatibility": "permissive_compatible",
+            "dependency_kind": "direct",
+            "roles": ["runtime"],
         }
 
 
@@ -124,6 +228,23 @@ class TestGenerateSbom:
     def test_disclaimer_present(self) -> None:
         report = generate_sbom(Path.cwd())
         assert "not" in report.disclaimer_en.lower()
+
+    def test_to_dict_shape(self) -> None:
+        report = generate_sbom(Path.cwd())
+        payload = report.to_dict()
+        assert payload["bomFormat"] == "CycloneDX"
+        assert payload["specVersion"] == report.spec_version
+        assert payload["n_components"] == report.n_components
+        assert payload["components"] == report.components
+
+    def test_write_sbom_writes_a_real_json_file(self, tmp_path: Path) -> None:
+        from credlens.release.sbom import write_sbom
+
+        report = generate_sbom(Path.cwd())
+        path = write_sbom(report, repo_root=tmp_path)
+        assert path == tmp_path / "reports" / "release" / "sbom.cyclonedx.json"
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        assert payload["bomFormat"] == "CycloneDX"
 
 
 class TestDecideReadiness:
@@ -207,6 +328,90 @@ class TestBuildReleaseManifest:
         assert len(manifest.known_limitations) > 0
         joined = " ".join(manifest.known_limitations)
         assert "not suitable for real lending decisions" in joined.lower()
+
+    def test_missing_official_model_is_a_release_blocker(self, tmp_path: Path) -> None:
+        """An isolated repo with no MODEL_behavioral_default_v1 at all
+        must produce a real, visible blocker - never a silent
+        `release_candidate_ready`."""
+        import subprocess
+
+        subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
+        subprocess.run(["git", "config", "user.email", "t@example.com"], cwd=tmp_path, check=True)
+        subprocess.run(["git", "config", "user.name", "T"], cwd=tmp_path, check=True)
+        (tmp_path / "a.txt").write_text("x", encoding="utf-8")
+        subprocess.run(["git", "add", "-A"], cwd=tmp_path, check=True)
+        subprocess.run(["git", "commit", "-q", "-m", "init"], cwd=tmp_path, check=True)
+
+        manifest = build_release_manifest(
+            test_counts={"total": 0},
+            visual_qa_status="not_verified",
+            docker_status="not_executed",
+            ci_status="not_run_remotely_this_session",
+            repo_root=tmp_path,
+        )
+        assert manifest.model_v1_present is False
+        assert manifest.readiness_decision == "release_candidate_not_ready"
+        assert any("MODEL_behavioral_default_v1" in b for b in manifest.release_blockers)
+
+    def test_validation_failed_decision_is_a_release_blocker(self, tmp_path: Path) -> None:
+        import subprocess
+
+        subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
+        subprocess.run(["git", "config", "user.email", "t@example.com"], cwd=tmp_path, check=True)
+        subprocess.run(["git", "config", "user.name", "T"], cwd=tmp_path, check=True)
+        decision_dir = tmp_path / "reports" / "model_validation"
+        decision_dir.mkdir(parents=True)
+        (decision_dir / "decision.json").write_text(
+            json.dumps({"decision": "validation_failed"}), encoding="utf-8"
+        )
+        subprocess.run(["git", "add", "-A"], cwd=tmp_path, check=True)
+        subprocess.run(["git", "commit", "-q", "-m", "init"], cwd=tmp_path, check=True)
+
+        manifest = build_release_manifest(
+            test_counts={"total": 0},
+            visual_qa_status="not_verified",
+            docker_status="not_executed",
+            ci_status="not_run_remotely_this_session",
+            repo_root=tmp_path,
+        )
+        assert manifest.validation_decision == "validation_failed"
+        assert any("validation_failed" in b for b in manifest.release_blockers)
+
+    def test_write_release_manifest_writes_a_real_json_file(self, tmp_path: Path) -> None:
+        from credlens.release.manifest import write_release_manifest
+
+        manifest = build_release_manifest(
+            test_counts={"total": 1500},
+            visual_qa_status="verified_locally",
+            docker_status="not_executed",
+            ci_status="not_run_remotely_this_session",
+            repo_root=Path.cwd(),
+        )
+        path = write_release_manifest(manifest, repo_root=tmp_path)
+        assert path == tmp_path / "reports" / "release" / "release_manifest.json"
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        assert payload["release_id"] == manifest.release_id
+
+
+class TestReadJsonHelper:
+    def test_returns_none_for_missing_file(self, tmp_path: Path) -> None:
+        from credlens.release.manifest import _read_json
+
+        assert _read_json(tmp_path / "nope.json") is None
+
+    def test_returns_none_for_corrupt_json(self, tmp_path: Path) -> None:
+        from credlens.release.manifest import _read_json
+
+        path = tmp_path / "bad.json"
+        path.write_text("{not valid json", encoding="utf-8")
+        assert _read_json(path) is None
+
+    def test_returns_parsed_dict_for_valid_json(self, tmp_path: Path) -> None:
+        from credlens.release.manifest import _read_json
+
+        path = tmp_path / "good.json"
+        path.write_text('{"a": 1}', encoding="utf-8")
+        assert _read_json(path) == {"a": 1}
 
 
 @pytest.mark.slow

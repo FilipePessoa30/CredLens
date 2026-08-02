@@ -46,5 +46,53 @@
     "n_resamples": 500,
     "batch_size": 500,
     "min_sample_size_for_alert": 30
+  },
+  "missingness_rate": {
+    "metric": "missingness_rate",
+    "review_cutoff": 0.01,
+    "material_deviation_cutoff": 0.03,
+    "n_resamples": 0,
+    "batch_size": 500,
+    "min_sample_size_for_alert": 30
+  },
+  "domain_violation_rate": {
+    "metric": "domain_violation_rate",
+    "review_cutoff": 0.01,
+    "material_deviation_cutoff": 0.03,
+    "n_resamples": 0,
+    "batch_size": 500,
+    "min_sample_size_for_alert": 30
+  },
+  "range_violation_rate": {
+    "metric": "range_violation_rate",
+    "review_cutoff": 0.01,
+    "material_deviation_cutoff": 0.03,
+    "n_resamples": 0,
+    "batch_size": 500,
+    "min_sample_size_for_alert": 30
+  },
+  "duplicate_rate": {
+    "metric": "duplicate_rate",
+    "review_cutoff": 0.01,
+    "material_deviation_cutoff": 0.03,
+    "n_resamples": 0,
+    "batch_size": 500,
+    "min_sample_size_for_alert": 30
+  },
+  "event_rate_delta": {
+    "metric": "event_rate_delta",
+    "review_cutoff": 0.035208,
+    "material_deviation_cutoff": 0.050012,
+    "n_resamples": 500,
+    "batch_size": 500,
+    "min_sample_size_for_alert": 30
+  },
+  "max_composition_shift": {
+    "metric": "max_composition_shift",
+    "review_cutoff": 0.05875,
+    "material_deviation_cutoff": 0.068172,
+    "n_resamples": 500,
+    "batch_size": 500,
+    "min_sample_size_for_alert": 30
   }
 }

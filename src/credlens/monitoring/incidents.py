@@ -52,6 +52,10 @@ _DIAGNOSTIC_ACTIONS = {
     "score_drift": "Inspect the risk-band distribution shift and the top-decile population.",
     "performance_drift": "Confirm labels are correctly joined; if it persists, flag for a full "
     "model_validation re-run.",
+    "target_distribution_drift": "Confirm the label source/join is correct; if the base rate "
+    "shift is genuine, flag for a full model_validation re-run.",
+    "subgroup_composition_drift": "Compare the batch's sex/education/marriage mix against the "
+    "reference; check for an upstream sampling change - audit-only, never a model feature.",
 }
 
 
@@ -185,7 +189,23 @@ def _group_severity(
     (`credlens.monitoring.calibration_study`); `performance_drift`/
     `score_drift` are single-metric categories with no multiple-
     comparisons problem, so their OWN marginal calibration is already
-    trustworthy on its own."""
+    trustworthy on its own.
+
+    Phase 10B adds `data_quality` (non-blocking case; a `blocked_input`
+    status is already handled above regardless of category),
+    `target_distribution_drift`, and `subgroup_composition_drift` to the
+    same "single-metric-family, trust the marginal calibration"
+    treatment as `performance_drift`/`score_drift`: `data_quality`'s 4
+    metrics have a genuinely zero-variance reference null (see
+    `credlens.monitoring.thresholds.data_quality_fixed_cutoffs`), so a
+    real, unperturbed batch essentially never crosses even `review` on
+    any of them - there is no meaningful multiple-comparisons inflation
+    to correct for, unlike feature_drift's 18 features each with a real
+    ~5% marginal noise rate under the null. `target_distribution_drift`/
+    `subgroup_composition_drift` are each a single calibrated statistic
+    (an event-rate delta; a family-wise-max composition shift already
+    computed across every attribute x group pair) - not 18 separate
+    per-feature checks."""
     if any(s["status"] == "blocked_input" for s in signals):
         return "high"
     if category == "feature_drift":
@@ -194,7 +214,13 @@ def _group_severity(
         if _has_family_wise_signal(signals):
             return "medium"
         return "low"
-    if category in ("performance_drift", "score_drift"):
+    if category in (
+        "performance_drift",
+        "score_drift",
+        "data_quality",
+        "target_distribution_drift",
+        "subgroup_composition_drift",
+    ):
         material = any(s["status"] == "material_deviation" for s in signals)
         review = any(s["status"] == "review" for s in signals)
         if material and confirmed_next_batch:

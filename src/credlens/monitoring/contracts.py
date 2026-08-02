@@ -13,6 +13,7 @@ import yaml
 _REFERENCE_PATH = Path("config/monitoring/reference.yml")
 _THRESHOLDS_PATH = Path("config/monitoring/thresholds.yml")
 _SCENARIOS_PATH = Path("config/monitoring/scenarios.yml")
+_SCENARIOS_REGISTRY_PATH = Path("config/monitoring/scenarios_registry.yml")
 
 
 class MonitoringConfigError(Exception):
@@ -66,6 +67,18 @@ class ThresholdsConfig:
     def demonstrative_targets(self) -> dict[str, Any]:
         return dict(self.raw["demonstrative_targets"])
 
+    @property
+    def data_quality_fixed_thresholds(self) -> dict[str, Any]:
+        return dict(self.raw["data_quality_fixed_thresholds"])
+
+    @property
+    def target_distribution_drift_calibration(self) -> dict[str, Any]:
+        return dict(self.raw["target_distribution_drift_calibration"])
+
+    @property
+    def subgroup_composition_drift_calibration(self) -> dict[str, Any]:
+        return dict(self.raw["subgroup_composition_drift_calibration"])
+
 
 @dataclass(frozen=True)
 class ScenariosConfig:
@@ -109,3 +122,18 @@ def load_scenarios_config(repo_root: Path | None = None) -> ScenariosConfig:
     repo_root = repo_root or Path.cwd()
     raw = _load_yaml(repo_root, _SCENARIOS_PATH)
     return ScenariosConfig(scenarios_config_version=raw["scenarios_config_version"], raw=raw)
+
+
+def load_scenario_registry(repo_root: Path | None = None) -> dict[str, dict[str, Any]]:
+    """Phase 10B - the documented, versioned per-scenario expectation
+    registry (`config/monitoring/scenarios_registry.yml`):
+    `credlens.monitoring.detection_eval.EXPECTED_OUTCOMES` must always
+    agree with this file (enforced by
+    `tests/test_monitoring_calibration_incidents_detection.py`'s
+    consistency test) - this is the single documented source of truth a
+    reviewer reads, `EXPECTED_OUTCOMES` is the executable copy the
+    detection-evaluation code actually runs against."""
+    repo_root = repo_root or Path.cwd()
+    raw = _load_yaml(repo_root, _SCENARIOS_REGISTRY_PATH)
+    scenarios: dict[str, dict[str, Any]] = dict(raw["scenarios"])
+    return scenarios

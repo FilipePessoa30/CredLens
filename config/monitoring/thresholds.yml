@@ -32,7 +32,8 @@ calibration:
 
 metric_families:
   data_quality:
-    metrics: ["missingness_rate", "domain_violation_rate", "duplicate_rate", "non_finite_rate"]
+    metrics: ["missingness_rate", "domain_violation_rate", "range_violation_rate",
+              "duplicate_rate"]
   feature_drift:
     metrics: ["psi", "ks_statistic", "wasserstein_distance", "jensen_shannon_divergence",
               "mean_shift", "median_shift", "variance_shift", "missingness_delta"]
@@ -40,6 +41,55 @@ metric_families:
     metrics: ["score_psi", "score_mean_shift", "score_quantile_shift"]
   performance_drift:
     metrics: ["roc_auc_delta", "pr_auc_delta", "brier_delta", "ks_delta"]
+  target_distribution_drift:
+    metrics: ["event_rate_delta"]
+  subgroup_composition_drift:
+    metrics: ["max_composition_shift"]
+
+# Phase 10B (Release Candidate Acceptance Remediation) - `data_quality`
+# was DECLARED as a metric family above since Phase 9, but never actually
+# wired to an Alert: `credlens.monitoring.data_quality.compute_data_
+# quality` profiled every batch correctly (on the RAW, pre-imputation
+# batch, already in the right pipeline position), but nothing ever built
+# an Alert record from it, so missingness_drift/out_of_domain_codes/
+# feature_range_violation could never be detected by
+# credlens.monitoring.detection_eval even though the underlying metric
+# was computed correctly the whole time.
+#
+# Its 4 metrics cannot be bootstrap-calibrated the way psi/score/
+# performance metrics are: the reference population is the real,
+# already-audited UCI benchmark, which by construction has ZERO
+# missingness/domain/range/duplicate violations (Phase 8's own robustness
+# report: "the real UCI file has zero missing values"). Every bootstrap
+# resample of a zero-variance null is also exactly zero, so a percentile
+# of that null is meaningless (review_cutoff == material_deviation_cutoff
+# == 0.0, which would make classify_state's `>=` comparison flag even a
+# genuinely clean batch as `material_deviation`). Fixed, explicitly
+# documented cutoffs are used instead - deliberately NOT claimed to be
+# bootstrap-derived - chosen well below every real perturbation
+# scenario's injected magnitude (15% missingness, 10% domain violations,
+# 2% range violations) and well above single-row data-entry noise.
+data_quality_fixed_thresholds:
+  review_rate_threshold: 0.01
+  material_rate_threshold: 0.03
+
+# Phase 10B - bootstrap-calibrated the same way as psi/score/performance
+# (genuine non-degenerate null: real sampling variance in event rate and
+# subgroup composition, unlike data_quality above).
+target_distribution_drift_calibration:
+  review_percentile: 95
+  material_deviation_percentile: 99.5
+  n_resamples: 500
+
+# Family-wise (max absolute composition shift across every attribute x
+# group pair per resample) - same rationale as psi_family_wise in
+# `multiple_comparisons` below: sex/education/marriage together have
+# ~9 groups, so checking each independently at its own 95th percentile
+# would understate the true joint false-alert rate.
+subgroup_composition_drift_calibration:
+  review_percentile: 95
+  material_deviation_percentile: 99.5
+  n_resamples: 500
 
 # blocked_input is never derived from a percentile - it fires ONLY when
 # credlens.modeling.input_contract's strict mode rejects a batch-level

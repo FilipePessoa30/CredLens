@@ -34,6 +34,41 @@ _MARRIAGE_LABELS = {1: "married", 2: "single", 3: "others"}
 _UNDOCUMENTED = "undocumented_code"
 
 
+def label_subgroup_columns(df: pd.DataFrame, *, repo_root: Path | None = None) -> pd.DataFrame:
+    """Adds string-labeled `sex`/`education`/`marriage`/`age_bucket`
+    columns (mapped from the raw UCI `X2`/`X3`/`X4`/`X5` codes, same
+    mapping/undocumented-code fallback `build_reference` uses for
+    `subgroup_composition` below, and the SAME `age_buckets` config
+    `credlens.modeling.subgroup_audit`/`credlens.model_validation.
+    subgroup_validation` already use - never a second, different
+    bucketing scheme) to a COPY of `df`.
+
+    Phase 10B fix: `credlens.monitoring.runner._process_batch` was
+    calling `credlens.monitoring.subgroup.compute_subgroup_monitoring`
+    directly on a raw/engineered batch that only ever had `X2`/`X3`/`X4`
+    columns - `compute_subgroup_monitoring` silently skips any attribute
+    not present in `batch_df.columns`, so EVERY real monitoring run's
+    `subgroup_monitoring` list was silently empty (confirmed empty across
+    every batch of every run to date), and `age_bucket` was never checked
+    at all even though the `subgroup_composition_shift` scenario
+    specifically perturbs the age-bucket composition - not a calibration
+    or severity bug, a missing column-labeling step before the call."""
+    from credlens.modeling.contracts import load_evaluation_config
+    from credlens.modeling.subgroup_audit import bucket_age
+
+    out = df.copy()
+    if "X2" in out.columns:
+        out["sex"] = out["X2"].map(_SEX_LABELS).fillna(_UNDOCUMENTED)
+    if "X3" in out.columns:
+        out["education"] = out["X3"].map(_EDUCATION_LABELS).fillna(_UNDOCUMENTED)
+    if "X4" in out.columns:
+        out["marriage"] = out["X4"].map(_MARRIAGE_LABELS).fillna(_UNDOCUMENTED)
+    if "X5" in out.columns:
+        age_buckets = load_evaluation_config(repo_root).subgroup_audit["age_buckets"]
+        out["age_bucket"] = bucket_age(out["X5"], age_buckets)
+    return out
+
+
 class ReferenceError(Exception):
     """Raised when a monitoring reference cannot be built or loaded."""
 
@@ -183,19 +218,12 @@ def build_reference(
     band_counts = pd.Series(bands).value_counts(normalize=True)
     risk_band_distribution = {str(k): float(v) for k, v in band_counts.items()}
 
-    raw_reference = df.loc[reference_index]
+    raw_reference = label_subgroup_columns(df.loc[reference_index], repo_root=repo_root)
     raw_subgroup_composition: dict[str, Any] = {
-        "sex": raw_reference["X2"].map(_SEX_LABELS).fillna(_UNDOCUMENTED).value_counts().to_dict(),
-        "education": raw_reference["X3"]
-        .map(_EDUCATION_LABELS)
-        .fillna(_UNDOCUMENTED)
-        .value_counts()
-        .to_dict(),
-        "marriage": raw_reference["X4"]
-        .map(_MARRIAGE_LABELS)
-        .fillna(_UNDOCUMENTED)
-        .value_counts()
-        .to_dict(),
+        "sex": raw_reference["sex"].value_counts().to_dict(),
+        "education": raw_reference["education"].value_counts().to_dict(),
+        "marriage": raw_reference["marriage"].value_counts().to_dict(),
+        "age_bucket": raw_reference["age_bucket"].value_counts().to_dict(),
     }
     subgroup_composition: dict[str, dict[str, int]] = {
         k: {str(g): int(c) for g, c in v.items()} for k, v in raw_subgroup_composition.items()
@@ -224,13 +252,10 @@ def build_reference(
     population.insert(0, "id", df.loc[reference_index, contract.identifier_column].to_numpy())
     population["score"] = scores
     population["y_true"] = df.loc[reference_index, contract.target_column].to_numpy()
-    population["sex"] = raw_reference["X2"].map(_SEX_LABELS).fillna(_UNDOCUMENTED).to_numpy()
-    population["education"] = (
-        raw_reference["X3"].map(_EDUCATION_LABELS).fillna(_UNDOCUMENTED).to_numpy()
-    )
-    population["marriage"] = (
-        raw_reference["X4"].map(_MARRIAGE_LABELS).fillna(_UNDOCUMENTED).to_numpy()
-    )
+    population["sex"] = raw_reference["sex"].to_numpy()
+    population["education"] = raw_reference["education"].to_numpy()
+    population["marriage"] = raw_reference["marriage"].to_numpy()
+    population["age_bucket"] = raw_reference["age_bucket"].to_numpy()
 
     return reference, population
 

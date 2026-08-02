@@ -73,11 +73,27 @@ def calibrate_reference_family_wise(
     across all features per resample, is what
     `credlens.monitoring.runner` and the gate G/H incident/severity logic
     use to decide whether a batch's feature drift is family-wise
-    significant. Requires `credlens monitor create-reference` to have
-    already run."""
+    significant.
+
+    Phase 10B additionally calibrates/adds `data_quality`'s 4 metrics
+    (fixed cutoffs - see `credlens.monitoring.thresholds.
+    data_quality_fixed_cutoffs`), `event_rate_delta` (target-distribution
+    drift), and `max_composition_shift` (subgroup-composition drift) -
+    these were previously PROFILED (`credlens.monitoring.data_quality`/
+    `subgroup`) but never turned into a calibrated, alertable threshold,
+    so `missingness_drift`/`out_of_domain_codes`/`feature_range_
+    violation`/`prevalence_drift`/`subgroup_composition_shift` could never
+    be detected by `credlens.monitoring.detection_eval`.
+
+    Requires `credlens monitor create-reference` to have already run."""
     repo_root = repo_root or Path.cwd()
     from credlens.monitoring.calibration_study import calibrate_family_wise_psi_threshold
     from credlens.monitoring.reference import load_reference, load_reference_population
+    from credlens.monitoring.thresholds import (
+        calibrate_subgroup_composition_drift,
+        calibrate_target_distribution_drift,
+        data_quality_fixed_cutoffs,
+    )
 
     reference = load_reference(reference_id, repo_root=repo_root)
     reference_population = load_reference_population(reference_id, repo_root=repo_root)
@@ -85,20 +101,39 @@ def calibrate_reference_family_wise(
     mc_cfg = thresholds_config.multiple_comparisons
     study_cfg = thresholds_config.calibration_study
     scenarios_config = load_scenarios_config(repo_root)
+    seed = int(study_cfg["seed"])
+    batch_size = scenarios_config.batch_size
 
     family_wise = calibrate_family_wise_psi_threshold(
         reference_population,
         reference,
-        batch_size=scenarios_config.batch_size,
+        batch_size=batch_size,
         n_resamples=int(mc_cfg["family_wise_n_resamples"]),
         review_percentile=float(mc_cfg["family_wise_review_percentile"]),
         material_percentile=float(mc_cfg["family_wise_material_deviation_percentile"]),
-        seed=int(study_cfg["seed"]),
+        seed=seed,
     )
+    data_quality_thresholds = data_quality_fixed_cutoffs(thresholds_config, batch_size=batch_size)
+    target_distribution = calibrate_target_distribution_drift(
+        reference_population, thresholds_config, batch_size=batch_size, seed=seed
+    )
+    subgroup_composition = calibrate_subgroup_composition_drift(
+        reference_population, thresholds_config, batch_size=batch_size, seed=seed
+    )
+
     calibrated = load_calibrated_thresholds(reference_id, repo_root=repo_root)
     calibrated["psi_family_wise"] = family_wise
+    calibrated.update(data_quality_thresholds)
+    calibrated["event_rate_delta"] = target_distribution
+    calibrated["max_composition_shift"] = subgroup_composition
     write_calibrated_thresholds(reference_id, calibrated, repo_root=repo_root)
-    return {"reference_id": reference_id, "psi_family_wise": family_wise.to_dict()}
+    return {
+        "reference_id": reference_id,
+        "psi_family_wise": family_wise.to_dict(),
+        "data_quality": {k: v.to_dict() for k, v in data_quality_thresholds.items()},
+        "event_rate_delta": target_distribution.to_dict(),
+        "max_composition_shift": subgroup_composition.to_dict(),
+    }
 
 
 def simulate_batches(reference_id: str, *, repo_root: Path | None = None) -> str:

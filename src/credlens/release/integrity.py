@@ -91,7 +91,10 @@ def _tracked_files(repo_root: Path) -> list[str]:
 
 
 def _check_version_declared(repo_root: Path) -> IntegrityCheck:
-    pyproject = (repo_root / "pyproject.toml").read_text(encoding="utf-8")
+    path = repo_root / "pyproject.toml"
+    if not path.is_file():
+        return IntegrityCheck("version_declared", "fail", "No pyproject.toml found.")
+    pyproject = path.read_text(encoding="utf-8")
     match = re.search(r'^version\s*=\s*"([^"]+)"', pyproject, re.MULTILINE)
     if match:
         return IntegrityCheck(
@@ -162,6 +165,38 @@ def _check_no_large_tracked_files(repo_root: Path) -> IntegrityCheck:
             "no_large_tracked_files", "warning", f"{len(large)} file(s) over 10 MiB: {large}"
         )
     return IntegrityCheck("no_large_tracked_files", "pass", "No tracked file exceeds 10 MiB.")
+
+
+def _check_direct_dependencies_have_licenses(repo_root: Path) -> IntegrityCheck:
+    """Phase 10B section 15: every DIRECTLY-declared dependency
+    (`pyproject.toml`'s base `dependencies` + every extra + the `dev`
+    dependency-group) must have an identified license or an explicit,
+    visible finding here - never silently lumped in with the much larger,
+    harder-to-audit set of transitive dependencies. A `warning`, not a
+    `fail`: an unresolved license label is a metadata-quality gap this
+    project can flag but not fix (it doesn't control the dependency's own
+    packaging), and this is explicitly an engineering inventory, never a
+    legal compliance determination."""
+    from credlens.release.licenses import inventory_dependency_licenses
+
+    inventory = inventory_dependency_licenses(repo_root)
+    unresolved = [
+        f"{d.name} {d.version} ({','.join(d.roles)})"
+        for d in inventory.dependencies
+        if d.compatibility == "direct_unknown_license_needs_review"
+    ]
+    if unresolved:
+        return IntegrityCheck(
+            "direct_dependencies_have_licenses",
+            "warning",
+            f"{len(unresolved)} direct dependencies have no identifiable license label: "
+            f"{unresolved}.",
+        )
+    return IntegrityCheck(
+        "direct_dependencies_have_licenses",
+        "pass",
+        f"All {inventory.direct_count} direct dependencies have an identified license.",
+    )
 
 
 def _check_no_pii_like_columns_in_demo_data(repo_root: Path) -> IntegrityCheck:
@@ -253,6 +288,32 @@ def _check_ci_workflow_no_masking(repo_root: Path) -> IntegrityCheck:
     return IntegrityCheck("ci_workflow_no_masking", "pass", "No tolerance-masking pattern found.")
 
 
+def _check_coverage_gate(repo_root: Path) -> IntegrityCheck:
+    """Phase 10B - `RC_1.0.0rc1_bc33e939` was declared ready with real
+    coverage at 94% because this check DID NOT EXIST; see `reports/
+    release/release_errata.json`. Reads a persisted, source-fingerprint-
+    stamped snapshot (`credlens release measure-coverage`) rather than a
+    hand-typed number - a missing or stale snapshot fails exactly like a
+    genuinely low one."""
+    from credlens.release.coverage_gate import check_coverage_gate
+
+    result = check_coverage_gate(repo_root=repo_root)
+    return IntegrityCheck("coverage_gate", result.status, result.detail)
+
+
+def _check_monitoring_detection_gate(repo_root: Path) -> IntegrityCheck:
+    """Phase 10B - `RC_1.0.0rc1_bc33e939` was declared ready with a real
+    `scenario_detection_rate` of 0.5 because this check DID NOT EXIST; see
+    `reports/release/release_errata.json`. Reads persisted, source-
+    fingerprint-stamped detection/false-alert evidence (`credlens monitor
+    evaluate-detection`/`evaluate-false-alerts`) - never a hand-typed
+    number."""
+    from credlens.release.monitoring_gate import check_monitoring_detection_gate
+
+    result = check_monitoring_detection_gate(repo_root=repo_root)
+    return IntegrityCheck("monitoring_detection_gate", result.status, result.detail)
+
+
 def run_release_integrity_checks(repo_root: Path | None = None) -> ReleaseIntegrityReport:
     repo_root = repo_root or Path.cwd()
     checks = [
@@ -261,9 +322,12 @@ def run_release_integrity_checks(repo_root: Path | None = None) -> ReleaseIntegr
         _check_license_present(repo_root),
         _check_no_secrets(repo_root),
         _check_no_large_tracked_files(repo_root),
+        _check_direct_dependencies_have_licenses(repo_root),
         _check_no_pii_like_columns_in_demo_data(repo_root),
         _check_bilingual_reports_present(repo_root),
         _check_model_artifacts_present(repo_root),
         _check_ci_workflow_no_masking(repo_root),
+        _check_coverage_gate(repo_root),
+        _check_monitoring_detection_gate(repo_root),
     ]
     return ReleaseIntegrityReport(checks=checks)

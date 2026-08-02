@@ -72,10 +72,11 @@ EXPECTED_OUTCOMES: dict[str, dict[str, Any]] = {
         "note_en": "2% of bill amounts made implausibly large - range violation, quarantined.",
     },
     "prevalence_drift": {
-        "expected_category": "score_drift",
+        "expected_category": "target_distribution_drift",
         "should_detect": True,
         "should_block": False,
-        "note_en": "Target prevalence resampled to 35% - expected score-distribution signal.",
+        "note_en": "Target prevalence resampled to 35% - Phase 10B checks this directly via "
+        "event_rate_delta on the label itself, not only indirectly through the score.",
     },
     "score_distribution_shift": {
         "expected_category": "feature_drift",
@@ -85,11 +86,11 @@ EXPECTED_OUTCOMES: dict[str, dict[str, Any]] = {
         "drift; feature_drift is the primary category checked here.",
     },
     "subgroup_composition_shift": {
-        "expected_category": "score_drift",
+        "expected_category": "subgroup_composition_drift",
         "should_detect": True,
         "should_block": False,
-        "note_en": "Age-bucket composition oversampled - expected subgroup/score-composition "
-        "signal.",
+        "note_en": "Age-bucket composition oversampled - Phase 10B checks this directly via "
+        "max_composition_shift across sex/education/marriage groups.",
     },
     "label_delay": {
         "expected_category": "none",
@@ -164,6 +165,43 @@ class DetectionEvaluationReport:
         return sum(1 for r in expected if r.true_positive) / len(expected)
 
     @property
+    def overall_applicable_scenario_detection_rate(self) -> float:
+        """Alias of `scenario_detection_rate`, named to match the Phase
+        10B acceptance-gate vocabulary ("applicable" = every scenario
+        with `should_detect=True`, i.e. excluding `baseline_like` and
+        `label_delay`, which measure the false-alert rate and the
+        labels-pending path respectively, not detection)."""
+        return self.scenario_detection_rate
+
+    @property
+    def raw_data_quality_detection_rate(self) -> float:
+        """Recall specifically on the `data_quality`-category scenarios
+        (missingness_drift, out_of_domain_codes, feature_range_violation)
+        - Phase 10B's own acceptance bar requires this at 100%, since
+        these are raw-input violations a real pipeline must never miss."""
+        rows = [r for r in self.rows if r.expected_category == "data_quality" and r.should_detect]
+        if not rows:
+            return float("nan")
+        return sum(1 for r in rows if r.true_positive) / len(rows)
+
+    @property
+    def strong_drift_detection_rate(self) -> float:
+        """Recall on the genuine DRIFT categories (feature/target-
+        distribution/subgroup-composition drift) - excludes `data_quality`
+        (a raw-input integrity check, not a drift phenomenon) and
+        `blocked_input` (a deterministic schema gate, not a statistical
+        detection problem)."""
+        drift_categories = {
+            "feature_drift",
+            "target_distribution_drift",
+            "subgroup_composition_drift",
+        }
+        rows = [r for r in self.rows if r.expected_category in drift_categories and r.should_detect]
+        if not rows:
+            return float("nan")
+        return sum(1 for r in rows if r.true_positive) / len(rows)
+
+    @property
     def false_alert_rate_on_non_perturbed_scenarios(self) -> float:
         non_perturbed = [r for r in self.rows if not r.should_detect]
         if not non_perturbed:
@@ -198,6 +236,11 @@ class DetectionEvaluationReport:
             ),
             "blocked_input_recall": round(self.blocked_input_recall, 4),
             "severity_precision": round(self.severity_precision, 4),
+            "overall_applicable_scenario_detection_rate": round(
+                self.overall_applicable_scenario_detection_rate, 4
+            ),
+            "raw_data_quality_detection_rate": round(self.raw_data_quality_detection_rate, 4),
+            "strong_drift_detection_rate": round(self.strong_drift_detection_rate, 4),
             "alert_compression_ratio": (
                 round(self.incident_report.alert_compression_ratio, 4)
                 if self.incident_report.n_alert_groups

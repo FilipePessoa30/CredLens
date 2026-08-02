@@ -1,0 +1,117 @@
+"""Source snapshot fingerprint (Phase 10B - Release Candidate Acceptance
+Remediation).
+
+`credlens.release.manifest.ReleaseManifest.base_commit` is `git rev-parse
+HEAD` - a real, correct anchor when the working tree is clean, but
+misleading on its own when it is not: a release built from a dirty
+working tree (uncommitted changes on top of `base_commit`) would carry
+the SAME `base_commit` as a release built from the clean commit itself,
+even though their actual file contents differ. This module fingerprints
+the CONTENT every tracked file currently has on disk - including
+uncommitted changes - so two releases can only share a
+`source_snapshot_fingerprint` if their tracked file contents are
+byte-identical, dirty tree or not.
+
+Deliberately excludes: caches (`__pycache__`, `.pytest_cache`, `.mypy_
+cache`, `.ruff_cache`), `.venv`, coverage artifacts (`coverage.json`,
+`.coverage`, `htmlcov/`), any path under `data/`/`reports/` that is
+itself a build/run OUTPUT rather than versioned source (these are
+git-ignored in this repository already, so `git ls-files` never lists
+them - the exclusion list here is a second, explicit guard against ever
+including something timestamp-bearing or non-deterministic even if it
+were ever accidentally tracked).
+"""
+
+from __future__ import annotations
+
+import hashlib
+import subprocess
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Any
+
+_EXCLUDED_PATH_FRAGMENTS = (
+    "__pycache__",
+    ".pytest_cache",
+    ".mypy_cache",
+    ".ruff_cache",
+    ".venv",
+    "coverage.json",
+    ".coverage",
+    "htmlcov/",
+)
+
+
+class SourceSnapshotError(Exception):
+    """Raised when the source snapshot fingerprint cannot be computed."""
+
+
+@dataclass(frozen=True)
+class SourceSnapshot:
+    fingerprint: str
+    n_files: int
+    base_commit: str
+    working_tree_clean: bool
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "fingerprint": self.fingerprint,
+            "n_files": self.n_files,
+            "base_commit": self.base_commit,
+            "working_tree_clean": self.working_tree_clean,
+        }
+
+
+def _tracked_files(repo_root: Path) -> list[str]:
+    result = subprocess.run(
+        ["git", "ls-files"], cwd=repo_root, capture_output=True, text=True, check=True
+    )
+    return sorted(line for line in result.stdout.splitlines() if line)
+
+
+def compute_source_snapshot(repo_root: Path | None = None) -> SourceSnapshot:
+    """Hashes the CURRENT on-disk content of every git-tracked file
+    (sorted by path, path+content both fed into the digest so a rename
+    changes the fingerprint too) into one SHA256 - never just `git
+    rev-parse HEAD`, which is blind to uncommitted changes.
+
+    A file still in git's index but removed from the working tree
+    without staging the deletion (`rm` without `git rm`) is a real,
+    legitimate uncommitted change, not an error condition - it is simply
+    excluded from the digest, exactly like any other content change would
+    shift the fingerprint. Only a genuine I/O failure on a file that DOES
+    exist (permissions, a locked file) raises `SourceSnapshotError`."""
+    repo_root = repo_root or Path.cwd()
+    files = [
+        rel_path
+        for rel_path in _tracked_files(repo_root)
+        if not any(fragment in rel_path for fragment in _EXCLUDED_PATH_FRAGMENTS)
+    ]
+    digest = hashlib.sha256()
+    n_hashed = 0
+    for rel_path in files:
+        path = repo_root / rel_path
+        if not path.is_file():
+            continue
+        try:
+            content = path.read_bytes()
+        except OSError as exc:
+            raise SourceSnapshotError(f"Tracked file '{rel_path}' could not be read.") from exc
+        digest.update(rel_path.encode("utf-8"))
+        digest.update(b"\x00")
+        digest.update(content)
+        digest.update(b"\x00")
+        n_hashed += 1
+
+    head_result = subprocess.run(
+        ["git", "rev-parse", "HEAD"], cwd=repo_root, capture_output=True, text=True, check=True
+    )
+    status_result = subprocess.run(
+        ["git", "status", "--porcelain"], cwd=repo_root, capture_output=True, text=True, check=True
+    )
+    return SourceSnapshot(
+        fingerprint=digest.hexdigest(),
+        n_files=n_hashed,
+        base_commit=head_result.stdout.strip(),
+        working_tree_clean=not status_result.stdout.strip(),
+    )

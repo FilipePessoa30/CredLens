@@ -34,7 +34,7 @@ _MARRIAGE_LABELS = {1: "married", 2: "single", 3: "others"}
 _UNDOCUMENTED_LABEL = "undocumented_code"
 
 
-def _bucket_age(age: pd.Series, buckets: list[list[int]]) -> pd.Series:
+def bucket_age(age: pd.Series, buckets: list[list[int]]) -> pd.Series:
     labels = pd.Series("out_of_range", index=age.index)
     for low, high in buckets:
         mask = (age >= low) & (age < high)
@@ -153,7 +153,7 @@ def run_subgroup_audit(
             "marriage",
             raw_df.loc[y_test.index, "X4"].map(_MARRIAGE_LABELS).fillna(_UNDOCUMENTED_LABEL),
         ),
-        ("age_bucket", _bucket_age(raw_df.loc[y_test.index, "X5"], age_buckets)),
+        ("age_bucket", bucket_age(raw_df.loc[y_test.index, "X5"], age_buckets)),
     ]
 
     metrics: list[SubgroupMetric] = []

@@ -57,7 +57,7 @@ def compute_subgroup_monitoring(
     y_batch: pd.Series | None,
 ) -> list[SubgroupMonitoringResult]:
     results = []
-    for attribute in ("sex", "education", "marriage"):
+    for attribute in ("sex", "education", "marriage", "age_bucket"):
         if attribute not in batch_df.columns:
             continue
         groups = batch_df[attribute]

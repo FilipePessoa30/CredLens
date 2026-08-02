@@ -76,6 +76,14 @@ _DIAGNOSTIC_ACTIONS = {
         "Confirm labels are correctly joined; if the shift persists across batches, "
         "flag for a full model_validation re-run."
     ),
+    "target_distribution_drift": (
+        "Confirm the label source/join is correct; if the base rate shift is genuine, "
+        "flag for a full model_validation re-run (a calibrated model assumes a stable prior)."
+    ),
+    "subgroup_composition_drift": (
+        "Compare the batch's sex/education/marriage mix against the reference; check for an "
+        "upstream sampling or acquisition change - never a model feature, audit-only."
+    ),
 }
 
 

@@ -41,7 +41,9 @@ class BatchBuildError(Exception):
     """Raised when the batch set cannot be built (missing model/split)."""
 
 
-def _perturb(raw: pd.DataFrame, spec: dict[str, Any], rng: np.random.Generator) -> pd.DataFrame:
+def perturb_batch(
+    raw: pd.DataFrame, spec: dict[str, Any], rng: np.random.Generator
+) -> pd.DataFrame:
     scenario = spec["simulation_scenario"]
     out = raw.copy()
 
@@ -70,11 +72,24 @@ def _perturb(raw: pd.DataFrame, spec: dict[str, Any], rng: np.random.Generator) 
         out[_DELINQUENCY_COLUMNS] = values
         return out
     if scenario == "feature_range_violation":
+        # Phase 10B fix: multiplying by `impossible_bill_multiplier` alone
+        # is only guaranteed to cross `credlens.modeling.input_contract.
+        # MONETARY_ABSOLUTE_MAX` (1e8) if the ORIGINAL sampled value is
+        # already large - empirically, a real 500-row batch's max X12 was
+        # ~87k, so even x500 landed at ~43.7M, comfortably UNDER the 1e8
+        # sanity bound (should_detect=True was silently never satisfiable
+        # for some random draws). The multiplier is kept (proportional,
+        # realistic-looking corruption) but the result is now floored at
+        # `MONETARY_ABSOLUTE_MAX * range_violation_safety_margin` so this
+        # scenario deterministically produces a genuine range violation
+        # regardless of which rows the mask happens to select.
+        from credlens.modeling.input_contract import MONETARY_ABSOLUTE_MAX
+
         fraction = float(spec["affected_fraction"])
+        safety_margin = float(spec.get("range_violation_safety_margin", 1.5))
         mask = rng.random(len(out)) < fraction
-        out.loc[mask, "X12"] = (
-            out.loc[mask, "X12"].abs() * float(spec["impossible_bill_multiplier"]) + 1.0
-        )
+        multiplied = out.loc[mask, "X12"].abs() * float(spec["impossible_bill_multiplier"]) + 1.0
+        out.loc[mask, "X12"] = multiplied.clip(lower=MONETARY_ABSOLUTE_MAX * safety_margin)
         return out
     if scenario == "prevalence_drift":
         return _prevalence_drift(out, float(spec["target_prevalence"]), rng)
@@ -185,7 +200,7 @@ def build_batches(
         partition = int(spec["source_partition"])
         start = (partition - 1) * batch_size
         raw_slice = test_df.iloc[start : start + batch_size].copy()
-        perturbed = _perturb(raw_slice, spec, rng)
+        perturbed = perturb_batch(raw_slice, spec, rng)
         results.append((spec, perturbed))
     return results
 

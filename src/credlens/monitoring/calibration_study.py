@@ -142,31 +142,6 @@ def benjamini_hochberg(p_values: dict[str, float], fdr: float) -> dict[str, bool
     return significant
 
 
-def _empirical_p_value(observed: float, null_distribution: np.ndarray) -> float:
-    n_at_or_above = int(np.sum(null_distribution >= observed))
-    return (n_at_or_above + 1) / (len(null_distribution) + 1)
-
-
-def _per_feature_marginal_null(
-    reference_population: pd.DataFrame,
-    reference: MonitoringReference,
-    feature: str,
-    *,
-    batch_size: int,
-    n_resamples: int,
-    seed: int,
-) -> np.ndarray:
-    rng = np.random.default_rng(seed)
-    n = len(reference_population)
-    full = reference_population[feature].to_numpy(dtype=float)
-    bin_edges = reference.feature_stats[feature]["histogram"]["bin_edges"]
-    values = []
-    for _ in range(n_resamples):
-        idx = rng.choice(n, size=min(batch_size, n), replace=False)
-        values.append(abs(population_stability_index(full, full[idx], bin_edges)))
-    return np.array(values)
-
-
 @dataclass(frozen=True)
 class FalseAlertBatchResult:
     batch_index: int
@@ -184,6 +159,10 @@ class FalseAlertBatchResult:
     any_marginal_signal_fired: bool
     any_family_wise_or_other_signal_fired: bool
     n_marginal_signals_fired: int
+    data_quality_material_fired: bool = False
+    target_distribution_material_fired: bool = False
+    subgroup_composition_material_fired: bool = False
+    any_material_any_category_fired: bool = False
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -204,6 +183,10 @@ class FalseAlertBatchResult:
             "any_marginal_signal_fired": self.any_marginal_signal_fired,
             "any_family_wise_or_other_signal_fired": self.any_family_wise_or_other_signal_fired,
             "n_marginal_signals_fired": self.n_marginal_signals_fired,
+            "data_quality_material_fired": self.data_quality_material_fired,
+            "target_distribution_material_fired": self.target_distribution_material_fired,
+            "subgroup_composition_material_fired": self.subgroup_composition_material_fired,
+            "any_material_any_category_fired": self.any_material_any_category_fired,
         }
 
 
@@ -222,6 +205,9 @@ class FalseAlertRateStudyReport:
     score_false_alert_rate: float
     performance_false_alert_rate: float
     batch_results: list[FalseAlertBatchResult]
+    combined_material_false_alert_rate: float = 0.0
+    high_severity_false_alert_rate: float = 0.0
+    high_severity_rate_reason_en: str = ""
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -241,6 +227,9 @@ class FalseAlertRateStudyReport:
             ),
             "score_false_alert_rate": round(self.score_false_alert_rate, 4),
             "performance_false_alert_rate": round(self.performance_false_alert_rate, 4),
+            "combined_material_false_alert_rate": round(self.combined_material_false_alert_rate, 4),
+            "high_severity_false_alert_rate": round(self.high_severity_false_alert_rate, 4),
+            "high_severity_rate_reason_en": self.high_severity_rate_reason_en,
             "batch_results": [b.to_dict() for b in self.batch_results],
         }
 
@@ -347,9 +336,75 @@ def run_false_alert_rate_study(
                 abs(roc_auc_delta), calibrated["roc_auc_delta"], len(y_batch)
             )
             performance_fired = perf_state != "within_reference_variability"
+            performance_material_fired = perf_state == "material_deviation"
             if performance_fired:
                 performance_fires += 1
                 total_marginal_signals += 1
+        else:
+            performance_material_fired = False
+
+        # Phase 10B - the same data_quality/target-distribution/subgroup-
+        # composition checks `credlens.monitoring.runner` now performs on
+        # every real batch, re-measured here on genuinely unperturbed
+        # baseline batches to confirm they don't themselves introduce a
+        # false-alert problem (their reference null is a degenerate point
+        # mass at zero for data_quality - see `credlens.monitoring.
+        # thresholds.data_quality_fixed_cutoffs` - so a real clean batch
+        # should essentially never cross even `review`).
+        from credlens.modeling.input_contract import validate_input_contract
+        from credlens.monitoring.data_quality import compute_data_quality
+        from credlens.monitoring.subgroup import compute_subgroup_monitoring
+
+        dq_material = False
+        if any(m in calibrated for m in ("missingness_rate", "domain_violation_rate")):
+            audit_report = validate_input_contract(raw_batch, "audit")
+            dq = compute_data_quality(raw_batch, audit_report)
+            for metric_name, observed in (
+                ("missingness_rate", dq.missingness_rate),
+                ("domain_violation_rate", dq.domain_violation_rate),
+                ("range_violation_rate", dq.range_violation_rate),
+                ("duplicate_rate", dq.duplicate_rate),
+            ):
+                if metric_name in calibrated:
+                    state = classify_state(observed, calibrated[metric_name], len(raw_batch))
+                    if state == "material_deviation":
+                        dq_material = True
+
+        target_material = False
+        if "event_rate_delta" in calibrated:
+            reference_rate = float(reference_population["y_true"].mean())
+            observed_rate = float(y_batch.mean())
+            state = classify_state(
+                abs(observed_rate - reference_rate), calibrated["event_rate_delta"], len(y_batch)
+            )
+            target_material = state == "material_deviation"
+
+        subgroup_material = False
+        if "max_composition_shift" in calibrated:
+            from credlens.monitoring.reference import label_subgroup_columns
+
+            subgroup_results = compute_subgroup_monitoring(
+                label_subgroup_columns(raw_batch),
+                pipeline_scores,
+                threshold=0.5,
+                reference_composition=reference.subgroup_composition,
+                y_batch=None,
+            )
+            if subgroup_results:
+                max_shift = max(abs(s.composition_shift) for s in subgroup_results)
+                state = classify_state(
+                    max_shift, calibrated["max_composition_shift"], len(raw_batch)
+                )
+                subgroup_material = state == "material_deviation"
+
+        any_material_any_category = (
+            family_wise_material_fired
+            or score_state == "material_deviation"
+            or performance_material_fired
+            or dq_material
+            or target_material
+            or subgroup_material
+        )
 
         n_marginal = sum(per_feature_fired.values()) + int(score_fired) + int(performance_fired)
         batch_results.append(
@@ -371,6 +426,10 @@ def run_false_alert_rate_study(
                     family_wise_signal_fired or score_fired or performance_fired
                 ),
                 n_marginal_signals_fired=n_marginal,
+                data_quality_material_fired=dq_material,
+                target_distribution_material_fired=target_material,
+                subgroup_composition_material_fired=subgroup_material,
+                any_material_any_category_fired=any_material_any_category,
             )
         )
 
@@ -389,6 +448,18 @@ def run_false_alert_rate_study(
         family_wise_corrected_material_rate=family_wise_material_hits / n,
         score_false_alert_rate=score_fires / n,
         performance_false_alert_rate=performance_fires / n,
+        combined_material_false_alert_rate=(
+            sum(1 for b in batch_results if b.any_material_any_category_fired) / n
+        ),
+        high_severity_false_alert_rate=0.0,
+        high_severity_rate_reason_en=(
+            "Structurally 0 by gate H's own severity policy (credlens.monitoring.incidents."
+            "_group_severity): 'high' requires either a genuine blocked_input (never observed "
+            "on these clean, schema-valid baseline batches) or a material signal CONFIRMED in "
+            "the immediately following batch of the same category - these are independent i.i.d. "
+            "resamples, not a real sequential stream, so no batch here has a genuine 'next batch' "
+            "to confirm against. This is the intended guarantee, not an artifact of this study."
+        ),
         batch_results=batch_results,
     )
 
@@ -484,4 +555,190 @@ def run_batch_size_study(
                 mean_marginal_signals_per_batch=study.mean_marginal_signals_per_batch,
             )
         )
+    return rows
+
+
+# Phase 10B - sensitivity analysis. Three real magnitude levels per
+# perturbation type - "strong" always matches the canonical scenario
+# already documented in `config/monitoring/scenarios.yml`/
+# `scenarios_registry.yml`; "weak"/"moderate" are genuinely smaller,
+# real perturbations of the SAME kind, never a hypothetical. Detection
+# power is expected (and, per Phase 10B's own acceptance-gate discipline,
+# never REQUIRED) to be lower at "weak" - only "strong" (the actual
+# documented scenario magnitude) is held to the 90% floor.
+SENSITIVITY_MAGNITUDES: dict[str, dict[str, dict[str, Any]]] = {
+    "missingness_drift": {
+        "weak": {"missingness_extra_fraction": 0.02},
+        "moderate": {"missingness_extra_fraction": 0.08},
+        "strong": {"missingness_extra_fraction": 0.15},
+    },
+    "utilization_shift": {
+        "weak": {"utilization_shift_multiplier": 1.05},
+        "moderate": {"utilization_shift_multiplier": 1.2},
+        "strong": {"utilization_shift_multiplier": 1.5},
+    },
+    "payment_reduction": {
+        "weak": {"payment_shrink_factor": 0.9},
+        "moderate": {"payment_shrink_factor": 0.7},
+        "strong": {"payment_shrink_factor": 0.5},
+    },
+    "delinquency_worsening": {
+        "weak": {"delinquency_worsening_steps": 1},
+        "moderate": {"delinquency_worsening_steps": 2},
+        "strong": {"delinquency_worsening_steps": 3},
+    },
+    "prevalence_drift": {
+        "weak": {"target_prevalence": 0.25},
+        "moderate": {"target_prevalence": 0.30},
+        "strong": {"target_prevalence": 0.35},
+    },
+    "subgroup_composition_shift": {
+        "weak": {"oversampled_age_bucket": [18, 30], "oversample_fraction": 0.40},
+        "moderate": {"oversampled_age_bucket": [18, 30], "oversample_fraction": 0.60},
+        "strong": {"oversampled_age_bucket": [18, 30], "oversample_fraction": 0.80},
+    },
+}
+
+_FEATURE_DRIFT_SCENARIOS = {"utilization_shift", "payment_reduction", "delinquency_worsening"}
+
+
+@dataclass(frozen=True)
+class SensitivityRow:
+    perturbation_type: str
+    magnitude_label: str
+    magnitude_params: dict[str, Any]
+    n_batches: int
+    detection_rate: float
+    material_rate: float
+    mean_observed_value: float
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "perturbation_type": self.perturbation_type,
+            "magnitude_label": self.magnitude_label,
+            "magnitude_params": self.magnitude_params,
+            "n_batches": self.n_batches,
+            "detection_rate": round(self.detection_rate, 4),
+            "material_rate": round(self.material_rate, 4),
+            "mean_observed_value": round(self.mean_observed_value, 6),
+        }
+
+
+def run_sensitivity_analysis(
+    reference_id: str,
+    *,
+    n_batches_per_magnitude: int,
+    batch_size: int,
+    seed: int,
+    repo_root: Path | None = None,
+) -> list[SensitivityRow]:
+    """Real execution (never simulated numbers) of `n_batches_per_
+    magnitude` genuinely perturbed batches at each of 3 magnitude levels
+    (weak/moderate/strong - see `SENSITIVITY_MAGNITUDES`) for 6
+    perturbation types, measuring the SAME calibrated metric
+    `credlens.monitoring.runner` checks in production for that
+    perturbation's category - never a perfect-detection assumption for a
+    weak perturbation."""
+    from credlens.modeling.features import FEATURE_COLUMNS, engineer_features
+    from credlens.modeling.input_contract import validate_input_contract
+    from credlens.modeling.registry import load_model_candidate
+    from credlens.monitoring.batches import perturb_batch
+    from credlens.monitoring.data_quality import compute_data_quality
+    from credlens.monitoring.reference import (
+        label_subgroup_columns,
+        load_reference,
+        load_reference_population,
+    )
+    from credlens.monitoring.subgroup import compute_subgroup_monitoring
+    from credlens.monitoring.thresholds import load_calibrated_thresholds
+
+    repo_root = repo_root or Path.cwd()
+    reference = load_reference(reference_id, repo_root=repo_root)
+    reference_population = load_reference_population(reference_id, repo_root=repo_root)
+    calibrated = load_calibrated_thresholds(reference_id, repo_root=repo_root)
+    pipeline, _manifest = load_model_candidate(
+        reference.model_id, repo_root / "reports/modeling/models"
+    )
+    reference_event_rate = float(reference_population["y_true"].mean())
+
+    rows: list[SensitivityRow] = []
+    for perturbation_type, levels in SENSITIVITY_MAGNITUDES.items():
+        for magnitude_label, magnitude_params in levels.items():
+            rng = np.random.default_rng(seed)
+            batches = generate_baseline_like_batches(
+                reference.model_id,
+                n_batches=n_batches_per_magnitude,
+                batch_size=batch_size,
+                seed=seed,
+                repo_root=repo_root,
+            )
+            detections = 0
+            materials = 0
+            observed_values: list[float] = []
+            for _batch_index, raw_batch in batches:
+                spec = {"simulation_scenario": perturbation_type, **magnitude_params}
+                perturbed = perturb_batch(raw_batch, spec, rng)
+
+                if perturbation_type == "missingness_drift":
+                    audit_report = validate_input_contract(perturbed, "audit")
+                    dq = compute_data_quality(perturbed, audit_report)
+                    observed = dq.missingness_rate
+                    state = classify_state(observed, calibrated["missingness_rate"], len(perturbed))
+                elif perturbation_type in _FEATURE_DRIFT_SCENARIOS:
+                    engineered = engineer_features(perturbed)[list(FEATURE_COLUMNS)]
+                    max_psi = 0.0
+                    for feature in FEATURE_COLUMNS:
+                        drift = compute_feature_drift(
+                            feature,
+                            reference_population[feature].to_numpy(dtype=float),
+                            engineered[feature].to_numpy(dtype=float),
+                            reference.feature_stats[feature],
+                            reference.feature_stats[feature]["histogram"]["bin_edges"],
+                        )
+                        max_psi = max(max_psi, abs(drift.psi))
+                    observed = max_psi
+                    state = classify_state(observed, calibrated["psi_family_wise"], len(perturbed))
+                elif perturbation_type == "prevalence_drift":
+                    observed_rate = float(perturbed["Y"].mean())
+                    observed = abs(observed_rate - reference_event_rate)
+                    state = classify_state(observed, calibrated["event_rate_delta"], len(perturbed))
+                elif perturbation_type == "subgroup_composition_shift":
+                    engineered = engineer_features(perturbed)[list(FEATURE_COLUMNS)]
+                    scores = pipeline.predict_proba(engineered)[:, 1]
+                    subgroup_results = compute_subgroup_monitoring(
+                        label_subgroup_columns(perturbed, repo_root=repo_root),
+                        scores,
+                        threshold=0.5,
+                        reference_composition=reference.subgroup_composition,
+                        y_batch=None,
+                    )
+                    observed = (
+                        max(abs(s.composition_shift) for s in subgroup_results)
+                        if subgroup_results
+                        else 0.0
+                    )
+                    state = classify_state(
+                        observed, calibrated["max_composition_shift"], len(perturbed)
+                    )
+                else:
+                    raise ValueError(f"Unhandled sensitivity perturbation '{perturbation_type}'.")
+
+                observed_values.append(observed)
+                if state != "within_reference_variability":
+                    detections += 1
+                if state == "material_deviation":
+                    materials += 1
+
+            n = len(batches)
+            rows.append(
+                SensitivityRow(
+                    perturbation_type=perturbation_type,
+                    magnitude_label=magnitude_label,
+                    magnitude_params=magnitude_params,
+                    n_batches=n,
+                    detection_rate=detections / n,
+                    material_rate=materials / n,
+                    mean_observed_value=float(np.mean(observed_values)) if observed_values else 0.0,
+                )
+            )
     return rows

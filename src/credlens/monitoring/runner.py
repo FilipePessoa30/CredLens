@@ -30,6 +30,7 @@ from credlens.monitoring.performance import LABELS_PENDING, compute_performance_
 from credlens.monitoring.provenance import MONITORING_SIMULATION_LABEL_EN
 from credlens.monitoring.reference import (
     MonitoringReference,
+    label_subgroup_columns,
     load_reference,
     load_reference_population,
 )
@@ -102,6 +103,35 @@ def _process_batch(
 
     audit_report = validate_input_contract(raw_batch, "audit")
     data_quality = compute_data_quality(raw_batch, audit_report)
+
+    # Phase 10B - `data_quality` was PROFILED here since Phase 9 (on the
+    # RAW batch, already correctly positioned before imputation/feature
+    # engineering below) but never turned into an Alert, so a batch with
+    # real, elevated missingness/domain/range/duplicate rates produced no
+    # signal at all unless it also happened to trip a full schema-level
+    # block. This now builds one alert per data-quality metric that has a
+    # calibrated threshold, exactly like the feature/score/performance
+    # checks below - regardless of whether the batch ends up blocked.
+    for metric_name, observed_rate in (
+        ("missingness_rate", data_quality.missingness_rate),
+        ("domain_violation_rate", data_quality.domain_violation_rate),
+        ("range_violation_rate", data_quality.range_violation_rate),
+        ("duplicate_rate", data_quality.duplicate_rate),
+    ):
+        if metric_name in calibrated:
+            dq_alert = build_alert(
+                run_id=run_id,
+                batch_sequence=batch_sequence,
+                model_id=manifest.model_id,
+                category="data_quality",
+                metric=metric_name,
+                reference_value=0.0,
+                observed_value=observed_rate,
+                calibrated=calibrated[metric_name],
+                sample_size=len(raw_batch),
+            )
+            if dq_alert is not None:
+                alerts.append(dq_alert)
 
     try:
         strict_report = validate_input_contract(raw_batch, "strict")
@@ -235,6 +265,36 @@ def _process_batch(
         if alert is not None:
             alerts.append(alert)
 
+    # Phase 10B - target/prevalence drift is a DIRECT check on the label
+    # distribution itself (event_rate_delta), never inferred only through
+    # the score's own distribution (`score_mean_shift` above): the two
+    # can diverge, e.g. a resampled batch whose per-row scores are
+    # individually unchanged but whose overall base rate shifted because
+    # positive-label rows were selectively kept/dropped. Requires labels
+    # (available in this offline simulation for `label_availability ==
+    # "available"` batches only - a real production stream would face the
+    # usual label-lag problem this project has always disclosed).
+    if (
+        spec["label_availability"] == "available"
+        and "Y" in clean_batch.columns
+        and "event_rate_delta" in calibrated
+    ):
+        reference_event_rate = float(reference_population["y_true"].mean())
+        observed_event_rate = float(clean_batch["Y"].mean())
+        target_alert = build_alert(
+            run_id=run_id,
+            batch_sequence=batch_sequence,
+            model_id=manifest.model_id,
+            category="target_distribution_drift",
+            metric="event_rate_delta",
+            reference_value=reference_event_rate,
+            observed_value=observed_event_rate,
+            calibrated=calibrated["event_rate_delta"],
+            sample_size=len(clean_batch),
+        )
+        if target_alert is not None:
+            alerts.append(target_alert)
+
     performance_drift: dict[str, Any] | str
     if spec["label_availability"] == "available" and "Y" in clean_batch.columns:
         y_batch = clean_batch["Y"].reset_index(drop=True)
@@ -286,17 +346,48 @@ def _process_batch(
     else:
         performance_drift = LABELS_PENDING
 
+    # Phase 10B fix: `clean_batch` only ever carries raw UCI columns
+    # (X1..X23, Y) - `compute_subgroup_monitoring` looks for `sex`/
+    # `education`/`marriage` specifically and silently skips whichever of
+    # the three aren't present, so EVERY real monitoring run's
+    # `subgroup_monitoring` was silently empty until this label step was
+    # added (confirmed: 0/12 batches had any entry before this fix).
+    labeled_batch = label_subgroup_columns(clean_batch)
     subgroup_results = compute_subgroup_monitoring(
-        clean_batch.reset_index(drop=True),
+        labeled_batch.reset_index(drop=True),
         scores,
         threshold=top10_threshold,
         reference_composition=reference.subgroup_composition,
         y_batch=(
-            clean_batch["Y"].reset_index(drop=True)
-            if spec["label_availability"] == "available" and "Y" in clean_batch.columns
+            labeled_batch["Y"].reset_index(drop=True)
+            if spec["label_availability"] == "available" and "Y" in labeled_batch.columns
             else None
         ),
     )
+
+    # Phase 10B - subgroup COMPOSITION drift is checked directly
+    # (`composition_shift`, already computed per attribute/group by
+    # `compute_subgroup_monitoring` above) rather than requiring it to
+    # first show up as a score-distribution shift: a batch's sex/
+    # education/marriage mix can change (e.g. an age-bucket oversampled
+    # upstream) without necessarily moving the SCORE distribution enough
+    # to cross `score_mean_shift`. Restricted attributes remain audit-
+    # only here, exactly as before - never a model feature.
+    if subgroup_results and "max_composition_shift" in calibrated:
+        max_shift = max(abs(s.composition_shift) for s in subgroup_results)
+        subgroup_alert = build_alert(
+            run_id=run_id,
+            batch_sequence=batch_sequence,
+            model_id=manifest.model_id,
+            category="subgroup_composition_drift",
+            metric="max_composition_shift",
+            reference_value=0.0,
+            observed_value=max_shift,
+            calibrated=calibrated["max_composition_shift"],
+            sample_size=len(clean_batch),
+        )
+        if subgroup_alert is not None:
+            alerts.append(subgroup_alert)
 
     return (
         BatchRunResult(

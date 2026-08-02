@@ -1,0 +1,25 @@
+[
+  {
+    "errata_id": "ERRATA_RC_1.0.0rc1_bc33e939_001",
+    "release_id": "RC_1.0.0rc1_bc33e939",
+    "original_decision": "release_candidate_ready_with_limitations",
+    "corrected_decision": "release_candidate_not_ready",
+    "blockers": [
+      "coverage_below_required_threshold",
+      "monitoring_detection_below_required_threshold",
+      "release_gate_did_not_enforce_acceptance_criteria"
+    ],
+    "reason_en": "Real measured coverage was 94% (below the 95% acceptance bar formalized in this errata) and the real monitoring scenario_detection_rate was 0.50 (below the 90% acceptance bar formalized in this errata: missingness_drift, out_of_domain_codes, feature_range_violation, prevalence_drift, and subgroup_composition_shift were profiled by the pipeline but never turned into an Alert, so they could never be detected by credlens.monitoring.detection_eval). The original release_candidate_ready_with_limitations decision was not fabricated - every check that existed at the time passed - but the check set itself did not enforce a coverage or detection-rate acceptance bar at all, so 'zero blockers' did not mean 'meets every acceptance criterion'.",
+    "reason_pt_br": "A cobertura real medida era 94% (abaixo da barra de aceite de 95% formalizada por esta errata) e a taxa real de scenario_detection_rate do monitoramento era 0.50 (abaixo da barra de aceite de 90% formalizada por esta errata: missingness_drift, out_of_domain_codes, feature_range_violation, prevalence_drift e subgroup_composition_shift eram perfilados pelo pipeline mas nunca viravam um Alert, portanto nunca podiam ser detectados por credlens.monitoring.detection_eval). A decis\u00e3o original release_candidate_ready_with_limitations n\u00e3o foi fabricada - toda checagem que existia na \u00e9poca passou - mas o pr\u00f3prio conjunto de checagens n\u00e3o impunha nenhuma barra de aceite de cobertura ou taxa de detec\u00e7\u00e3o, ent\u00e3o 'zero blockers' n\u00e3o significava 'atende a todo crit\u00e9rio de aceite'.",
+    "evidence": {
+      "coverage_report": "reports/release/rc1_coverage_at_errata_time.json",
+      "detection_report": "reports/release/rc1_detection_at_errata_time.json",
+      "measured_coverage_percent": 94.0,
+      "measured_scenario_detection_rate": 0.5,
+      "original_manifest": "reports/release/release_manifest.json"
+    },
+    "incomplete_rule_en": "credlens.release.manifest.decide_readiness (Phase 10) only checked integrity.has_failure, validation_decision == 'validation_failed', and model_v1_present - it never read a coverage report or a detection-evaluation report at all, so no numeric coverage or detection floor could ever become a release_blockers entry.",
+    "incomplete_rule_pt_br": "credlens.release.manifest.decide_readiness (Fase 10) checava apenas integrity.has_failure, validation_decision == 'validation_failed' e model_v1_present - nunca lia um relat\u00f3rio de cobertura nem um relat\u00f3rio de avalia\u00e7\u00e3o de detec\u00e7\u00e3o, portanto nenhum piso num\u00e9rico de cobertura ou detec\u00e7\u00e3o podia jamais virar uma entrada de release_blockers.",
+    "corrected_at_utc": "2026-08-02T02:25:27.875118+00:00"
+  }
+]

@@ -895,6 +895,25 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     release_status_parser.add_argument("--json", action="store_true")
 
+    release_errata_parser = release_subparsers.add_parser(
+        "errata",
+        help="Prints the append-only release errata log (Phase 10B) - corrections to a "
+        "previously emitted readiness decision, never a deletion of the original.",
+    )
+    release_errata_parser.add_argument("--json", action="store_true")
+
+    release_measure_coverage_parser = release_subparsers.add_parser(
+        "measure-coverage",
+        help="Reads a real 'coverage.json' (from 'pytest --cov-report=json:coverage.json') and "
+        "writes a source-fingerprint-stamped coverage snapshot for the release-integrity "
+        "coverage gate (Phase 10B).",
+    )
+    release_measure_coverage_parser.add_argument(
+        "--coverage-json", default="coverage.json", help="Path to coverage.py's own JSON report."
+    )
+    release_measure_coverage_parser.add_argument("--test-count", type=int, required=True)
+    release_measure_coverage_parser.add_argument("--json", action="store_true")
+
     return parser
 
 
@@ -2505,6 +2524,51 @@ def _cmd_release_status(as_json: bool) -> int:
     return 0
 
 
+def _cmd_release_measure_coverage(coverage_json: str, test_count: int, as_json: bool) -> int:
+    from credlens.release.coverage_gate import (
+        CoverageGateError,
+        build_coverage_snapshot,
+        write_coverage_snapshot,
+    )
+
+    try:
+        snapshot = build_coverage_snapshot(Path(coverage_json), test_count=test_count)
+    except CoverageGateError as exc:
+        print(f"Error: {exc}")
+        return 1
+    path = write_coverage_snapshot(snapshot)
+    if as_json:
+        print(json.dumps(snapshot.to_dict(), indent=2))
+    else:
+        print("CredLens release measure-coverage")
+        print("=" * 40)
+        print(f"coverage_percent: {snapshot.coverage_percent}")
+        print(f"total_statements: {snapshot.total_statements}")
+        print(f"test_count: {snapshot.test_count}")
+        print(f"Written to: {path}")
+    return 0
+
+
+def _cmd_release_errata(as_json: bool) -> int:
+    from credlens.release.errata import load_release_errata
+
+    entries = load_release_errata()
+    if as_json:
+        print(json.dumps(entries, indent=2))
+        return 0
+    print("CredLens release errata")
+    print("=" * 40)
+    if not entries:
+        print("No errata recorded.")
+        return 0
+    for entry in entries:
+        print(f"{entry['errata_id']}: {entry['release_id']}")
+        print(f"  {entry['original_decision']} -> {entry['corrected_decision']}")
+        print(f"  blockers: {entry['blockers']}")
+        print(f"  corrected_at_utc: {entry['corrected_at_utc']}")
+    return 0
+
+
 def _dispatch_release_command(args: argparse.Namespace) -> int:
     if args.release_command == "validate":
         return _cmd_release_validate(args.json)
@@ -2518,8 +2582,15 @@ def _dispatch_release_command(args: argparse.Namespace) -> int:
         )
     if args.release_command == "status":
         return _cmd_release_status(args.json)
+    if args.release_command == "errata":
+        return _cmd_release_errata(args.json)
+    if args.release_command == "measure-coverage":
+        return _cmd_release_measure_coverage(args.coverage_json, args.test_count, args.json)
 
-    print("usage: credlens release {validate,licenses,sbom,manifest,status} ...")
+    print(
+        "usage: credlens release {validate,licenses,sbom,manifest,status,errata,"
+        "measure-coverage} ..."
+    )
     print("Run 'credlens release <command> --help' for details.")
     return 1
 
@@ -3514,6 +3585,9 @@ def _cmd_monitor_evaluate_false_alerts(
             seed=int(thresholds_config.calibration_study["seed"]),
             family_wise_threshold=family_wise,
         )
+        from credlens.release.monitoring_gate import write_false_alert_evidence
+
+        write_false_alert_evidence(study.to_dict())
     except _monitor_error_types() as exc:
         print(f"Error: {exc}")
         return 1
@@ -3529,14 +3603,18 @@ def _cmd_monitor_evaluate_false_alerts(
         print(f"family_wise_corrected_material_rate: {study.family_wise_corrected_material_rate}")
         print(f"score_false_alert_rate: {study.score_false_alert_rate}")
         print(f"performance_false_alert_rate: {study.performance_false_alert_rate}")
+        print(f"combined_material_false_alert_rate: {study.combined_material_false_alert_rate}")
+        print(f"high_severity_false_alert_rate: {study.high_severity_false_alert_rate}")
     return 0
 
 
 def _cmd_monitor_evaluate_detection(reference_id: str, as_json: bool) -> int:
     try:
         from credlens.monitoring.detection_eval import run_detection_evaluation
+        from credlens.release.monitoring_gate import write_detection_evidence
 
         report = run_detection_evaluation(reference_id)
+        write_detection_evidence(report.to_dict())
     except _monitor_error_types() as exc:
         print(f"Error: {exc}")
         return 1

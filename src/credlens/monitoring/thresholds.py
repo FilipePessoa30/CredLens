@@ -153,6 +153,121 @@ def calibrate_thresholds(
     return result
 
 
+def data_quality_fixed_cutoffs(
+    thresholds_config: Any, *, batch_size: int
+) -> dict[str, CalibratedThreshold]:
+    """Phase 10B (Release Candidate Acceptance Remediation) - `data_
+    quality`'s 4 metrics (missingness/domain/range/duplicate rate) cannot
+    be bootstrap-calibrated the way `calibrate_thresholds` calibrates
+    psi/score/performance: the reference population is the real,
+    already-audited UCI benchmark, which has ZERO such violations by
+    construction, so every bootstrap resample of that null is also
+    exactly zero - a percentile of an all-zero array is meaningless and
+    would make `classify_state`'s `>=` comparison misfire on a genuinely
+    clean batch. Fixed, explicitly documented cutoffs are used instead -
+    see `config/monitoring/thresholds.yml`'s `data_quality_fixed_
+    thresholds` comment for the full rationale."""
+    dq_cfg = thresholds_config.data_quality_fixed_thresholds
+    review = float(dq_cfg["review_rate_threshold"])
+    material = float(dq_cfg["material_rate_threshold"])
+    min_n = int(thresholds_config.calibration["min_sample_size_for_alert"])
+    metrics = list(thresholds_config.metric_families["data_quality"]["metrics"])
+    return {
+        metric: CalibratedThreshold(
+            metric=metric,
+            review_cutoff=review,
+            material_deviation_cutoff=material,
+            n_resamples=0,
+            batch_size=batch_size,
+            min_sample_size_for_alert=min_n,
+        )
+        for metric in metrics
+    }
+
+
+def calibrate_target_distribution_drift(
+    reference_population: pd.DataFrame,
+    thresholds_config: Any,
+    *,
+    batch_size: int,
+    seed: int,
+) -> CalibratedThreshold:
+    """Bootstrap-calibrated (genuine non-degenerate null: real historical
+    sampling variance in event rate, unlike `data_quality_fixed_cutoffs`
+    above) - a DIRECT target-prevalence check, separate from `score_
+    drift`'s indirect score-distribution proxy (Phase 10B: labels are
+    available in this offline simulation, so prevalence can be checked
+    directly instead of only inferred from the score)."""
+    cfg = thresholds_config.target_distribution_drift_calibration
+    n_resamples = int(cfg["n_resamples"])
+    rng = np.random.default_rng(seed)
+    y_full = reference_population["y_true"].to_numpy(dtype=float)
+    n = len(y_full)
+    reference_rate = float(y_full.mean())
+    null: list[float] = []
+    for _ in range(n_resamples):
+        idx = rng.choice(n, size=min(batch_size, n), replace=False)
+        null.append(abs(float(y_full[idx].mean()) - reference_rate))
+    arr = np.array(null) if null else np.array([0.0])
+    return CalibratedThreshold(
+        metric="event_rate_delta",
+        review_cutoff=float(np.percentile(arr, float(cfg["review_percentile"]))),
+        material_deviation_cutoff=float(
+            np.percentile(arr, float(cfg["material_deviation_percentile"]))
+        ),
+        n_resamples=len(null),
+        batch_size=batch_size,
+        min_sample_size_for_alert=int(thresholds_config.calibration["min_sample_size_for_alert"]),
+    )
+
+
+def calibrate_subgroup_composition_drift(
+    reference_population: pd.DataFrame,
+    thresholds_config: Any,
+    *,
+    batch_size: int,
+    seed: int,
+) -> CalibratedThreshold:
+    """Bootstrap-calibrated on the MAX absolute composition shift across
+    every (sex/education/marriage) x group pair per resample - the same
+    family-wise-max pattern as `psi_family_wise`
+    (`credlens.monitoring.calibration_study`), since sex/education/
+    marriage together have several groups and checking each
+    independently at its own 95th percentile would understate the true
+    joint false-alert rate."""
+    cfg = thresholds_config.subgroup_composition_drift_calibration
+    n_resamples = int(cfg["n_resamples"])
+    rng = np.random.default_rng(seed)
+    n = len(reference_population)
+    attributes = [a for a in ("sex", "education", "marriage") if a in reference_population.columns]
+    reference_shares = {
+        attribute: reference_population[attribute].value_counts(normalize=True).to_dict()
+        for attribute in attributes
+    }
+    null: list[float] = []
+    for _ in range(n_resamples):
+        idx = rng.choice(n, size=min(batch_size, n), replace=False)
+        subsample = reference_population.iloc[idx]
+        max_shift = 0.0
+        for attribute in attributes:
+            shares = subsample[attribute].value_counts(normalize=True)
+            for group, ref_share in reference_shares[attribute].items():
+                observed_share = float(shares.get(group, 0.0))
+                max_shift = max(max_shift, abs(observed_share - ref_share))
+        null.append(max_shift)
+    arr = np.array(null) if null else np.array([0.0])
+    return CalibratedThreshold(
+        metric="max_composition_shift",
+        review_cutoff=float(np.percentile(arr, float(cfg["review_percentile"]))),
+        material_deviation_cutoff=float(
+            np.percentile(arr, float(cfg["material_deviation_percentile"]))
+        ),
+        n_resamples=len(null),
+        batch_size=batch_size,
+        min_sample_size_for_alert=int(thresholds_config.calibration["min_sample_size_for_alert"]),
+    )
+
+
 def write_calibrated_thresholds(
     reference_id: str, thresholds: dict[str, CalibratedThreshold], *, repo_root: Path | None = None
 ) -> Path:

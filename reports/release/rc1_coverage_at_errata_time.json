@@ -1,0 +1,11 @@
+{
+  "measured_at_utc": "2026-08-01T15:29:34Z",
+  "command": "uv run pytest -q",
+  "tests_passed": 1599,
+  "tests_failed": 0,
+  "total_statements": 14217,
+  "uncovered_statements": 917,
+  "coverage_percent": 94,
+  "note_en": "Reconstructed from this session's own real, verbatim pytest --cov run output (not re-measured at errata-write time, to avoid a redundant 25-minute full-suite run) - see the conversation record for the full per-module coverage table. A fresh coverage.json with a source fingerprint is produced by Fase 10B's own coverage-freshness gate before any new readiness decision is made.",
+  "note_pt_br": "Reconstruído a partir da própria saída real e literal de 'pytest --cov' desta sessão (não remedido no momento da escrita da errata, para evitar uma execução redundante de 25 minutos da suíte completa) - ver o registro da conversa para a tabela completa de cobertura por módulo. Um coverage.json novo, com fingerprint de source, é produzido pelo próprio gate de frescor de cobertura da Fase 10B antes de qualquer nova decisão de prontidão."
+}

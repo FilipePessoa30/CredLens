@@ -124,8 +124,10 @@ KNOWN_LIMITATIONS_EN = [
     "9 of 18 original features flagged unstable/redundant by the coefficient-stability audit; "
     "a post-validation remediated regression (v2, 11 features) is registered separately as a "
     "remediation_candidate, never promoted over v1.",
-    "Detection-evaluation scenario coverage is 50% (6/12): data_quality and subgroup-drift "
-    "categories are profiled but not yet wired to the alerting/incident pipeline.",
+    "Detection-evaluation scenario coverage is 100% (10/10 applicable scenarios) as of Phase "
+    "10B; each scenario appears in only ONE batch (a single monitoring run, not a repeated "
+    "stream), so gate H's persistence-based 'high' severity rarely has a genuine opportunity "
+    "to fire from real repeated observation of one drift event within this evaluation.",
     "Visual QA was performed locally with a real headless browser (Selenium + Edge) in this "
     "development environment, not in the CI runner image (no browser available there).",
     "Docker image build was not executed - the local Docker daemon was not running during "
@@ -142,9 +144,11 @@ KNOWN_LIMITATIONS_PT_BR = [
     "9 das 18 features originais foram sinalizadas como instáveis/redundantes pela auditoria "
     "de estabilidade de coeficientes; uma regressão remediada pós-validação (v2, 11 features) "
     "é registrada separadamente como remediation_candidate, nunca promovida sobre a v1.",
-    "A cobertura de cenários na avaliação de detecção é de 50% (6/12): as categorias de "
-    "qualidade de dados e drift de subgrupo são perfiladas mas ainda não conectadas ao "
-    "pipeline de alertas/incidentes.",
+    "A cobertura de cenários na avaliação de detecção é de 100% (10/10 cenários aplicáveis) "
+    "a partir da Fase 10B; cada cenário aparece em apenas UM batch (uma única execução de "
+    "monitoramento, não um fluxo repetido), então a severidade 'high' baseada em persistência "
+    "do gate H raramente tem oportunidade genuína de disparar por observação repetida real de "
+    "um mesmo evento de drift dentro desta avaliação.",
     "A validação visual foi feita localmente com um navegador headless real (Selenium + Edge) "
     "neste ambiente de desenvolvimento, não no runner de CI (sem navegador disponível lá).",
     "A build da imagem Docker não foi executada - o daemon Docker local não estava em "
