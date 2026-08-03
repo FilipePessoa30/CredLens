@@ -2,7 +2,7 @@
 
 **Todos os números abaixo descrevem um processo de geração de dados (DGP) totalmente sintético, não uma instituição financeira real.**
 
-Build: `BUILD_kpi_test` | Suite: `SUITE_sample_2026` | Analytical fingerprint: `a891dff7f62b3ff4...`
+Build: `BUILD_official_sample` | Suite: `SUITE_sample_2026` | Analytical fingerprint: `2ac0c45b7b9e0f75...`
 
 ## 1. Contexto
 

@@ -172,6 +172,89 @@ class TestMonitorCommands:
         payload = json.loads(captured.out)
         assert payload["batch_set_id"] == f"BATCHSET_{reference_id}"
 
+    def test_evaluate_detection(
+        self, capsys: pytest.CaptureFixture[str], tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        # Fase 10C - the CLI dispatch/print layer for this command was
+        # never exercised by any test (the underlying `run_detection_
+        # evaluation` is, elsewhere). Evidence paths are redirected to an
+        # isolated tmp_path - this throwaway reference's numbers must
+        # never overwrite the OFFICIAL reports/monitoring/detection_
+        # evaluation.json (this file's whole design keeps the throwaway
+        # reference from touching official artifacts).
+        from credlens.release import monitoring_gate
+
+        monkeypatch.setattr(
+            monitoring_gate, "DETECTION_EVIDENCE_PATH", tmp_path / "detection_evaluation.json"
+        )
+        reference_id = f"REF_{_MODEL_ID}"
+        exit_code = main(
+            ["monitor", "evaluate-detection", "--reference-id", reference_id, "--json"]
+        )
+        captured = capsys.readouterr()
+        assert exit_code == 0
+        payload = json.loads(captured.out)
+        assert "scenario_detection_rate" in payload
+        assert "blocked_input_recall" in payload
+        assert (tmp_path / "detection_evaluation.json").is_file()
+
+    def test_evaluate_false_alerts(
+        self, capsys: pytest.CaptureFixture[str], tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from credlens.release import monitoring_gate
+
+        monkeypatch.setattr(
+            monitoring_gate, "FALSE_ALERT_EVIDENCE_PATH", tmp_path / "false_alert_study.json"
+        )
+        reference_id = f"REF_{_MODEL_ID}"
+        exit_code = main(
+            [
+                "monitor",
+                "evaluate-false-alerts",
+                "--reference-id",
+                reference_id,
+                "--n-batches",
+                "20",
+                "--json",
+            ]
+        )
+        captured = capsys.readouterr()
+        assert exit_code == 0
+        payload = json.loads(captured.out)
+        assert "combined_material_false_alert_rate" in payload
+        assert "high_severity_false_alert_rate" in payload
+        assert (tmp_path / "false_alert_study.json").is_file()
+
+    def test_evaluate_detection_verbose_output(
+        self, capsys: pytest.CaptureFixture[str], tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """The human-readable (non-`--json`) print branch - a separate
+        code path from the `--json` branch already covered above."""
+        from credlens.release import monitoring_gate
+
+        monkeypatch.setattr(
+            monitoring_gate, "DETECTION_EVIDENCE_PATH", tmp_path / "detection_evaluation.json"
+        )
+        reference_id = f"REF_{_MODEL_ID}"
+        exit_code = main(["monitor", "evaluate-detection", "--reference-id", reference_id])
+        captured = capsys.readouterr()
+        assert exit_code == 0
+        assert "scenario_detection_rate:" in captured.out
+        assert "blocked_input_recall:" in captured.out
+
+    def test_evaluate_detection_unknown_reference_fails_cleanly(
+        self, capsys: pytest.CaptureFixture[str], tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from credlens.release import monitoring_gate
+
+        monkeypatch.setattr(
+            monitoring_gate, "DETECTION_EVIDENCE_PATH", tmp_path / "detection_evaluation.json"
+        )
+        exit_code = main(["monitor", "evaluate-detection", "--reference-id", "REF_does_not_exist"])
+        captured = capsys.readouterr()
+        assert exit_code == 1
+        assert "Error" in captured.out
+
     def test_run_status_alerts_report_validate(self, capsys: pytest.CaptureFixture[str]) -> None:
         reference_id = f"REF_{_MODEL_ID}"
         batch_set_id = f"BATCHSET_{reference_id}"

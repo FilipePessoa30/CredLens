@@ -10,7 +10,7 @@ Run `credlens release validate`, `credlens release manifest`, and the full test 
 - [ ] `uv run ruff format --check .` - no formatting drift.
 - [ ] `uv run mypy src tests dashboard` - no type errors (strict mode).
 - [ ] `uv run pytest` (full suite, all markers) - 100% pass, no skipped-without-reason.
-- [ ] `uv run pytest --cov=credlens --cov-report=term-missing --cov-report=json:coverage.json` then `uv run credlens release measure-coverage --coverage-json coverage.json --test-count <N>` - coverage **>= 95%**, evidenced by a fresh, source-fingerprint-stamped snapshot (`coverage_gate` in `credlens release validate` refuses a missing OR stale snapshot exactly as strictly as a genuinely low one).
+- [ ] `uv run pytest --cov=credlens --cov-report=term-missing --cov-report=json:coverage.json --cov-fail-under=95` (record its exit code as `<EXIT>`) then `uv run credlens release measure-coverage --coverage-json coverage.json --test-count <N> --pytest-command "uv run pytest --cov=credlens --cov-report=json:coverage.json --cov-fail-under=95" --pytest-exit-code <EXIT>` - coverage **>= 95%** (precise float, never the rounded display), evidenced by a fresh, source-fingerprint-stamped, version-stamped snapshot recording the exact command and exit code that produced it (Fase 10C: `coverage_gate` in `credlens release validate` refuses a missing, stale, wrong-version, filtered (`-k`/`-m`), non-zero-exit-code, or genuinely-low snapshot, exactly as strictly as each other).
 - [ ] `uv run credlens warehouse build && uv run credlens warehouse test` - dbt build/test green.
 - [ ] `uv run credlens warehouse reconcile` - independent Python reconciliation matches SQL within tolerance.
 - [ ] `uv run credlens model validate-independent --model-id MODEL_behavioral_default_v1` - `validation_passed` or `validation_passed_with_limitations`, never `validation_failed`.
@@ -45,7 +45,7 @@ Run `credlens release validate`, `credlens release manifest`, and the full test 
 ## Final steps before declaring a readiness decision
 
 1. Do NOT change any tracked source file after this point until step 4 - every evidence snapshot below is stamped with a source-snapshot fingerprint (`credlens.release.source_snapshot`), and a later edit makes ALL of them stale at once.
-2. Run the full suite with `--cov-report=json:coverage.json`, then `credlens release measure-coverage --test-count <N>`; run `monitor evaluate-detection` then `monitor evaluate-false-alerts` back-to-back against the official reference.
+2. Run the full suite with `--cov-report=json:coverage.json --cov-fail-under=95`, then `credlens release measure-coverage --test-count <N> --pytest-command "<the exact command just run>" --pytest-exit-code <its exit code>`; run `monitor evaluate-detection` then `monitor evaluate-false-alerts` back-to-back against the official reference.
 3. Run `credlens release manifest --visual-qa-status <status> --docker-status <status> --ci-status <status>` with the REAL, just-observed status of this environment - never a guessed or aspirational value.
 4. Read `reports/release/release_manifest.json`'s `readiness_decision` and `release_blockers` - if `release_blockers` is non-empty, the decision MUST be `release_candidate_not_ready`, regardless of how much other work is complete.
 5. Record the decision, the blocking-gate results, and every known limitation in the final phase report - never omit a failing gate to make the release look more complete than it is.

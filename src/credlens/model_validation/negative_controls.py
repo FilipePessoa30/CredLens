@@ -158,7 +158,15 @@ def run_score_label_permutation_control(
         n_neg_shuf = len(shuffled_y) - n_pos_shuf
         roc_auc_i: float | None
         pr_auc_i: float | None
-        if n_pos_shuf == 0 or n_neg_shuf == 0:
+        if n_pos_shuf == 0 or n_neg_shuf == 0:  # pragma: no cover
+            # Genuinely unreachable, not merely hard to provoke: `shuffled_y`
+            # is a permutation of the SAME multiset as `y_val` (`rng.shuffle`
+            # reorders in place, never changes value composition), so
+            # `n_pos_shuf`/`n_neg_shuf` equal `n_pos`/`n_neg` for every seed.
+            # The `n_pos == 0 or n_neg == 0` guard above (raises before this
+            # loop starts) already guarantees both are nonzero here. Kept as
+            # defensive programming against a future change to the shuffle
+            # mechanism (e.g. resampling with replacement), not dead weight.
             status = "single_class"
             row_warnings.append("Shuffled validation labels contain only one class.")
             roc_auc_i, pr_auc_i = None, None
@@ -370,7 +378,14 @@ def run_pipeline_retrain_permutation_control(
             list(y_train_shuffled.index) != y_train_index_before
             or list(x_train.index) != x_train_index_before
         )
-        if index_shifted:
+        if index_shifted:  # pragma: no cover
+            # Genuinely unreachable, not merely hard to provoke:
+            # `y_train_shuffled` is constructed immediately above with
+            # `index=y_train.index` explicitly, so its index can never
+            # differ from `y_train_index_before`; `x_train` is never
+            # mutated inside this loop, so its index can never differ
+            # either. Kept as defensive programming against a future
+            # refactor that stops preserving the index explicitly.
             raise PermutationTestError(
                 f"Index misalignment detected at permutation {i} (seed={seed})."
             )

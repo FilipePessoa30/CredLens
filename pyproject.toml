@@ -1,6 +1,6 @@
 [project]
 name = "credlens"
-version = "1.0.0rc1"
+version = "1.0.0rc2"
 description = "CredLens - Credit Risk & Portfolio Analytics. Project scaffolding, business framing, a CLI, reproducible public-dataset acquisition/audit, conceptual data model, data contracts, a deterministic, performance-optimized synthetic-portfolio generator with counterfactual scenarios and common random numbers, a DuckDB + dbt analytical warehouse with a dimensional schema, SQL KPIs, and quality tests, a reproducible portfolio-analysis layer with bilingual reporting, a Streamlit decision-intelligence dashboard with a verifiable insights registry and a versioned demo package, an interpretable behavioral early-warning default model trained and validated on the real UCI Default of Credit Card Clients benchmark, an independent model-validation and monitoring-simulation layer that recomputes evidence from frozen artifacts, audits multicollinearity/subgroup gaps/negative controls, formalizes a challenger model, and simulates monitoring batches over that same public benchmark, and a 1.0 release-candidate pass that recalibrated monitoring's false-alert rate, added a governed reason-code policy and a signal/alert/incident escalation hierarchy, registered a separately-validated remediated model variant, and added offline release-engineering tooling (license inventory, SBOM, deterministic release manifest)."
 readme = "README.md"
 license = { text = "MIT" }

@@ -14,12 +14,23 @@ from pathlib import Path
 
 import pytest
 
-from credlens.generation.config import load_generation_config
+from credlens.generation import orchestrator
+from credlens.generation.config import (
+    DEFAULT_CONFIG_PATH,
+    GenerationConfig,
+    Scale,
+    load_generation_config,
+    with_output_dirs,
+)
 from credlens.generation.orchestrator import (
+    GenerationError,
     RunAlreadyExistsError,
     ScenarioNotCalibratedError,
     generate_baseline,
+    generate_scenario,
 )
+from credlens.generation.testing_support import isolated_output_dirs
+from credlens.generation.validation import GenerationValidationOutcome
 
 _SEED_A = 555_000_111
 _SEED_B = 555_000_222
@@ -192,3 +203,117 @@ class TestPromotionWritesExpectedFiles:
         assert outcome.truth_dir != outcome.operational_dir
         assert "synthetic_truth" in str(outcome.truth_dir)
         assert not (outcome.operational_dir / "latent_customer_truth.parquet").exists()
+
+
+def _isolated_config(tmp_path: Path) -> GenerationConfig:
+    operational_dir, truth_dir = isolated_output_dirs(tmp_path)
+    return with_output_dirs(
+        load_generation_config(DEFAULT_CONFIG_PATH),
+        operational_dir=operational_dir,
+        truth_dir=truth_dir,
+    )
+
+
+class TestScaleValidation:
+    """Fase 10C priority 4 - `generate_scenario`'s two scale-related
+    error paths: an unrecognized scale name, and a scale that IS a real
+    `Scale` member but has no preset in this particular config."""
+
+    def test_unknown_scale_name_raises(self) -> None:
+        # Rejected before any generation happens - no output dirs needed.
+        with pytest.raises(GenerationError, match="Unknown scale"):
+            generate_scenario(scenario="baseline", scale_name="not_a_real_scale", seed=1)
+
+    def test_scale_without_a_preset_in_config_raises(self, tmp_path: Path) -> None:
+        base_config = _isolated_config(tmp_path)
+        config_without_portfolio = base_config.model_copy(
+            update={
+                "scales": {
+                    scale: preset
+                    for scale, preset in base_config.scales.items()
+                    if scale != Scale.PORTFOLIO
+                }
+            }
+        )
+        with pytest.raises(GenerationError, match="no preset"):
+            generate_scenario(
+                scenario="baseline",
+                scale_name="portfolio",
+                seed=1,
+                config_override=config_without_portfolio,
+            )
+
+
+class TestFailedValidationKeepsStagingAndWarns:
+    """Fase 10C priority 4 - a validation-failed run (PII-unsafe or
+    contract-invalid) must never be promoted, must keep its staging
+    directories for diagnosis, and must surface the failure as a
+    manifest warning. Real smoke-scale generation underneath (isolated
+    tmp_path, never the shared root) - only `validate_generated_portfolio`
+    itself is stubbed, since a real PII/contract failure is not something
+    this generator's own real logic can be made to produce on demand
+    without inventing business data."""
+
+    def test_pii_unsafe_outcome_keeps_staging_and_reports_a_warning(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        config = _isolated_config(tmp_path)
+        fake_outcome = GenerationValidationOutcome(
+            contract_reports={},
+            statistical_checks=[],
+            pii_safe=False,
+            pii_detail="TEST: synthetic PII-unsafe outcome, forced for branch coverage.",
+        )
+        monkeypatch.setattr(
+            orchestrator, "validate_generated_portfolio", lambda tables, contracts: fake_outcome
+        )
+
+        outcome = generate_scenario(
+            scenario="baseline",
+            scale_name="smoke",
+            seed=778_001,
+            force=True,
+            config_override=config,
+        )
+
+        assert outcome.status == "failed"
+        assert outcome.validation.pii_safe is False
+        manifest_warnings = outcome.manifest["warnings"]
+        assert isinstance(manifest_warnings, list)
+        assert any("PII safety" in w for w in manifest_warnings)
+        # Kept under .staging/ for diagnosis - never promoted to the
+        # final, run-id-named location a passing run would occupy.
+        assert ".staging" in str(outcome.operational_dir)
+        assert not (Path(config.output.operational_dir) / outcome.generation_run_id).exists()
+
+
+class TestWriteFailureDiscardsStaging:
+    """Fase 10C priority 4 - an exception raised while writing staged
+    output (a real, if rare, disk/IO failure) must discard BOTH staging
+    directories before propagating - no partial artifact survives.
+    `write_manifest` (an IO boundary, hard to provoke a real failure from
+    deterministically) is the one stub in this test."""
+
+    def test_exception_during_write_discards_both_staging_dirs_and_reraises(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        config = _isolated_config(tmp_path)
+
+        def _boom(*_args: object, **_kwargs: object) -> None:
+            raise RuntimeError("simulated disk write failure")
+
+        monkeypatch.setattr(orchestrator, "write_manifest", _boom)
+
+        with pytest.raises(RuntimeError, match="simulated disk write failure"):
+            generate_scenario(
+                scenario="baseline",
+                scale_name="smoke",
+                seed=778_002,
+                force=True,
+                config_override=config,
+            )
+
+        operational_staging_root = Path(config.output.operational_dir) / ".staging"
+        truth_staging_root = Path(config.output.truth_dir) / ".staging"
+        assert list(operational_staging_root.iterdir()) == []
+        assert list(truth_staging_root.iterdir()) == []

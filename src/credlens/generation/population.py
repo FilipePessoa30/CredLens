@@ -50,10 +50,3 @@ def generate_customers(
         }
     )
     return df.sort_values("created_at").reset_index(drop=True)
-
-
-def customer_creation_dates(customers: pd.DataFrame) -> pd.Series:
-    """Helper for downstream steps: customer_id -> created_at as a
-    tz-aware Timestamp, so applications never precede their own
-    customer's creation instant."""
-    return pd.to_datetime(customers.set_index("customer_id")["created_at"], utc=True)

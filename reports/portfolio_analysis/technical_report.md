@@ -1,8 +1,8 @@
 # Technical Report - CredLens Portfolio Analysis
 
-Build ID: `BUILD_kpi_test` | Suite ID: `SUITE_sample_2026` | Analytical fingerprint: `a891dff7f62b3ff48eba09fbde07acffd075c18273d8cc4ca0fc73f05a8911cd`
+Build ID: `BUILD_official_sample` | Suite ID: `SUITE_sample_2026` | Analytical fingerprint: `2ac0c45b7b9e0f7581c8426f5b29ffa6750b9042180a9fcf431cd5b5e362a7c6`
 
-dbt version: =1.12.0 | DuckDB version: 1.5.5 | credlens version: 0.7.0 | Python: 3.11.9
+dbt version: =1.12.0 | DuckDB version: 1.5.5 | credlens version: 1.0.0rc1 | Python: 3.11.9
 
 ## 1. Analytical architecture
 See `docs/warehouse_architecture.md` for the full design. This analysis queries only already-materialized marts and staging/intermediate views - no new business logic was implemented in pandas.
@@ -19,7 +19,7 @@ See `docs/warehouse_architecture.md` for the full design. This analysis queries 
 ## 3. Macro stress pre/post
 | suite_id | period | shock_date | baseline_n_months | stress_n_months | baseline_par90 | stress_par90 | par90_delta_abs | baseline_dpd90_rate | stress_dpd90_rate | dpd90_rate_delta_abs | baseline_outstanding_balance | stress_outstanding_balance | baseline_write_off_count | stress_write_off_count | write_off_count_delta_abs | baseline_write_off_amount | stress_write_off_amount |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| SUITE_sample_2026 | post_shock | 2024-07-01 | 6 | 6 | 0.045599572794688605 | 0.10151179361604368 | 0.05591222082135507 | 0.05120592035286648 | 0.11517842021646123 | 0.06397249986359474 | 3749767.453333333 | 4185944.6466666665 | 51 | 143 | 92 | 237562.61 | 661433.05 |
+| SUITE_sample_2026 | post_shock | 2024-07-01 | 6 | 6 | 0.045599572794688605 | 0.10151179361604368 | 0.05591222082135507 | 0.05120592035286648 | 0.1151784202164612 | 0.06397249986359471 | 3749767.453333333 | 4185944.6466666665 | 51 | 143 | 92 | 237562.61 | 661433.05 |
 | SUITE_sample_2026 | pre_shock | 2024-07-01 | 6 | 6 | 0.002084840992242281 | 0.002084840992242281 | 0.0 | 0.00235314191757023 | 0.00235314191757023 | 0.0 | 797065.7383333333 | 797065.7383333333 | 0 | 0 | 0 | 0.00 | 0.00 |
 
 
@@ -29,23 +29,7 @@ See `docs/warehouse_architecture.md` for the full design. This analysis queries 
 **policy_tightening**: {'suite_id': 'SUITE_sample_2026', 'scenario': 'policy_tightening', 'baseline_run_id': 'RUN_baseline_sample_2026_29e3fb70', 'scenario_run_id': 'RUN_policy_tightening_sample_2026_4aaa4164', 'shared_booked_count': 1119, 'baseline_only_count': 2359, 'scenario_only_count': 200, 'shared_par90': 0.03136479828757316, 'marginal_par90': 0.11929781694834575, 'shared_outstanding_balance': 1846287.34, 'marginal_outstanding_balance': 343865.89, 'low_sample': False, 'sample_classification': 'adequate'}
 
 ## 5. Multi-seed robustness
-Scenario: `macroeconomic_stress` | Scale: `smoke` | Seeds: [970001, 970002, 970003, 970004, 970005]
-
-- `n_applications`: mean_delta=0.0000, stdev=0.0000, n_seeds=5, fraction_in_expected_direction=None
-- `n_approved`: mean_delta=0.0000, stdev=0.0000, n_seeds=5, fraction_in_expected_direction=None
-- `n_contracts`: mean_delta=0.0000, stdev=0.0000, n_seeds=5, fraction_in_expected_direction=None
-- `n_collection_events`: mean_delta=53.2000, stdev=4.2615, n_seeds=5, fraction_in_expected_direction=None
-- `approval_rate`: mean_delta=0.0000, stdev=0.0000, n_seeds=5, fraction_in_expected_direction=None
-- `booking_rate`: mean_delta=0.0000, stdev=0.0000, n_seeds=5, fraction_in_expected_direction=None
-- `dpd30_plus_rate`: mean_delta=0.1566, stdev=0.0196, n_seeds=5, fraction_in_expected_direction=1.0
-- `dpd60_plus_rate`: mean_delta=0.1075, stdev=0.0100, n_seeds=5, fraction_in_expected_direction=None
-- `dpd90_plus_rate`: mean_delta=0.0672, stdev=0.0062, n_seeds=5, fraction_in_expected_direction=1.0
-- `cure_rate`: mean_delta=-0.0490, stdev=0.0503, n_seeds=5, fraction_in_expected_direction=None
-- `write_off_rate`: mean_delta=0.0333, stdev=0.0058, n_seeds=5, fraction_in_expected_direction=1.0
-- `total_write_off_amount`: mean_delta=18756.3440, stdev=7150.8058, n_seeds=5, fraction_in_expected_direction=None
-- `total_recovery_amount`: mean_delta=0.0000, stdev=0.0000, n_seeds=5, fraction_in_expected_direction=None
-
-_Label: simulation variability across synthetic DGP seeds - never a real institution's statistical confidence interval._
+_Not executed in this run - see `credlens analysis run --multiseed` / the final report's scope verification section._
 
 ## 6. Public data benchmark
 | source_id | num_rows | num_columns | missing_value_findings | domain_findings | context |
@@ -99,7 +83,6 @@ _(showing 20 of 40 rows - see reports/portfolio_analysis/tables/ for the full CS
 - `writeoff_and_recovery` (sha256 fd11a5d61383c0b0...)
 - `policy_scenario_comparison` (sha256 026e171244903fa5...)
 - `macro_stress_pre_post` (sha256 e45b3dbc406dabda...)
-- `multiseed_stability` (sha256 c468c391f6e15442...)
 - `public_benchmark_overview` (sha256 de0a67a6ef101a87...)
 - `quality_provenance_scorecard` (sha256 57069f618acde3e0...)
 

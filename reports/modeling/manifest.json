@@ -1,7 +1,7 @@
 {
   "content_fingerprint": "72ac467f702961b5e6516a52496485b74792da471fdc1f6b6cdc90aa032ce204",
   "experiment_id": "TEST_cli_pipeline",
-  "generated_at_utc": "2026-08-02T21:22:29.735948+00:00",
+  "generated_at_utc": "2026-08-03T00:19:10.641539+00:00",
   "model_id": "TEST_cli_model",
   "package_version": "1.0.0rc1",
   "reports_written": [

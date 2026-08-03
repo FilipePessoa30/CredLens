@@ -31,10 +31,6 @@ BASELINE_HIGH_SEVERITY_CEILING = 0.0
 BASELINE_MATERIAL_CEILING = 0.10
 
 
-class MonitoringGateError(Exception):
-    """Raised when monitoring-gate evidence cannot be built, read, or is invalid."""
-
-
 def write_detection_evidence(report_dict: dict[str, Any], *, repo_root: Path | None = None) -> Path:
     """Stamps `credlens.monitoring.detection_eval.DetectionEvaluationReport
     .to_dict()`'s output with the current source-snapshot fingerprint and

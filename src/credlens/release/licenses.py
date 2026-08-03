@@ -188,6 +188,26 @@ class LicenseInventory:
         }
 
 
+# The MIT License's own canonical, distinguishing opening clause
+# (opensource.org/licenses/MIT), whitespace-normalized/lower-cased for
+# matching - used ONLY to recognize that exact well-known text, never as
+# a package-name allowlist (Phase 10C: found via `importlib.metadata`
+# that kaleido/choreographer/logistro all embed their FULL license text,
+# not a short label, in the legacy `License` field - verified against
+# each package's own installed `licenses/LICENSE.md`/`LICENSE` file).
+_MIT_LICENSE_SIGNATURE = "permission is hereby granted, free of charge, to any person"
+
+
+def _is_full_text_mit_license(raw_license_field: str) -> bool:
+    """True if `raw_license_field` (typically long, multi-line - the
+    exact case the short-single-line heuristic below cannot classify)
+    contains the MIT License's own canonical opening clause verbatim,
+    modulo whitespace/case. Detects the license by its own defining text,
+    never by which package happens to ship it."""
+    normalized = " ".join(raw_license_field.lower().split())
+    return _MIT_LICENSE_SIGNATURE in normalized
+
+
 def _short_license(metadata: Any) -> str:
     # PEP 639 `License-Expression` (SPDX) checked FIRST - it is the more
     # modern, structured field and, empirically, several well-known
@@ -204,6 +224,8 @@ def _short_license(metadata: Any) -> str:
     raw = metadata.get("License")
     if raw and len(raw) < 80 and "\n" not in raw:
         return str(raw).strip()
+    if raw and _is_full_text_mit_license(raw):
+        return "MIT License"
     return "unknown"
 
 

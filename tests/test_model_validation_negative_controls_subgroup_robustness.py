@@ -14,11 +14,13 @@ import numpy as np
 import pandas as pd
 import pytest
 
+from credlens.model_validation import negative_controls
 from credlens.model_validation.negative_controls import (
     PermutationTestError,
     run_pipeline_retrain_permutation_control,
     run_score_label_permutation_control,
 )
+from credlens.model_validation.permutation_audit import AmplitudeTestResult, CenteringTestResult
 from credlens.model_validation.robustness_review import spot_check_robustness
 from credlens.model_validation.subgroup_validation import run_subgroup_validation
 
@@ -119,6 +121,258 @@ class TestPipelineRetrainPermutationControl:
                 centering_sigma_multiplier=3.0,
                 repo_root=phase9_isolated_repo_root,
             )
+
+
+class TestScoreLabelPermutationControlBranches:
+    """Fase 10C priority 3 - `run_score_label_permutation_control`'s
+    remaining real, reachable branches: the single-class-validation-set
+    guard, and the structural-anomaly/centering/amplitude reason-string
+    branches. Uses tiny, fully hand-written `<id>__predictions_val.csv`
+    files (no model, no retraining) - this control never touches a
+    model, so a handful of hand-picked rows is a real exercise of its
+    logic, not a synthetic stand-in. Never runs hundreds of permutations."""
+
+    @staticmethod
+    def _write_predictions(
+        repo_root: Path, experiment_id: str, y_true: list[int], scores: list[float]
+    ) -> None:
+        tables_dir = repo_root / "reports" / "modeling" / "tables"
+        tables_dir.mkdir(parents=True, exist_ok=True)
+        pd.DataFrame({"y_true": y_true, "logistic_regression": scores}).to_csv(
+            tables_dir / f"{experiment_id}__predictions_val.csv", index=False
+        )
+
+    def test_single_class_validation_set_raises(self, tmp_path: Path) -> None:
+        self._write_predictions(tmp_path, "TEST_single_class", [0, 0, 0], [0.1, 0.2, 0.3])
+        with pytest.raises(PermutationTestError, match="only one class"):
+            run_score_label_permutation_control(
+                "TEST_single_class",
+                n_permutations=2,
+                base_seed=1,
+                alpha=0.5,
+                centering_sigma_multiplier=3.0,
+                amplitude_ratio_min=1 / 3,
+                amplitude_ratio_max=3.0,
+                repo_root=tmp_path,
+            )
+
+    def test_duplicate_permutations_flagged_as_structural_anomaly(self, tmp_path: Path) -> None:
+        # A 2-row frozen validation set has only 2 distinct full-array
+        # permutations ([0, 1] and [1, 0]) - requesting 4 permutations
+        # guarantees at least one repeat by the pigeonhole principle,
+        # deterministically forcing `structural_ok=False` on real data,
+        # no mocking involved.
+        self._write_predictions(tmp_path, "TEST_dup", [0, 1], [0.3, 0.7])
+        report = run_score_label_permutation_control(
+            "TEST_dup",
+            n_permutations=4,
+            base_seed=1,
+            alpha=0.5,
+            centering_sigma_multiplier=3.0,
+            amplitude_ratio_min=1 / 3,
+            amplitude_ratio_max=3.0,
+            repo_root=tmp_path,
+        )
+        assert report.duplicate_permutation_indices != []
+        assert report.passed is False
+        assert "Structural anomaly" in report.reason
+
+    def test_centering_failure_is_reported_in_reason(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        # A real, well-separated 4-row score/label pair with the
+        # structural and amplitude checks pinned to "ok" via monkeypatch -
+        # isolating the one branch under test (a non-centered null,
+        # otherwise only reachable by astronomically unlucky real seeds).
+        self._write_predictions(tmp_path, "TEST_centering", [0, 0, 1, 1], [0.2, 0.4, 0.6, 0.8])
+        monkeypatch.setattr(negative_controls, "detect_duplicate_permutations", lambda fp: [])
+        monkeypatch.setattr(
+            negative_controls,
+            "centering_test",
+            lambda distribution, *, expected_mean, sigma_multiplier: CenteringTestResult(
+                observed_mean=0.9,
+                expected_mean=expected_mean,
+                standard_error_of_mean=0.01,
+                z_statistic=40.0,
+                sigma_multiplier=sigma_multiplier,
+                centered=False,
+            ),
+        )
+        monkeypatch.setattr(
+            negative_controls,
+            "amplitude_test",
+            lambda distribution, theoretical_se, *, ratio_min, ratio_max: AmplitudeTestResult(
+                observed_std=theoretical_se,
+                theoretical_se=theoretical_se,
+                ratio=1.0,
+                ratio_min=ratio_min,
+                ratio_max=ratio_max,
+                within_expected_amplitude=True,
+            ),
+        )
+        report = run_score_label_permutation_control(
+            "TEST_centering",
+            n_permutations=3,
+            base_seed=1,
+            alpha=1.0,
+            centering_sigma_multiplier=3.0,
+            amplitude_ratio_min=1 / 3,
+            amplitude_ratio_max=3.0,
+            repo_root=tmp_path,
+        )
+        assert report.passed is False
+        assert "not centered" in report.reason.lower()
+
+    def test_amplitude_failure_is_reported_in_reason(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        self._write_predictions(tmp_path, "TEST_amplitude", [0, 0, 1, 1], [0.2, 0.4, 0.6, 0.8])
+        monkeypatch.setattr(negative_controls, "detect_duplicate_permutations", lambda fp: [])
+        monkeypatch.setattr(
+            negative_controls,
+            "centering_test",
+            lambda distribution, *, expected_mean, sigma_multiplier: CenteringTestResult(
+                observed_mean=expected_mean,
+                expected_mean=expected_mean,
+                standard_error_of_mean=0.01,
+                z_statistic=0.0,
+                sigma_multiplier=sigma_multiplier,
+                centered=True,
+            ),
+        )
+        monkeypatch.setattr(
+            negative_controls,
+            "amplitude_test",
+            lambda distribution, theoretical_se, *, ratio_min, ratio_max: AmplitudeTestResult(
+                observed_std=10 * theoretical_se,
+                theoretical_se=theoretical_se,
+                ratio=10.0,
+                ratio_min=ratio_min,
+                ratio_max=ratio_max,
+                within_expected_amplitude=False,
+            ),
+        )
+        report = run_score_label_permutation_control(
+            "TEST_amplitude",
+            n_permutations=3,
+            base_seed=1,
+            alpha=1.0,
+            centering_sigma_multiplier=3.0,
+            amplitude_ratio_min=1 / 3,
+            amplitude_ratio_max=3.0,
+            repo_root=tmp_path,
+        )
+        assert report.passed is False
+        assert "standard deviation" in report.reason.lower()
+
+
+class TestPipelineRetrainPermutationControlBranches:
+    """Fase 10C priority 3 - `run_pipeline_retrain_permutation_control`'s
+    remaining real, reachable branches: a genuinely single-class TRAINING
+    split (real UCI rows, re-partitioned so every train-assigned row
+    shares one class), and the structural/centering reason-string
+    branches (forced via monkeypatch, same rationale as the score-label
+    control above - real per-permutation retraining makes a real
+    duplicate/off-center null astronomically unlikely to hit by seed
+    alone)."""
+
+    def test_single_class_training_split_is_flagged(
+        self, phase9_isolated_repo_root: Path, phase9_experiment_id: str
+    ) -> None:
+        from credlens.modeling.contracts import load_target_contract
+        from credlens.modeling.data import load_uci_default_credit
+
+        split_path = (
+            phase9_isolated_repo_root
+            / "reports/modeling/experiments"
+            / phase9_experiment_id
+            / "split_assignment.csv"
+        )
+        original_table = pd.read_csv(split_path)
+        contract = load_target_contract(phase9_isolated_repo_root)
+        df = load_uci_default_credit(phase9_isolated_repo_root)
+        target_by_id = df.set_index(contract.identifier_column)[contract.target_column]
+
+        # Every row currently assigned to "train" that belongs to the
+        # positive class is moved to "test" instead - "validation" is
+        # left untouched (so the already-registered experiment's frozen
+        # validation ROC-AUC stays valid), and every row keeps SOME
+        # assignment (required by `apply_split_assignment_table`), just a
+        # different one - producing a real, single-class TRAINING split.
+        mutated_table = original_table.copy()
+        is_positive_train = (mutated_table["split"] == "train") & (
+            mutated_table["id"].map(target_by_id) == 1
+        )
+        mutated_table.loc[is_positive_train, "split"] = "test"
+        remaining_train_targets = mutated_table.loc[mutated_table["split"] == "train", "id"].map(
+            target_by_id
+        )
+        assert (remaining_train_targets == 0).all()
+
+        try:
+            split_path.write_text(mutated_table.to_csv(index=False), encoding="utf-8")
+            report = run_pipeline_retrain_permutation_control(
+                phase9_experiment_id,
+                n_permutations=1,
+                base_seed=1,
+                alpha=0.5,
+                centering_sigma_multiplier=3.0,
+                repo_root=phase9_isolated_repo_root,
+            )
+        finally:
+            split_path.write_text(original_table.to_csv(index=False), encoding="utf-8")
+
+        assert report.n_single_class_permutations == 1
+        assert report.audit_table[0].status == "single_class"
+        assert report.audit_table[0].roc_auc is None
+
+    def test_centering_failure_reason_is_reported(
+        self,
+        phase9_isolated_repo_root: Path,
+        phase9_experiment_id: str,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        monkeypatch.setattr(negative_controls, "detect_duplicate_permutations", lambda fp: [])
+        monkeypatch.setattr(
+            negative_controls,
+            "centering_test",
+            lambda distribution, *, expected_mean, sigma_multiplier: CenteringTestResult(
+                observed_mean=0.9,
+                expected_mean=expected_mean,
+                standard_error_of_mean=0.01,
+                z_statistic=40.0,
+                sigma_multiplier=sigma_multiplier,
+                centered=False,
+            ),
+        )
+        report = run_pipeline_retrain_permutation_control(
+            phase9_experiment_id,
+            n_permutations=1,
+            base_seed=999,
+            alpha=1.0,
+            centering_sigma_multiplier=3.0,
+            repo_root=phase9_isolated_repo_root,
+        )
+        assert report.passed is False
+        assert "not centered" in report.reason.lower()
+
+    def test_structural_anomaly_reason_is_reported(
+        self,
+        phase9_isolated_repo_root: Path,
+        phase9_experiment_id: str,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        monkeypatch.setattr(negative_controls, "detect_duplicate_permutations", lambda fp: [0])
+        report = run_pipeline_retrain_permutation_control(
+            phase9_experiment_id,
+            n_permutations=1,
+            base_seed=1000,
+            alpha=1.0,
+            centering_sigma_multiplier=3.0,
+            repo_root=phase9_isolated_repo_root,
+        )
+        assert report.passed is False
+        assert "Structural anomaly" in report.reason
 
 
 class TestSubgroupValidation:

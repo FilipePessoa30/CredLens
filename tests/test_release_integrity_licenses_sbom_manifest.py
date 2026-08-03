@@ -18,6 +18,8 @@ from credlens.release.licenses import (
     DependencyLicense,
     LicenseInventory,
     _compatibility,
+    _is_full_text_mit_license,
+    _short_license,
     _spdx_compatibility,
     inventory_dependency_licenses,
 )
@@ -134,6 +136,24 @@ class TestLicenseInventory:
                     f"{name}: {by_name[name].license!r}"
                 )
 
+    @pytest.mark.slow
+    def test_full_text_mit_license_field_packages_are_no_longer_unknown(self) -> None:
+        """Fase 10C section 11 - kaleido (a DIRECT dependency, dashboard's
+        optional PNG export) and its own transitive dependencies
+        choreographer/logistro all ship the FULL MIT license text (not a
+        short label) in the legacy `License` metadata field, defeating
+        the short-single-line heuristic - verified against each
+        package's own installed `licenses/LICENSE.md`/`LICENSE` file via
+        `importlib.metadata`, never invented."""
+        inventory = inventory_dependency_licenses(Path.cwd())
+        by_name = {d.name.lower(): d for d in inventory.dependencies}
+        for name in ("kaleido", "choreographer", "logistro"):
+            if name in by_name:
+                assert by_name[name].compatibility == "permissive_compatible", (
+                    f"{name}: {by_name[name].license!r}"
+                )
+                assert by_name[name].license == "MIT License"
+
     def test_missing_pyproject_toml_treats_everything_as_transitive(self, tmp_path: Path) -> None:
         """`inventory_dependency_licenses` must not crash against an
         isolated fixture directory that has no pyproject.toml at all -
@@ -186,6 +206,76 @@ class TestLicenseInventory:
         assert inventory.direct_count == 2
         assert inventory.transitive_count == 0
         assert "n_dependencies" in inventory.to_dict()
+
+
+class _FakeDistributionMetadata:
+    """Minimal stand-in for `importlib.metadata.PackageMetadata` - only
+    the two accessors `_short_license` actually calls."""
+
+    def __init__(
+        self,
+        *,
+        license_expression: str | None = None,
+        classifiers: list[str] | None = None,
+        license_text: str | None = None,
+    ) -> None:
+        self._license_expression = license_expression
+        self._classifiers = classifiers or []
+        self._license_text = license_text
+
+    def get(self, key: str, default: str | None = None) -> str | None:
+        if key == "License-Expression":
+            return self._license_expression
+        if key == "License":
+            return self._license_text
+        return default
+
+    def get_all(self, key: str, default: list[str] | None = None) -> list[str]:
+        if key == "Classifier":
+            return self._classifiers
+        return default if default is not None else []
+
+
+class TestShortLicenseFullTextMitFallback:
+    """Fase 10C section 11 - the fallback that recognizes a FULL MIT
+    license text dumped into the legacy `License` field (kaleido/
+    choreographer/logistro's real, verified pattern), added alongside
+    the pre-existing short-single-line heuristic, never replacing it."""
+
+    def test_short_single_line_license_field_still_wins(self) -> None:
+        metadata = _FakeDistributionMetadata(license_text="MIT")
+        assert _short_license(metadata) == "MIT"
+
+    def test_full_text_mit_license_field_is_recognized(self) -> None:
+        metadata = _FakeDistributionMetadata(
+            license_text=(
+                "The MIT License (MIT)\n\nCopyright (c) Someone\n\n"
+                "Permission is hereby granted, free of charge, to any person\n"
+                "obtaining a copy of this software..."
+            )
+        )
+        assert _short_license(metadata) == "MIT License"
+
+    def test_full_text_non_mit_license_field_stays_unknown(self) -> None:
+        # A long, multi-line License field that is NOT the MIT template -
+        # proves the detector matches the MIT text itself, not "any long
+        # License field".
+        metadata = _FakeDistributionMetadata(
+            license_text=(
+                "Proprietary License\n\nAll rights reserved.\n\n"
+                "No copying, modification, or redistribution is permitted\n"
+                "without prior written consent of the copyright holder."
+            )
+        )
+        assert _short_license(metadata) == "unknown"
+
+    def test_is_full_text_mit_license_is_case_and_whitespace_insensitive(self) -> None:
+        assert _is_full_text_mit_license(
+            "PERMISSION IS   HEREBY\nGRANTED,\tFREE OF CHARGE, TO ANY PERSON"
+        )
+
+    def test_is_full_text_mit_license_false_for_unrelated_text(self) -> None:
+        assert not _is_full_text_mit_license("Some other license entirely.")
 
     def test_dependency_to_dict_shape(self) -> None:
         dep = DependencyLicense(

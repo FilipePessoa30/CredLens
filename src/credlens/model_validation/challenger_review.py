@@ -34,10 +34,6 @@ from credlens.modeling.uncertainty import split_stability_sweep
 CHALLENGER_STATUS = "challenger"  # never "candidate", never "production"
 
 
-class ChallengerReviewError(Exception):
-    """Raised when the challenger cannot be registered or compared."""
-
-
 def register_challenger(
     fitted: FittedModel,
     *,

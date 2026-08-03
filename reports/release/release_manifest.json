@@ -1,9 +1,9 @@
 {
-  "release_id": "RC_1.0.0rc1_93c1b9ce",
-  "project_version": "1.0.0rc1",
-  "base_commit": "93c1b9cef7d8c10ac700d41e064b17229dfce142",
+  "release_id": "RC_1.0.0rc2_e970d622",
+  "project_version": "1.0.0rc2",
+  "base_commit": "e970d6227d9790fb4f2fa413c683b56d9fac3e70",
   "working_tree_clean": false,
-  "modified_file_count": 253,
+  "modified_file_count": 269,
   "model_v1_present": true,
   "model_v2_remediated_present": true,
   "challenger_registered": true,
@@ -11,7 +11,7 @@
   "monitoring_run_present": true,
   "demo_package_present": true,
   "test_counts": {
-    "total": 1699
+    "total": 1760
   },
   "dbt_reconciliation_status": "reconciled_within_tolerance",
   "notebook_status": "executed_end_to_end",
@@ -21,12 +21,12 @@
   "ci_status": "not_run_remotely_this_session",
   "license_inventory_summary": {
     "n_dependencies": 197,
-    "unknown_count": 3,
+    "unknown_count": 0,
     "copyleft_count": 0
   },
   "sbom_summary": {
     "n_components": 197,
-    "content_fingerprint": "eb9ff504519a5c79b38c5f5d1db69aeb4d1ea874bc9bd44b54a470f57c8be578"
+    "content_fingerprint": "f08caf40f8c237a54c41af329929291c35d1fe2780e723bc7ad6fdd4122891f0"
   },
   "known_limitations": [
     "Historical public benchmark (UCI, Taiwan, 2005) - not a Brazilian population, not a real institution's data.",
@@ -37,10 +37,8 @@
     "Docker image build was not executed - the local Docker daemon was not running during this release preparation; the Dockerfile is preserved and unvalidated.",
     "Not suitable for real lending decisions - no fairness certification, no legal compliance assessment, no financial-impact claim."
   ],
-  "release_blockers": [
-    "Release integrity check(s) failed: coverage_gate"
-  ],
-  "readiness_decision": "release_candidate_not_ready",
-  "generated_at_utc": "2026-08-02T21:42:26.931797+00:00",
-  "content_fingerprint": "a58292c7272a92d700e8ab3edc6e19bbb2c76d9b435cc672c6cfab2da77cf8ea"
+  "release_blockers": [],
+  "readiness_decision": "release_candidate_ready_with_limitations",
+  "generated_at_utc": "2026-08-03T02:40:41.524759+00:00",
+  "content_fingerprint": "0bc1e2f41dc70f490e575c3d6afeebffc6d433d1850dc1e27140ff640844dbde"
 }

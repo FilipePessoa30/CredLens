@@ -912,6 +912,21 @@ def _build_parser() -> argparse.ArgumentParser:
         "--coverage-json", default="coverage.json", help="Path to coverage.py's own JSON report."
     )
     release_measure_coverage_parser.add_argument("--test-count", type=int, required=True)
+    release_measure_coverage_parser.add_argument(
+        "--pytest-command",
+        dest="pytest_command",
+        required=True,
+        help='The exact pytest command that produced --coverage-json (e.g. "uv run pytest '
+        '--cov=credlens --cov-report=json:coverage.json --cov-fail-under=95") - recorded as '
+        "evidence and checked for the required flag/full-suite shape, never re-executed.",
+    )
+    release_measure_coverage_parser.add_argument(
+        "--pytest-exit-code",
+        type=int,
+        required=True,
+        help="The exit code that pytest command actually returned - a nonzero value fails the "
+        "gate (a failing or otherwise incomplete test run must never produce accepted evidence).",
+    )
     release_measure_coverage_parser.add_argument("--json", action="store_true")
 
     return parser
@@ -2524,7 +2539,9 @@ def _cmd_release_status(as_json: bool) -> int:
     return 0
 
 
-def _cmd_release_measure_coverage(coverage_json: str, test_count: int, as_json: bool) -> int:
+def _cmd_release_measure_coverage(
+    coverage_json: str, test_count: int, pytest_command: str, pytest_exit_code: int, as_json: bool
+) -> int:
     from credlens.release.coverage_gate import (
         CoverageGateError,
         build_coverage_snapshot,
@@ -2532,7 +2549,12 @@ def _cmd_release_measure_coverage(coverage_json: str, test_count: int, as_json: 
     )
 
     try:
-        snapshot = build_coverage_snapshot(Path(coverage_json), test_count=test_count)
+        snapshot = build_coverage_snapshot(
+            Path(coverage_json),
+            test_count=test_count,
+            command=pytest_command,
+            pytest_exit_code=pytest_exit_code,
+        )
     except CoverageGateError as exc:
         print(f"Error: {exc}")
         return 1
@@ -2544,7 +2566,10 @@ def _cmd_release_measure_coverage(coverage_json: str, test_count: int, as_json: 
         print("=" * 40)
         print(f"coverage_percent: {snapshot.coverage_percent}")
         print(f"total_statements: {snapshot.total_statements}")
+        print(f"missing_statements: {snapshot.missing_statements}")
         print(f"test_count: {snapshot.test_count}")
+        print(f"pytest_exit_code: {snapshot.pytest_exit_code}")
+        print(f"project_version: {snapshot.project_version}")
         print(f"Written to: {path}")
     return 0
 
@@ -2585,7 +2610,13 @@ def _dispatch_release_command(args: argparse.Namespace) -> int:
     if args.release_command == "errata":
         return _cmd_release_errata(args.json)
     if args.release_command == "measure-coverage":
-        return _cmd_release_measure_coverage(args.coverage_json, args.test_count, args.json)
+        return _cmd_release_measure_coverage(
+            args.coverage_json,
+            args.test_count,
+            args.pytest_command,
+            args.pytest_exit_code,
+            args.json,
+        )
 
     print(
         "usage: credlens release {validate,licenses,sbom,manifest,status,errata,"

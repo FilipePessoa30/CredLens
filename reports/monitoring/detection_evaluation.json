@@ -1,6 +1,6 @@
 {
   "reference_id": "REF_MODEL_behavioral_default_v1",
-  "run_id": "RUN_BATCHSET_REF_MODEL_behavioral_default_v1_20260802T214210",
+  "run_id": "RUN_BATCHSET_REF_MODEL_behavioral_default_v1_20260803T023938",
   "scenario_detection_rate": 1.0,
   "false_alert_rate_on_non_perturbed_scenarios": 0.0,
   "blocked_input_recall": 1.0,
@@ -59,7 +59,7 @@
       "true_positive": true,
       "false_positive": false,
       "false_negative": false,
-      "incident_id": "INCIDENT_RUN_BATCHSET_REF_MODEL_behavioral_default_v1_20260802T214210_feature_drift_03_10",
+      "incident_id": "INCIDENT_RUN_BATCHSET_REF_MODEL_behavioral_default_v1_20260803T023938_feature_drift_03_10",
       "note_en": "Bill amounts scaled 1.5x - expected PSI/feature-drift signal."
     },
     {
@@ -76,7 +76,7 @@
       "true_positive": true,
       "false_positive": false,
       "false_negative": false,
-      "incident_id": "INCIDENT_RUN_BATCHSET_REF_MODEL_behavioral_default_v1_20260802T214210_feature_drift_03_10",
+      "incident_id": "INCIDENT_RUN_BATCHSET_REF_MODEL_behavioral_default_v1_20260803T023938_feature_drift_03_10",
       "note_en": "Payment amounts halved - expected PSI/feature-drift signal."
     },
     {
@@ -93,7 +93,7 @@
       "true_positive": true,
       "false_positive": false,
       "false_negative": false,
-      "incident_id": "INCIDENT_RUN_BATCHSET_REF_MODEL_behavioral_default_v1_20260802T214210_feature_drift_03_10",
+      "incident_id": "INCIDENT_RUN_BATCHSET_REF_MODEL_behavioral_default_v1_20260803T023938_feature_drift_03_10",
       "note_en": "Delinquency status shifted by +1 step - expected PSI/feature-drift signal."
     },
     {
@@ -110,7 +110,7 @@
       "true_positive": true,
       "false_positive": false,
       "false_negative": false,
-      "incident_id": "INCIDENT_RUN_BATCHSET_REF_MODEL_behavioral_default_v1_20260802T214210_data_quality_06_07",
+      "incident_id": "INCIDENT_RUN_BATCHSET_REF_MODEL_behavioral_default_v1_20260803T023938_data_quality_06_07",
       "note_en": "10% of delinquency-status values replaced with an out-of-domain code - quarantined by the strict input contract, not schema-blocked."
     },
     {
@@ -127,7 +127,7 @@
       "true_positive": true,
       "false_positive": false,
       "false_negative": false,
-      "incident_id": "INCIDENT_RUN_BATCHSET_REF_MODEL_behavioral_default_v1_20260802T214210_data_quality_06_07",
+      "incident_id": "INCIDENT_RUN_BATCHSET_REF_MODEL_behavioral_default_v1_20260803T023938_data_quality_06_07",
       "note_en": "2% of bill amounts made implausibly large - range violation, quarantined."
     },
     {
@@ -161,7 +161,7 @@
       "true_positive": true,
       "false_positive": false,
       "false_negative": false,
-      "incident_id": "INCIDENT_RUN_BATCHSET_REF_MODEL_behavioral_default_v1_20260802T214210_feature_drift_03_10",
+      "incident_id": "INCIDENT_RUN_BATCHSET_REF_MODEL_behavioral_default_v1_20260803T023938_feature_drift_03_10",
       "note_en": "Combined bill-scale and delinquency-step shift - expected feature AND score drift; feature_drift is the primary category checked here."
     },
     {
@@ -178,7 +178,7 @@
       "true_positive": true,
       "false_positive": false,
       "false_negative": false,
-      "incident_id": "INCIDENT_RUN_BATCHSET_REF_MODEL_behavioral_default_v1_20260802T214210_subgroup_composition_drift_06_10",
+      "incident_id": "INCIDENT_RUN_BATCHSET_REF_MODEL_behavioral_default_v1_20260803T023938_subgroup_composition_drift_06_10",
       "note_en": "Age-bucket composition oversampled - Phase 10B checks this directly via max_composition_shift across sex/education/marriage groups."
     },
     {
@@ -212,10 +212,10 @@
       "true_positive": true,
       "false_positive": false,
       "false_negative": false,
-      "incident_id": "INCIDENT_RUN_BATCHSET_REF_MODEL_behavioral_default_v1_20260802T214210_data_quality_12_blocked",
+      "incident_id": "INCIDENT_RUN_BATCHSET_REF_MODEL_behavioral_default_v1_20260803T023938_data_quality_12_blocked",
       "note_en": "A required column dropped - must be schema-blocked deterministically."
     }
   ],
-  "source_snapshot_fingerprint": "1b1bd3da80a19545197f55b5f156c2864df6c934e84b5519d081ff73d5320e9a",
-  "measured_at_utc": "2026-08-02T21:42:13.400124+00:00"
+  "source_snapshot_fingerprint": "403f95cbba8807e9bac84cff251225020e22471da7cbc5aad90cb2c4c8c10b7f",
+  "measured_at_utc": "2026-08-03T02:39:41.425454+00:00"
 }

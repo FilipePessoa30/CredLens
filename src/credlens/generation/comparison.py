@@ -11,7 +11,6 @@ a customer-level value, never read by credlens.generation.decisions.
 
 from __future__ import annotations
 
-import json
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -212,18 +211,3 @@ def compare_metrics(
             MetricComparison(metric=metric, baseline_value=b, candidate_value=c, delta=c - b)
         )
     return comparisons
-
-
-def write_comparison_report(
-    path: Path,
-    baseline: ScenarioMetrics,
-    candidate: ScenarioMetrics,
-    comparisons: list[MetricComparison],
-) -> None:
-    payload = {
-        "baseline": baseline.to_dict(),
-        "candidate": candidate.to_dict(),
-        "comparisons": [c.to_dict() for c in comparisons],
-    }
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
