@@ -1,9 +1,18 @@
 {
-  "release_id": "RC_1.0.0rc2_e970d622",
+  "release_id": "RC_1.0.0rc2_e602f7e0",
   "project_version": "1.0.0rc2",
-  "base_commit": "e970d6227d9790fb4f2fa413c683b56d9fac3e70",
+  "base_commit": "183336cf0c575fb444e2a666cf5614b68df12253",
+  "source_snapshot_fingerprint": "e602f7e055aa55088a1539f355ad0337194c0204323b54370bbfe026ecaea942",
+  "release_inventory_fingerprint": "10d683063ba4e8619da8a7163ac0d40ff205ebb1a0dfca3b4fcd2a1d99d53c4a",
+  "release_inventory_summary": {
+    "n_entries": 1698,
+    "n_included": 673,
+    "n_excluded": 1025,
+    "n_unresolved": 0,
+    "n_needs_human_review": 5
+  },
   "working_tree_clean": false,
-  "modified_file_count": 269,
+  "modified_file_count": 126,
   "model_v1_present": true,
   "model_v2_remediated_present": true,
   "challenger_registered": true,
@@ -11,14 +20,14 @@
   "monitoring_run_present": true,
   "demo_package_present": true,
   "test_counts": {
-    "total": 1760
+    "total": 1815
   },
   "dbt_reconciliation_status": "reconciled_within_tolerance",
   "notebook_status": "executed_end_to_end",
   "dashboard_status": "validated_apptest_plus_headless_browser",
   "visual_qa_status": "verified_locally",
   "docker_status": "not_executed",
-  "ci_status": "not_run_remotely_this_session",
+  "ci_status": "failing_since_2026-07-27_see_release_notes",
   "license_inventory_summary": {
     "n_dependencies": 197,
     "unknown_count": 0,
@@ -39,6 +48,6 @@
   ],
   "release_blockers": [],
   "readiness_decision": "release_candidate_ready_with_limitations",
-  "generated_at_utc": "2026-08-03T02:40:41.524759+00:00",
-  "content_fingerprint": "0bc1e2f41dc70f490e575c3d6afeebffc6d433d1850dc1e27140ff640844dbde"
+  "generated_at_utc": "2026-08-03T04:29:58.925879+00:00",
+  "content_fingerprint": "dc250889e4e4c64ded2a8689fc854fa4d37f64e8323ff8a0a7891e41a32d59b9"
 }

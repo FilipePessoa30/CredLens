@@ -1,7 +1,7 @@
 {
   "experiment_id": "EXP_behavioral_default_v1",
   "control": "control2_pipeline_retrain",
-  "n_permutations": 100,
+  "n_permutations": 99,
   "base_seed": 20260728,
   "real_model_validation_roc_auc": 0.750272,
   "roc_auc_distribution": [
@@ -103,8 +103,7 @@
     0.424522,
     0.58325,
     0.440747,
-    0.600548,
-    0.591199
+    0.600548
   ],
   "pr_auc_distribution": [
     0.196368,
@@ -205,24 +204,23 @@
     0.19515,
     0.302904,
     0.213264,
-    0.316519,
-    0.295035
+    0.316519
   ],
   "centering": {
-    "observed_mean": 0.490704,
+    "observed_mean": 0.489689,
     "expected_mean": 0.5,
-    "standard_error_of_mean": 0.007633,
-    "z_statistic": -1.2179,
+    "standard_error_of_mean": 0.007642,
+    "z_statistic": -1.3493,
     "sigma_multiplier": 3.0,
     "centered": true
   },
-  "observed_std": 0.07633,
+  "observed_std": 0.076037,
   "control1_theoretical_se_for_reference": 0.008979,
-  "std_ratio_to_control1_theory_informational_only": 8.5005,
-  "empirical_p_value": 0.009901,
+  "std_ratio_to_control1_theory_informational_only": 8.4679,
+  "empirical_p_value": 0.01,
   "alpha": 0.01,
   "duplicate_permutation_indices": [],
   "n_single_class_permutations": 0,
   "passed": true,
-  "reason": "Real model validation ROC-AUC (0.7503) exceeds 100/100 permuted-target refits (empirical p=0.0099); null mean 0.4907 (z=-1.22) is centered. Observed std 0.07633 is wider than Control 1's theoretical label-permutation-only SE (0.00898) - expected, since this control's variance includes model-refitting noise (see module docstring)."
+  "reason": "Real model validation ROC-AUC (0.7503) exceeds 99/99 permuted-target refits (empirical p=0.0100); null mean 0.4897 (z=-1.35) is centered. Observed std 0.07604 is wider than Control 1's theoretical label-permutation-only SE (0.00898) - expected, since this control's variance includes model-refitting noise (see module docstring)."
 }

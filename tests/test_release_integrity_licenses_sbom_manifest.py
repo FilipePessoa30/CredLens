@@ -467,6 +467,70 @@ class TestBuildReleaseManifest:
         assert manifest.validation_decision == "validation_failed"
         assert any("validation_failed" in b for b in manifest.release_blockers)
 
+    def test_release_id_suffix_matches_source_snapshot_fingerprint(self) -> None:
+        """Fase 11A - the release_id suffix must be derived from the
+        content-based source snapshot fingerprint, never from `git
+        rev-parse HEAD` directly (HEAD is blind to uncommitted changes -
+        see the next test for the concrete bug this would otherwise
+        cause)."""
+        from credlens.release.source_snapshot import compute_source_snapshot
+
+        manifest = build_release_manifest(
+            test_counts={"total": 1500},
+            visual_qa_status="verified_locally",
+            docker_status="not_executed",
+            ci_status="not_run_remotely_this_session",
+            repo_root=Path.cwd(),
+        )
+        snapshot = compute_source_snapshot(Path.cwd())
+        assert manifest.release_id.endswith(f"_{snapshot.fingerprint[:8]}")
+        assert manifest.source_snapshot_fingerprint == snapshot.fingerprint
+
+    def test_release_id_changes_when_working_tree_is_dirtied(self, tmp_path: Path) -> None:
+        """Fase 11A - the specific real bug: a release built from a dirty
+        working tree (uncommitted content on top of `base_commit`) must
+        NOT carry the same release_id as one built from the clean commit
+        alone, since their actual file contents differ. Before the fix,
+        `release_id = f"RC_{version}_{base_commit[:8]}"` was blind to
+        this - both would have produced the identical id."""
+        import subprocess
+
+        subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
+        subprocess.run(["git", "config", "user.email", "t@example.com"], cwd=tmp_path, check=True)
+        subprocess.run(["git", "config", "user.name", "T"], cwd=tmp_path, check=True)
+        (tmp_path / "a.txt").write_text("original content", encoding="utf-8")
+        subprocess.run(["git", "add", "-A"], cwd=tmp_path, check=True)
+        subprocess.run(["git", "commit", "-q", "-m", "init"], cwd=tmp_path, check=True)
+
+        clean_manifest = build_release_manifest(
+            test_counts={"total": 0},
+            visual_qa_status="not_verified",
+            docker_status="not_executed",
+            ci_status="not_run_remotely_this_session",
+            repo_root=tmp_path,
+        )
+
+        # Dirty the tree - a real, uncommitted content change on a
+        # TRACKED file. HEAD does not move.
+        (tmp_path / "a.txt").write_text("changed, uncommitted content", encoding="utf-8")
+        dirty_manifest = build_release_manifest(
+            test_counts={"total": 0},
+            visual_qa_status="not_verified",
+            docker_status="not_executed",
+            ci_status="not_run_remotely_this_session",
+            repo_root=tmp_path,
+        )
+
+        assert clean_manifest.base_commit == dirty_manifest.base_commit  # HEAD unchanged
+        assert clean_manifest.release_id != dirty_manifest.release_id  # content DID change
+        assert (
+            clean_manifest.source_snapshot_fingerprint != dirty_manifest.source_snapshot_fingerprint
+        )
+
+        head_prefix = dirty_manifest.base_commit[:8]
+        dirty_suffix = dirty_manifest.release_id.rsplit("_", 1)[-1]
+        assert dirty_suffix != head_prefix
+
     def test_write_release_manifest_writes_a_real_json_file(self, tmp_path: Path) -> None:
         from credlens.release.manifest import write_release_manifest
 

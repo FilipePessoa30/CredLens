@@ -314,6 +314,33 @@ def _check_monitoring_detection_gate(repo_root: Path) -> IntegrityCheck:
     return IntegrityCheck("monitoring_detection_gate", result.status, result.detail)
 
 
+def _check_release_inventory_resolved(repo_root: Path) -> IntegrityCheck:
+    """Fase 11A - every tracked or untracked file must match a
+    classification rule (`credlens.release.inventory.classify_path`);
+    an `unresolved` entry means either a real gap in the classifier or
+    genuinely novel content nobody has decided how to treat yet - either
+    way, publishing without resolving it first is exactly the kind of
+    silent gap this release-integrity layer exists to catch."""
+    from credlens.release.inventory import build_release_inventory
+
+    inventory = build_release_inventory(repo_root)
+    if inventory.unresolved:
+        paths = ", ".join(e.path for e in inventory.unresolved[:5])
+        suffix = " ..." if len(inventory.unresolved) > 5 else ""
+        return IntegrityCheck(
+            "release_inventory_resolved",
+            "fail",
+            f"{len(inventory.unresolved)} unresolved file(s) in the release inventory: "
+            f"{paths}{suffix}",
+        )
+    return IntegrityCheck(
+        "release_inventory_resolved",
+        "pass",
+        f"All {len(inventory.entries)} tracked/untracked files classified "
+        f"({len(inventory.included)} included, {len(inventory.excluded)} excluded).",
+    )
+
+
 def run_release_integrity_checks(repo_root: Path | None = None) -> ReleaseIntegrityReport:
     repo_root = repo_root or Path.cwd()
     checks = [
@@ -329,5 +356,6 @@ def run_release_integrity_checks(repo_root: Path | None = None) -> ReleaseIntegr
         _check_ci_workflow_no_masking(repo_root),
         _check_coverage_gate(repo_root),
         _check_monitoring_detection_gate(repo_root),
+        _check_release_inventory_resolved(repo_root),
     ]
     return ReleaseIntegrityReport(checks=checks)

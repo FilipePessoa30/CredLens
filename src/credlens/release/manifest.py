@@ -59,6 +59,9 @@ class ReleaseManifest:
     release_id: str
     project_version: str
     base_commit: str
+    source_snapshot_fingerprint: str
+    release_inventory_fingerprint: str
+    release_inventory_summary: dict[str, Any]
     working_tree_clean: bool
     modified_file_count: int
     model_v1_present: bool
@@ -87,6 +90,9 @@ class ReleaseManifest:
             "release_id": self.release_id,
             "project_version": self.project_version,
             "base_commit": self.base_commit,
+            "source_snapshot_fingerprint": self.source_snapshot_fingerprint,
+            "release_inventory_fingerprint": self.release_inventory_fingerprint,
+            "release_inventory_summary": self.release_inventory_summary,
             "working_tree_clean": self.working_tree_clean,
             "modified_file_count": self.modified_file_count,
             "model_v1_present": self.model_v1_present,
@@ -217,8 +223,12 @@ def build_release_manifest(
     )
 
     from credlens.release.integrity import run_release_integrity_checks
+    from credlens.release.inventory import build_release_inventory
+    from credlens.release.source_snapshot import compute_source_snapshot
 
     integrity = run_release_integrity_checks(repo_root)
+    source_snapshot = compute_source_snapshot(repo_root)
+    release_inventory = build_release_inventory(repo_root)
 
     blockers: list[str] = []
     if integrity.has_failure:
@@ -237,6 +247,14 @@ def build_release_manifest(
         pass
     if visual_qa_status == "not_verified":
         pass
+    if release_inventory.unresolved:
+        blockers.append(
+            "Release inventory has "
+            f"{len(release_inventory.unresolved)} unresolved file(s) that match no "
+            "classification rule: "
+            + ", ".join(e.path for e in release_inventory.unresolved[:5])
+            + (" ..." if len(release_inventory.unresolved) > 5 else "")
+        )
 
     readiness_decision = decide_readiness(
         blockers=blockers,
@@ -244,11 +262,29 @@ def build_release_manifest(
         docker_status=docker_status,
     )
 
-    release_id = f"RC_{__version__}_{base_commit[:8]}"
+    # Fase 11A: the release_id suffix identifies the CONTENT the release
+    # actually carries, not merely which commit HEAD happened to be at
+    # generation time - `base_commit[:8]` alone is blind to uncommitted
+    # changes (a dirty working tree and its own clean commit would carry
+    # the identical release_id despite different file contents). Only
+    # `source_snapshot_fingerprint` (hashes the CURRENT on-disk content
+    # of every tracked file) can distinguish them; when the tree is
+    # clean, this is legitimately equal to what a HEAD-derived id would
+    # have produced - equality is then correct, not a bug.
+    release_id = f"RC_{__version__}_{source_snapshot.fingerprint[:8]}"
     manifest = ReleaseManifest(
         release_id=release_id,
         project_version=__version__,
         base_commit=base_commit,
+        source_snapshot_fingerprint=source_snapshot.fingerprint,
+        release_inventory_fingerprint=release_inventory.fingerprint,
+        release_inventory_summary={
+            "n_entries": len(release_inventory.entries),
+            "n_included": len(release_inventory.included),
+            "n_excluded": len(release_inventory.excluded),
+            "n_unresolved": len(release_inventory.unresolved),
+            "n_needs_human_review": len(release_inventory.needs_human_review),
+        },
         working_tree_clean=len(modified_lines) == 0,
         modified_file_count=len(modified_lines),
         model_v1_present=model_v1_present,
