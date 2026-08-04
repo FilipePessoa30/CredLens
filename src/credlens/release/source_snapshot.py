@@ -48,6 +48,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from credlens.release.canonical_content import canonicalize_content
+
 _EXCLUDED_PATH_FRAGMENTS = (
     "__pycache__",
     ".pytest_cache",
@@ -93,10 +95,19 @@ def _tracked_files(repo_root: Path) -> list[str]:
 
 
 def compute_source_snapshot(repo_root: Path | None = None) -> SourceSnapshot:
-    """Hashes the CURRENT on-disk content of every git-tracked file
-    (sorted by path, path+content both fed into the digest so a rename
-    changes the fingerprint too) into one SHA256 - never just `git
-    rev-parse HEAD`, which is blind to uncommitted changes.
+    """Hashes the CURRENT content of every git-tracked file (sorted by
+    path, path+content both fed into the digest so a rename changes the
+    fingerprint too) into one SHA256 - never just `git rev-parse HEAD`,
+    which is blind to uncommitted changes.
+
+    Content is canonicalized (`canonicalize_content`) before hashing,
+    NOT read raw off disk - Fase 11B found that a Windows working tree
+    (`core.autocrlf=true`) holds CRLF for files git itself stores as LF
+    (`.gitattributes`: `* text=auto eol=lf`), so hashing raw bytes made
+    this fingerprint unrecoverably different between a Windows and a
+    Linux checkout of the exact same commit, with zero real content
+    difference - the direct cause of `coverage_gate`/
+    `monitoring_detection_gate` reporting STALE on every Linux CI run.
 
     A file still in git's index but removed from the working tree
     without staging the deletion (`rm` without `git rm`) is a real,
@@ -117,7 +128,7 @@ def compute_source_snapshot(repo_root: Path | None = None) -> SourceSnapshot:
         if not path.is_file():
             continue
         try:
-            content = path.read_bytes()
+            content = canonicalize_content(rel_path, path.read_bytes())
         except OSError as exc:
             raise SourceSnapshotError(f"Tracked file '{rel_path}' could not be read.") from exc
         digest.update(rel_path.encode("utf-8"))

@@ -7,6 +7,7 @@ locked test set used to build the batches).
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Any
 
@@ -18,7 +19,7 @@ _PSI_EPSILON = 1e-6
 
 
 def population_stability_index(
-    reference_values: np.ndarray, batch_values: np.ndarray, bin_edges: list[float]
+    reference_values: np.ndarray, batch_values: np.ndarray, bin_edges: Sequence[float]
 ) -> float:
     edges = np.array(bin_edges, dtype=float)
     ref_counts, _ = np.histogram(reference_values, bins=edges)
@@ -31,7 +32,7 @@ def population_stability_index(
 
 
 def jensen_shannon_divergence(
-    reference_values: np.ndarray, batch_values: np.ndarray, bin_edges: list[float]
+    reference_values: np.ndarray, batch_values: np.ndarray, bin_edges: Sequence[float]
 ) -> float:
     edges = np.array(bin_edges, dtype=float)
     ref_counts, _ = np.histogram(reference_values, bins=edges)
@@ -79,7 +80,7 @@ def compute_feature_drift(
     reference_values: np.ndarray,
     batch_values_raw: np.ndarray,
     reference_stats: dict[str, Any],
-    bin_edges: list[float],
+    bin_edges: Sequence[float],
 ) -> FeatureDriftResult:
     missingness_batch = float(np.isnan(batch_values_raw).mean()) if len(batch_values_raw) else 0.0
     batch_values = batch_values_raw[np.isfinite(batch_values_raw)]

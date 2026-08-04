@@ -4,6 +4,9 @@
 
 **CredLens turns a digital lender's credit portfolio into a reproducible, tested analytics product — from business question to KPI to decision.**
 
+![CredLens Executive Overview dashboard, showing baseline KPIs, a scenario-comparison table, and validated insights over a synthetic credit portfolio](docs/assets/dashboard/executive_overview.png)
+*Executive Overview — synthetic demo data, captured from a real running dashboard (Selenium, headless Edge). More pages below.*
+
 **Status: 1.0 release candidate (Phase 10).** This repository contains business framing, architecture, project scaffolding, reproducibly acquired and audited public benchmark datasets (Phase 2), a conceptual data model/temporal semantics/formal data contracts (Phase 3), a real, deterministic, performance-optimized synthetic-portfolio generator with five executable scenarios (Phase 4A/4B), a DuckDB + dbt analytical warehouse with three hardened integrity gates (Phase 5-6), a reproducible portfolio-analysis layer answering a versioned business-question registry with bilingual reports, professional charts, and a case-study notebook (Phase 6), a multipage Streamlit **Decision Intelligence Dashboard** with a verifiable insights registry, a completed four-scenario multi-seed robustness sweep, and a small, versioned demo package (Phase 7), an **interpretable behavioral early-warning default model** trained and validated on the real, public UCI benchmark, with full leakage/calibration/uncertainty/subgroup/robustness rigor and a 9th dashboard page, **Model Lab** (Phase 8), an **independent model-validation layer** that recomputes that evidence from frozen artifacts (never copying the Phase 8 report), a formally registered `challenger` model, and a clearly labeled **monitoring simulation** with a 10th dashboard page, **Model Monitoring Lab** (Phase 9) — and, as of Phase 10, a *re-audit* of that same validation/monitoring layer that found and fixed two real methodological problems (a ~60% false-alert rate from an uncorrected multiple-comparisons issue in monitoring; a ~0.012 ROC-AUC optimism bias in the performance reference), a **post-validation remediated model variant** registered separately from the original, a reason-code governance policy, a signal→alert→incident monitoring hierarchy, real headless-browser dashboard verification, and release-engineering tooling (license inventory, SBOM, deterministic release manifest) — see [Decision Intelligence Dashboard](#decision-intelligence-dashboard), [Model Lab](#model-lab--behavioral-early-warning-model), and [Model Monitoring Lab](#model-monitoring-lab--independent-validation-and-monitoring-simulation) below. Neither the model nor its monitoring simulation is a production credit decision or monitoring system — see [Current capabilities](#current-capabilities), [`reports/modeling/model_card.md`](reports/modeling/model_card.md), [`reports/model_validation/validation_report.md`](reports/model_validation/validation_report.md), and [`docs/roadmap.md`](docs/roadmap.md) for what happens next.
 
 ## The business scenario
@@ -28,6 +31,21 @@ uv run credlens dashboard run --demo
 ```
 
 **Pages:** Executive Overview · Credit Funnel · Portfolio & Delinquency · Vintages & Roll Rates · Cure, Collections & Recovery · Scenario Lab · Data Quality & Methodology · Public Benchmarks — see [`dashboard/README.md`](dashboard/README.md) for the full page/filter dictionary.
+
+<table>
+<tr>
+<td width="33%"><a href="docs/assets/dashboard/credit_funnel.png"><img src="docs/assets/dashboard/credit_funnel.png" alt="Credit Funnel page"></a><br><sub>Credit Funnel</sub></td>
+<td width="33%"><a href="docs/assets/dashboard/portfolio_delinquency.png"><img src="docs/assets/dashboard/portfolio_delinquency.png" alt="Portfolio & Delinquency page"></a><br><sub>Portfolio & Delinquency</sub></td>
+<td width="33%"><a href="docs/assets/dashboard/scenario_lab.png"><img src="docs/assets/dashboard/scenario_lab.png" alt="Scenario Lab page"></a><br><sub>Scenario Lab</sub></td>
+</tr>
+<tr>
+<td width="33%"><a href="docs/assets/dashboard/model_lab.png"><img src="docs/assets/dashboard/model_lab.png" alt="Model Lab page"></a><br><sub>Model Lab</sub></td>
+<td width="33%"><a href="docs/assets/dashboard/model_monitoring_lab.png"><img src="docs/assets/dashboard/model_monitoring_lab.png" alt="Model Monitoring Lab page"></a><br><sub>Model Monitoring Lab</sub></td>
+<td width="33%"><a href="docs/assets/dashboard/public_benchmarks.png"><img src="docs/assets/dashboard/public_benchmarks.png" alt="Public Benchmarks page"></a><br><sub>Public Benchmarks</sub></td>
+</tr>
+</table>
+
+*All screenshots above use synthetic demo data (or, for Model Lab/Public Benchmarks, the real public UCI/BCB benchmarks — clearly labeled on each page); see [Data Quality & Methodology](docs/assets/dashboard/data_quality.png) for full provenance.*
 
 **Key capabilities:**
 - Two explicit modes, always shown: a **validated-warehouse** mode (re-validates dbt tests/raw-source integrity before showing anything) and a **demo aggregate** mode (a ~190 KB, tamper-checked Parquet package with no customer/contract-level rows, versioned in this repo).

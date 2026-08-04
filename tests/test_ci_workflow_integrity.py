@@ -12,6 +12,10 @@ Fast, pure parsing test - no subprocess, no CredLens import.
 
 from __future__ import annotations
 
+import re
+import subprocess
+import sys
+import tomllib
 from pathlib import Path
 from typing import Any
 
@@ -20,7 +24,10 @@ import yaml
 
 from credlens.release.integrity import CI_WORKFLOW_MASKING_PATTERNS
 
+REPO_ROOT = Path(__file__).resolve().parent.parent
+
 WORKFLOW_PATH = Path(__file__).resolve().parent.parent / ".github" / "workflows" / "ci.yml"
+PYPROJECT_PATH = Path(__file__).resolve().parent.parent / "pyproject.toml"
 
 # Shared with credlens.release.integrity (the `credlens release validate`
 # CLI check runs the exact same denylist/parser against this same file) -
@@ -147,3 +154,121 @@ class TestNoToleranceMasking:
                 f"can never satisfy alpha={alpha} - this gate would be mathematically "
                 "unwinnable at CI scale, inviting a `|| true` workaround."
             )
+
+
+# Matches a `pytest <file-globs...> -m <marker-expr>` invocation inside a
+# workflow `run:` block - captures the space-separated glob list and the
+# (possibly quoted) marker expression.
+_PYTEST_MARKER_INVOCATION = re.compile(
+    r"pytest\s+((?:[\w./*_-]+\s+)+)-m\s+(\"[^\"]+\"|'[^']+'|\S+)"
+)
+
+
+def _pytest_marker_invocations(raw_text: str) -> list[tuple[str, str]]:
+    """Every `pytest <globs> -m <expr>` invocation found anywhere in the
+    workflow's raw text, as (globs_string, marker_expr) pairs. A plain
+    regex scan (not per-step) - deliberately broad, since the real bug
+    this defends against (a glob+marker combination matching zero tests)
+    can hide in a multi-line `run: |` block just as easily as a one-liner."""
+    return [
+        (m.group(1).strip(), m.group(2).strip("\"'"))
+        for m in _PYTEST_MARKER_INVOCATION.finditer(raw_text)
+    ]
+
+
+class TestMarkerFilteredInvocationsActuallyCollectTests:
+    """Fase 11B - the real, 100%-reproducible bug this class defends
+    against: `pytest tests/test_warehouse_*.py tests/test_generation_*.py
+    -m slow` matched ZERO tests (none of those 21 files had ANY test
+    marked `slow`), so pytest exited 5 ("no tests collected") on every
+    single CI run since the dedicated job was introduced - never a
+    Linux-vs-Windows environment difference, reproduced identically on
+    this machine. Every `pytest <globs> -m <expr>` invocation in ci.yml
+    is now verified, generically, to collect at least one test - so a
+    FUTURE glob/marker combination that matches nothing fails locally
+    long before it ever reaches CI."""
+
+    def test_every_marker_filtered_pytest_invocation_collects_at_least_one_test(
+        self,
+    ) -> None:
+        _, raw_text = _load_workflow()
+        invocations = _pytest_marker_invocations(raw_text)
+        assert invocations, "expected to find at least one 'pytest <globs> -m <expr>' invocation"
+
+        failures = []
+        for globs_str, marker_expr in invocations:
+            # `subprocess.run` with a list never invokes a shell, so a
+            # literal `*` would reach pytest un-expanded (unlike the real
+            # `run:` step, executed by bash, which expands it first) -
+            # expand every glob the same way bash would.
+            expanded_paths: list[str] = []
+            for pattern in globs_str.split():
+                matches = sorted(REPO_ROOT.glob(pattern))
+                expanded_paths.extend(str(p.relative_to(REPO_ROOT)) for p in matches)
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "pytest",
+                    *expanded_paths,
+                    "-m",
+                    marker_expr,
+                    "--collect-only",
+                    "-q",
+                ],
+                cwd=REPO_ROOT,
+                capture_output=True,
+                text=True,
+            )
+            output = result.stdout + result.stderr
+            if "no tests ran" in output.lower() or "no tests collected" in output.lower():
+                failures.append(f"globs={globs_str!r} marker={marker_expr!r}\n{output[-400:]}")
+
+        assert failures == [], (
+            "The following pytest invocation(s) from ci.yml collect ZERO tests - "
+            "this exact pattern caused every 'no tests collected' (exit 5) CI failure:\n\n"
+            + "\n---\n".join(failures)
+        )
+
+
+class TestMypyPythonVersionMatchesTheCiMatrix:
+    """Fase 11B - the real, reproduced root cause of the Python 3.12
+    'Lint, format, type-check' job failing while the identical Python
+    3.11 job passed: `[tool.mypy]` hardcoded `python_version = "3.11"`,
+    so mypy parsed EVERY stub - including numpy's own bundled
+    `__init__.pyi` - under 3.11 grammar even when actually running
+    under the 3.12 interpreter. `uv sync --python 3.12` resolves numpy
+    2.5.1 (vs. 2.4.6 under 3.11), whose stub uses a PEP 695 `type X =
+    ...` statement at line 737 - valid Python 3.12+ syntax, invalid
+    under a 3.11 parse target - producing `error: Type statement is
+    only supported in Python 3.12 and greater [syntax]` and aborting
+    the entire run ("errors prevented further checking"), reproduced
+    locally byte-for-byte via `uv run --python 3.12 mypy src tests
+    dashboard`. Removing the pin lets mypy infer its target from
+    whichever interpreter it actually runs under - exactly what a
+    multi-version CI matrix needs - confirmed clean (0 errors) under
+    both 3.11 and 3.12 after the fix."""
+
+    def test_mypy_config_does_not_hardcode_a_python_version(self) -> None:
+        pyproject = tomllib.loads(PYPROJECT_PATH.read_text(encoding="utf-8"))
+        mypy_config = pyproject["tool"]["mypy"]
+        assert "python_version" not in mypy_config, (
+            "[tool.mypy] must not hardcode python_version - mypy should infer its "
+            "target from whichever interpreter it actually runs under, matching "
+            "CI's own Python 3.11/3.12 matrix (see ci.yml's `quality` job) - a "
+            "hardcoded pin previously caused mypy to parse a newer-numpy-only "
+            "stub under the wrong grammar and abort with a syntax error."
+        )
+
+    def test_ci_matrix_pins_at_least_the_versions_pyproject_requires(self) -> None:
+        pyproject = tomllib.loads(PYPROJECT_PATH.read_text(encoding="utf-8"))
+        requires_python = pyproject["project"]["requires-python"]
+        assert requires_python.startswith(">="), requires_python
+        minimum = requires_python.removeprefix(">=")
+
+        workflow, _ = _load_workflow()
+        matrix_versions = workflow["jobs"]["quality"]["strategy"]["matrix"]["python-version"]
+        assert minimum in matrix_versions, (
+            f"pyproject.toml requires-python={requires_python!r} but ci.yml's "
+            f"quality job matrix only tests {matrix_versions!r}"
+        )

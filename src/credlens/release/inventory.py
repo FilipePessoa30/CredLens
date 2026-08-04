@@ -24,11 +24,16 @@ from __future__ import annotations
 
 import fnmatch
 import hashlib
-import os
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Literal
+
+from credlens.release.canonical_content import (
+    DEFAULT_FILE_MODE,
+    canonicalize_content,
+    git_tracked_file_modes,
+)
 
 INVENTORY_SCHEMA_VERSION = 1
 
@@ -316,20 +321,41 @@ def _untracked_files(repo_root: Path) -> list[str]:
     return sorted(paths)
 
 
-def _sha256_file(path: Path) -> str:
+def _canonical_bytes_and_size(rel_path: str, path: Path) -> tuple[bytes, int]:
+    """The content git would actually store for this path (CRLF/CR
+    normalized to LF per `.gitattributes`, unchanged for binary
+    extensions - see `canonical_content.canonicalize_content`) and its
+    length. Read once and reused for both the hash and `size_bytes` so
+    the two never disagree, and so a Windows checkout's raw disk size
+    (which counts the extra `\\r` of every CRLF line ending) never
+    leaks into a fingerprint meant to describe LOGICAL content."""
+    canonical = canonicalize_content(rel_path, path.read_bytes())
+    return canonical, len(canonical)
+
+
+def _sha256_bytes(content: bytes) -> str:
     digest = hashlib.sha256()
-    digest.update(path.read_bytes())
+    digest.update(content)
     return digest.hexdigest()
 
 
-def _file_mode(path: Path) -> str:
+def _file_mode(rel_path: str, tracked_modes: dict[str, str]) -> str:
     """A git-tree-style mode string ("100755" executable / "100644"
-    regular) - a property of the file's OWN permission bits, stable
-    across a commit (unlike tracked-vs-untracked status, which by
+    regular). For a TRACKED path this is read straight from git's own
+    index (`git ls-files -s`) - NEVER probed via `os.access(X_OK)`,
+    which returns True for essentially any readable file on Windows
+    (there is no POSIX execute bit to observe) and would report
+    "100755" for every tracked file in this repo, while git's index
+    (and a real Linux checkout, given this repo's `core.filemode=
+    false`) has "100644" for all of them. An UNTRACKED path has no
+    index entry yet, so it falls back to the mode git would actually
+    assign on `git add` under this repo's own `core.filemode=false`:
+    always `DEFAULT_FILE_MODE`, never an OS-observed bit. Stable across
+    a commit either way (unlike tracked-vs-untracked status, which by
     definition changes the moment the file is committed - see
     `InventoryEntry.tracking_status`, deliberately kept OUT of the
     fingerprint payload for exactly that reason)."""
-    return "100755" if os.access(path, os.X_OK) else "100644"
+    return tracked_modes.get(rel_path, DEFAULT_FILE_MODE)
 
 
 def _classify_with_size(rel_path: str, size_bytes: int) -> tuple[Classification, str]:
@@ -357,6 +383,7 @@ def build_release_inventory(repo_root: Path | None = None) -> ReleaseInventory:
     repo_root = repo_root or Path.cwd()
     entries: list[InventoryEntry] = []
     seen: set[str] = set()
+    tracked_modes = git_tracked_file_modes(repo_root)
 
     for rel_path in _tracked_files(repo_root):
         seen.add(rel_path)
@@ -366,14 +393,14 @@ def build_release_inventory(repo_root: Path | None = None) -> ReleaseInventory:
             # (`rm` without `git rm`) - a real uncommitted deletion, not
             # part of the CURRENT intended payload either way.
             continue
-        size = full_path.stat().st_size
+        content, size = _canonical_bytes_and_size(rel_path, full_path)
         classification, reason = _classify_with_size(rel_path, size)
         entries.append(
             InventoryEntry(
                 path=rel_path,
-                file_mode=_file_mode(full_path),
+                file_mode=_file_mode(rel_path, tracked_modes),
                 size_bytes=size,
-                sha256=_sha256_file(full_path),
+                sha256=_sha256_bytes(content),
                 classification=classification,
                 reason=reason,
                 tracking_status="tracked",
@@ -397,15 +424,15 @@ def build_release_inventory(repo_root: Path | None = None) -> ReleaseInventory:
                     if nested_rel in seen:
                         continue
                     seen.add(nested_rel)
-                    size = nested.stat().st_size
+                    content, size = _canonical_bytes_and_size(nested_rel, nested)
                     classification, reason = _classify_with_size(nested_rel, size)
                     review = classification in INCLUDED_CLASSIFICATIONS
                     entries.append(
                         InventoryEntry(
                             path=nested_rel,
-                            file_mode=_file_mode(nested),
+                            file_mode=_file_mode(nested_rel, tracked_modes),
                             size_bytes=size,
-                            sha256=_sha256_file(nested),
+                            sha256=_sha256_bytes(content),
                             classification=classification,
                             reason=reason,
                             tracking_status="untracked",
@@ -414,15 +441,15 @@ def build_release_inventory(repo_root: Path | None = None) -> ReleaseInventory:
                     )
             continue
         seen.add(rel_path)
-        size = full_path.stat().st_size
+        content, size = _canonical_bytes_and_size(rel_path, full_path)
         classification, reason = _classify_with_size(rel_path, size)
         review = classification in INCLUDED_CLASSIFICATIONS
         entries.append(
             InventoryEntry(
                 path=rel_path,
-                file_mode=_file_mode(full_path),
+                file_mode=_file_mode(rel_path, tracked_modes),
                 size_bytes=size,
-                sha256=_sha256_file(full_path),
+                sha256=_sha256_bytes(content),
                 classification=classification,
                 reason=reason,
                 tracking_status="untracked",

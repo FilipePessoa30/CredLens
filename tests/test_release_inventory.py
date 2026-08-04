@@ -8,6 +8,7 @@ repository - never the real repository this test suite lives in.
 
 from __future__ import annotations
 
+import hashlib
 import subprocess
 from pathlib import Path
 
@@ -274,3 +275,152 @@ class TestFingerprintStableAcrossACommit:
         # this is a real commit, not a no-op, while content fingerprint
         # stayed fixed.
         assert commit_before != commit_after
+
+
+class TestCrlfLfCanonicalization:
+    """Fase 11B section 8 - CRLF/LF must never leak into the release
+    inventory's fingerprint. `.gitattributes` normalizes this repo's
+    text files to LF (`* text=auto eol=lf`), so a Windows working tree
+    (CRLF on disk) and a Linux working tree (LF on disk) checking out
+    the exact same commit must classify to the identical sha256, size,
+    and inventory fingerprint - confirmed broken before this fix:
+    `src/credlens/cli.py` hashed to two different SHA-256 digests
+    depending on whether raw disk bytes or git's own LF blob were read.
+    """
+
+    def test_tracked_file_crlf_and_lf_content_hash_identically(self, tmp_path: Path) -> None:
+        _init_git_repo(tmp_path)
+        (tmp_path / "src").mkdir()
+        lf_content = "line one\nline two\nline three\n"
+        (tmp_path / "src" / "module.py").write_bytes(lf_content.encode("utf-8"))
+        _commit_all(tmp_path, "init with LF content")
+        lf_inventory = build_release_inventory(tmp_path)
+        lf_entry = next(e for e in lf_inventory.entries if e.path == "src/module.py")
+
+        # Rewrite the SAME logical content with CRLF endings - no git
+        # operation involved, exactly what a Windows working tree
+        # (`core.autocrlf=true`) looks like for identical logical
+        # content, WITHOUT committing the difference.
+        crlf_content = lf_content.replace("\n", "\r\n")
+        (tmp_path / "src" / "module.py").write_bytes(crlf_content.encode("utf-8"))
+        crlf_inventory = build_release_inventory(tmp_path)
+        crlf_entry = next(e for e in crlf_inventory.entries if e.path == "src/module.py")
+
+        assert lf_entry.sha256 == crlf_entry.sha256
+        assert lf_entry.size_bytes == crlf_entry.size_bytes
+        assert lf_inventory.fingerprint == crlf_inventory.fingerprint
+
+    def test_untracked_file_crlf_and_lf_content_hash_identically(self, tmp_path: Path) -> None:
+        _init_git_repo(tmp_path)
+        (tmp_path / "a.txt").write_text("x", encoding="utf-8")
+        _commit_all(tmp_path, "init")
+
+        (tmp_path / "src").mkdir()
+        lf_content = "def f():\n    return 1\n"
+        (tmp_path / "src" / "new_module.py").write_bytes(lf_content.encode("utf-8"))
+        lf_inventory = build_release_inventory(tmp_path)
+        lf_entry = next(e for e in lf_inventory.entries if e.path == "src/new_module.py")
+
+        crlf_content = lf_content.replace("\n", "\r\n")
+        (tmp_path / "src" / "new_module.py").write_bytes(crlf_content.encode("utf-8"))
+        crlf_inventory = build_release_inventory(tmp_path)
+        crlf_entry = next(e for e in crlf_inventory.entries if e.path == "src/new_module.py")
+
+        assert lf_entry.sha256 == crlf_entry.sha256
+        assert lf_entry.size_bytes == crlf_entry.size_bytes
+
+    def test_binary_extension_content_is_never_line_ending_normalized(self, tmp_path: Path) -> None:
+        """A `.png` (or other `.gitattributes`-binary extension) must
+        hash its RAW bytes unchanged - normalizing binary content would
+        corrupt it, exactly what `.gitattributes`'s binary declarations
+        exist to prevent."""
+        _init_git_repo(tmp_path)
+        raw = b"\x89PNG\r\n\x1a\n" + b"fake binary payload with a lone \r and a \r\n pair"
+        (tmp_path / "image.png").write_bytes(raw)
+        _commit_all(tmp_path, "init with a binary file")
+
+        inventory = build_release_inventory(tmp_path)
+        entry = next(e for e in inventory.entries if e.path == "image.png")
+        assert entry.sha256 == hashlib.sha256(raw).hexdigest()
+        assert entry.size_bytes == len(raw)
+
+    def test_fingerprint_stable_across_a_commit_with_a_crlf_working_tree(
+        self, tmp_path: Path
+    ) -> None:
+        """The full section-8 matrix in one test: a CRLF-on-disk
+        working tree, rewritten with the same logical content, then
+        committed - the CONTENT fingerprint must never move for reasons
+        unrelated to actual content (tracked before/after a commit,
+        exactly like `TestFingerprintStableAcrossACommit` above, but
+        with CRLF endings on disk throughout)."""
+        _init_git_repo(tmp_path)
+        (tmp_path / "src").mkdir()
+        (tmp_path / "src" / "module.py").write_bytes(b"VALUE = 1\r\n")
+        _commit_all(tmp_path, "init")
+        before_commit = build_release_inventory(tmp_path)
+
+        (tmp_path / "src" / "module.py").write_bytes(b"VALUE = 1\r\n")  # rewritten, same content
+        after_rewrite = build_release_inventory(tmp_path)
+        assert before_commit.fingerprint == after_rewrite.fingerprint
+
+
+class TestFileModeUsesGitIndexNotOsLevelPermissionProbing:
+    """Fase 11B section 8 - `os.access(path, os.X_OK)` returns True for
+    essentially any readable file on Windows (there is no POSIX execute
+    bit to observe there), so probing it directly reported "100755" for
+    EVERY tracked file on this machine, while git's own index (and a
+    real Linux checkout, given this repo's `core.filemode=false`) has
+    "100644" for all of them - confirmed via `git ls-files -s`. `
+    file_mode` must always come from git's own index, never from an
+    OS-level permission probe."""
+
+    def test_tracked_file_mode_matches_git_ls_files_s(self, tmp_path: Path) -> None:
+        _init_git_repo(tmp_path)
+        (tmp_path / "src").mkdir()
+        (tmp_path / "src" / "module.py").write_text("VALUE = 1\n", encoding="utf-8")
+        _commit_all(tmp_path, "init")
+
+        inventory = build_release_inventory(tmp_path)
+        entry = next(e for e in inventory.entries if e.path == "src/module.py")
+
+        ls_files = subprocess.run(
+            ["git", "ls-files", "-s", "src/module.py"],
+            cwd=tmp_path,
+            capture_output=True,
+            text=True,
+            check=True,
+        ).stdout
+        git_mode = ls_files.split()[0]
+        assert entry.file_mode == git_mode == "100644"
+
+    def test_tracked_file_mode_is_unaffected_by_a_lying_os_access(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        _init_git_repo(tmp_path)
+        (tmp_path / "src").mkdir()
+        (tmp_path / "src" / "module.py").write_text("VALUE = 1\n", encoding="utf-8")
+        _commit_all(tmp_path, "init")
+
+        # The exact, confirmed real-world behavior on Windows: os.access
+        # reports every file as "executable". If `file_mode` were still
+        # derived from this, every entry would wrongly report "100755".
+        monkeypatch.setattr("os.access", lambda *_a, **_kw: True)
+
+        inventory = build_release_inventory(tmp_path)
+        entry = next(e for e in inventory.entries if e.path == "src/module.py")
+        assert entry.file_mode == "100644"
+
+    def test_untracked_file_mode_defaults_to_100644(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        _init_git_repo(tmp_path)
+        (tmp_path / "a.txt").write_text("x", encoding="utf-8")
+        _commit_all(tmp_path, "init")
+        (tmp_path / "src").mkdir()
+        (tmp_path / "src" / "new_module.py").write_text("def f(): pass\n", encoding="utf-8")
+
+        monkeypatch.setattr("os.access", lambda *_a, **_kw: True)
+
+        inventory = build_release_inventory(tmp_path)
+        entry = next(e for e in inventory.entries if e.path == "src/new_module.py")
+        assert entry.file_mode == "100644"

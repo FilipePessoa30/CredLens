@@ -27,6 +27,16 @@ from credlens.warehouse.build import (
 )
 from credlens.warehouse.queries import NAMED_QUERIES, QueryError, run_named_query
 
+# Fase 11B - real dbt builds/generation runs throughout this file; the
+# dedicated `warehouse-integration` CI job's own "Warehouse/generation
+# slow tests" step (`pytest tests/test_warehouse_*.py tests/
+# test_generation_*.py -m slow`) previously found ZERO slow-marked
+# tests here (a confirmed, 100%-locally-reproducible bug: pytest exits
+# 5 "no tests collected" whenever a marker expression matches nothing),
+# so every warehouse test ran in the "not slow" fast job instead, never
+# in its own dedicated job with the `--extra warehouse` install it needs.
+pytestmark = pytest.mark.slow
+
 _SEED = 615_301
 _BUILD_ID_1 = "BUILD_pytest_warehouse_build_1"
 _BUILD_ID_2 = "BUILD_pytest_warehouse_build_2"

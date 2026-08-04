@@ -16,6 +16,11 @@ from credlens.generation.quarantine import run_incident
 from credlens.generation.suite import generate_suite
 from credlens.warehouse.sources import SourceSelectionError, _load_one_run, resolve_sources
 
+# Fase 11B - see tests/test_warehouse_build.py's own comment: this file
+# was never marked slow, causing the dedicated CI job's slow-test step
+# to exit 5 ("no tests collected").
+pytestmark = pytest.mark.slow
+
 _SEED = 734_501
 _SUITE_SEED = 734_502
 _QUARANTINE_BASE = Path("data/quarantine")

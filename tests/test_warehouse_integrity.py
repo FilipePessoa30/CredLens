@@ -27,6 +27,11 @@ from credlens.warehouse.integrity import IntegrityViolation, RawIntegrityError, 
 from credlens.warehouse.queries import run_named_query
 from credlens.warehouse.reconciliation import run_reconciliation
 
+# Fase 11B - see tests/test_warehouse_build.py's own comment: this file
+# was never marked slow, causing the dedicated CI job's slow-test step
+# to exit 5 ("no tests collected").
+pytestmark = pytest.mark.slow
+
 _SEED = 615_304
 _BUILD_ID = "BUILD_pytest_integrity"
 

@@ -59,6 +59,54 @@ class TestSourceSnapshot:
         assert before.base_commit == after.base_commit
         assert after.working_tree_clean is False
 
+    def test_fingerprint_identical_for_crlf_vs_lf_working_tree_content(
+        self, tmp_path: Path
+    ) -> None:
+        """Fase 11B section 8 - a Windows working tree (`core.autocrlf=
+        true`) holds CRLF for files git itself stores as LF
+        (`.gitattributes`: `* text=auto eol=lf`), so hashing raw disk
+        bytes made this fingerprint diverge between a Windows and a
+        Linux checkout of the exact same commit - the confirmed direct
+        cause of `coverage_gate`/`monitoring_detection_gate` reporting
+        STALE on every Linux CI run. Content is canonicalized (CRLF/CR
+        -> LF) before hashing, so the two working trees below - which
+        differ ONLY in line-ending bytes for identical logical content
+        - must produce the exact same fingerprint."""
+        from credlens.release.source_snapshot import compute_source_snapshot
+
+        (tmp_path / "src").mkdir()
+        lf_content = "line one\nline two\nline three\n"
+        (tmp_path / "src" / "module.py").write_bytes(lf_content.encode("utf-8"))
+        _init_git_repo(tmp_path)
+        lf_snapshot = compute_source_snapshot(tmp_path)
+
+        # Rewrite the SAME logical content with CRLF line endings,
+        # simulating a Windows working tree - no git operation involved,
+        # exactly as `core.autocrlf` would leave the file on disk.
+        crlf_content = lf_content.replace("\n", "\r\n")
+        (tmp_path / "src" / "module.py").write_bytes(crlf_content.encode("utf-8"))
+        crlf_snapshot = compute_source_snapshot(tmp_path)
+
+        assert lf_snapshot.fingerprint == crlf_snapshot.fingerprint
+
+    def test_binary_extension_content_is_hashed_raw_not_normalized(self, tmp_path: Path) -> None:
+        """CRLF-normalizing a binary file would corrupt its logical
+        content - `.gitattributes` marks `.png`/`.parquet`/etc. binary
+        for exactly this reason, and the fingerprint must respect it."""
+        from credlens.release.source_snapshot import compute_source_snapshot
+
+        raw = b"\x89PNG\r\n\x1a\n" + b"payload with a lone \r and a \r\n pair"
+        (tmp_path / "image.png").write_bytes(raw)
+        _init_git_repo(tmp_path)
+        snapshot_before = compute_source_snapshot(tmp_path)
+
+        # Rewriting with normalized (LF-only) bytes DOES change the
+        # fingerprint for a binary file - unlike a text file, its raw
+        # bytes are its canonical content.
+        (tmp_path / "image.png").write_bytes(raw.replace(b"\r\n", b"\n").replace(b"\r", b"\n"))
+        snapshot_after = compute_source_snapshot(tmp_path)
+        assert snapshot_before.fingerprint != snapshot_after.fingerprint
+
     def test_fingerprint_is_blind_to_a_new_untracked_file(self, tiny_git_repo: Path) -> None:
         """An untracked file (never `git add`ed) is invisible to `git
         ls-files` by design - this fingerprint covers TRACKED source, not

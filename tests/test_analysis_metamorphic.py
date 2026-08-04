@@ -37,6 +37,11 @@ from credlens.generation.orchestrator import generate_scenario
 from credlens.generation.testing_support import isolated_output_dirs, safe_rmtree
 from credlens.warehouse.build import BuildManifest, _rmtree_with_retry, build_dir_for, run_build
 
+# Fase 11B - see tests/test_warehouse_build.py's own comment: this file
+# was never marked slow, causing the dedicated CI job's slow-test step
+# to exit 5 ("no tests collected").
+pytestmark = pytest.mark.slow
+
 _SEED = 703_506
 _ORIGINAL_BUILD_ID = "BUILD_pytest_metamorphic_original"
 _MUTATED_BUILD_ID = "BUILD_pytest_metamorphic_mutated"

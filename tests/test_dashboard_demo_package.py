@@ -30,6 +30,11 @@ from credlens.generation.testing_support import (
 )
 from credlens.warehouse.build import _rmtree_with_retry, build_dir_for, run_build
 
+# Fase 11B - see tests/test_warehouse_build.py's own comment: this file
+# was never marked slow, causing the dedicated CI job's slow-test step
+# to exit 5 ("no tests collected").
+pytestmark = pytest.mark.slow
+
 _SEED = 703_511
 _BUILD_ID = "BUILD_pytest_dashboard_demo_package"
 

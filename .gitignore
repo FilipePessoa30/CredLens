@@ -23,6 +23,7 @@ ENV/
 .coverage
 .coverage.*
 coverage.xml
+coverage.json
 htmlcov/
 .mypy_cache/
 .ruff_cache/
@@ -117,6 +118,12 @@ logs/
 # artifact, not a scratch directory.
 reports/modeling/experiments/*/models/
 
+# Fase 11B Gate B: one quarantine manifest per local run that exercised
+# input-contract quarantine handling (721 accidentally-tracked files
+# found - see reports/release/tracked_cleanup_manifest.json) - fully
+# reproducible, never curated release content.
+reports/modeling/quarantine/
+
 # --- Model validation (Phase 9: independent validation) ---
 # The frozen evidence manifest carries a `frozen_at_utc` timestamp and is
 # purely an internal integrity-check artifact (hashes already duplicated,
@@ -124,6 +131,19 @@ reports/modeling/experiments/*/models/
 # gitignored CSV tables) - never versioned, always regenerable via
 # `credlens model validate-independent`.
 reports/model_validation/evidence/
+
+# --- Monitoring (Phase 9: production monitoring simulation) ---
+# Fase 11B Gate B: one alert log and one run record per local
+# monitoring-pipeline invocation (164 + 138 accidentally-tracked files
+# found - see reports/release/tracked_cleanup_manifest.json) - fully
+# reproducible via `credlens monitor run`/`evaluate`, never curated
+# release content. The `RUN_*/` glob deliberately does NOT match
+# reports/monitoring/runs/BATCHSET_REF_MODEL_behavioral_default_v1/ -
+# that directory's batch_manifest.json is a genuine, load-bearing
+# reference fixture the monitoring pipeline reads as INPUT, not
+# ephemeral output, and stays versioned.
+reports/monitoring/alerts/
+reports/monitoring/runs/RUN_*/
 
 # --- Warehouse (Phase 5: DuckDB + dbt) ---
 # warehouse/ itself (SQL/YAML/macros/seeds/analyses/tests) IS versioned -
