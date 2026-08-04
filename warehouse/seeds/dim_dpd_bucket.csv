@@ -1,0 +1,7 @@
+dpd_bucket_key,dpd_bucket,dpd_min,dpd_max,sort_order,is_delinquent,is_terminal,description
+1,current,0,0,1,false,false,No installment overdue at the snapshot instant.
+2,1-29,1,29,2,true,false,1 to 29 days past due.
+3,30-59,30,59,3,true,false,30 to 59 days past due.
+4,60-89,60,89,4,true,false,60 to 89 days past due.
+5,90+,90,,5,true,false,90 or more days past due.
+6,write_off,,,6,false,true,"Contract charged off - not a DPD level, a terminal state kept as its own bucket per section 7.4's ""do not mix flow and stock without an explicit rule""."

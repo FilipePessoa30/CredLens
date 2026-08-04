@@ -56,14 +56,26 @@ jobs:
           uv sync --all-groups --extra warehouse --extra analysis --extra dashboard \
             --extra notebook --extra modeling --python ${{ matrix.python-version }}
 
+      # Every `uv run` below pins --python explicitly: this repo commits
+      # a `.python-version` file (pinned to "3.11", for local/editor
+      # convenience) - `uv run` with NO --python flag consults that file
+      # regardless of what `--python` the PRECEDING `uv sync` used, so on
+      # the 3.12 matrix leg a bare `uv run` would silently drop back to
+      # the 3.11 environment/interpreter, orphaning the 3.12 install this
+      # job just did. Confirmed by direct reproduction (both native Linux
+      # and Windows): `uv sync --python 3.12 ... && uv run mypy ...`
+      # (no --python on the second command) fails with "Cannot find
+      # implementation or library stub" for every extras-only dependency
+      # (dbt, duckdb, matplotlib, PIL) - the 3.11 leg "accidentally"
+      # passed only because 3.11 happens to match `.python-version`.
       - name: Lint (ruff check)
-        run: uv run ruff check .
+        run: uv run --python "${{ matrix.python-version }}" ruff check .
 
       - name: Format check (ruff format)
-        run: uv run ruff format --check .
+        run: uv run --python "${{ matrix.python-version }}" ruff format --check .
 
       - name: Type check (mypy)
-        run: uv run mypy src tests dashboard
+        run: uv run --python "${{ matrix.python-version }}" mypy src tests dashboard
 
       # Phase 10 gate B/CI-integrity: a workflow-inspecting test that
       # parses THIS file and fails if a `|| true`/`continue-on-error:
@@ -71,7 +83,7 @@ jobs:
       # critical step - runs here (fast, no heavy fixtures) rather than
       # in `unit-tests` so a masked gate fails the workflow immediately.
       - name: CI workflow integrity check (no tolerance-masking patterns)
-        run: uv run pytest tests/test_ci_workflow_integrity.py -q
+        run: uv run --python "${{ matrix.python-version }}" pytest tests/test_ci_workflow_integrity.py -q
 
   unit-tests:
     name: Unit/fast tests + coverage (Python ${{ matrix.python-version }})
@@ -97,6 +109,18 @@ jobs:
           uv sync --all-groups --extra warehouse --extra analysis --extra dashboard \
             --extra notebook --extra modeling --python ${{ matrix.python-version }}
 
+      # `data/raw/` is gitignored and never committed - tests/
+      # test_analysis_benchmark.py's TestProfilePublicSources reads the
+      # real acquired UCI benchmark directly from disk (not slow-marked,
+      # so it runs in THIS job), and degrades to an empty profile list
+      # (not an error) when the file is absent - which then fails its
+      # own "expected at least one already-acquired public source"
+      # assertion. Confirmed as (part of) the real cause of this job's
+      # long-but-failing runs: fetch it first, exactly as a human
+      # contributor's own local setup would.
+      - name: Fetch the UCI benchmark dataset
+        run: uv run --python "${{ matrix.python-version }}" credlens data fetch --source uci-default-credit
+
       # Every generation-related test in this suite runs at 'smoke' scale
       # (a few hundred customers, well under a second) or, for Monte Carlo
       # tests, 2 seeds at 'smoke' scale - 'sample'/'portfolio' scale and any
@@ -105,8 +129,14 @@ jobs:
       # model_validation/monitoring integration tests - those run once
       # each, unmatrixed, in the `modeling-validation`/`monitoring` jobs
       # below (not skipped, just relocated so this fast job stays fast).
+      # --python pinned explicitly on every uv run below - see the
+      # `quality` job's identical comment (a committed `.python-version`
+      # file pinned to "3.11" makes a bare `uv run` silently ignore the
+      # 3.12 environment `uv sync --python 3.12` just installed above).
       - name: Test with coverage (pytest, excluding slow-marked tests)
-        run: uv run pytest -m "not slow" --cov=credlens --cov-report=term-missing --cov-report=xml
+        run: |
+          uv run --python "${{ matrix.python-version }}" pytest -m "not slow" \
+            --cov=credlens --cov-report=term-missing --cov-report=xml
 
       - name: Upload coverage artifact
         uses: actions/upload-artifact@v4
@@ -116,7 +146,7 @@ jobs:
           retention-days: 7
 
       - name: CLI smoke check
-        run: uv run credlens doctor
+        run: uv run --python "${{ matrix.python-version }}" credlens doctor
 
   warehouse-integration:
     name: Warehouse (synthetic generation + dbt build/test/reconcile)
@@ -193,6 +223,15 @@ jobs:
         run: |
           uv sync --all-groups --extra warehouse --extra analysis --extra dashboard \
             --extra notebook --python "3.11"
+
+      # test_analysis_runner.py's benchmark-figure test needs at least
+      # one real, already-acquired public source (profile_public_sources
+      # degrades to an empty list, not an error, when none are found -
+      # which then fails its own "benchmark figure was written"
+      # assertion) - see the `unit-tests`/`modeling-validation` jobs'
+      # identical fetch step and comment.
+      - name: Fetch the UCI benchmark dataset
+        run: uv run credlens data fetch --source uci-default-credit
 
       # Slow-marked analysis/dashboard integration tests, run once here.
       - name: Analysis/dashboard slow tests
@@ -309,6 +348,19 @@ jobs:
       - name: Install dependencies
         run: uv sync --all-groups --extra analysis --extra modeling --python "3.11"
 
+      # `data/raw/` is gitignored (data/* - see .gitignore) and this raw,
+      # real, third-party benchmark is never committed - a fresh checkout
+      # has none of it. Every step below (the slow tests' own fixtures,
+      # data-audit, the CI-scoped training pipeline) reads it directly
+      # from disk, so it must be fetched here first - confirmed missing
+      # by direct reproduction: this job's "Modeling/model_validation
+      # slow tests" step failed in ~28s on every run, consistent with an
+      # immediate FileNotFoundError, never a genuine mid-suite failure.
+      - name: Fetch the UCI benchmark dataset
+        run: |
+          uv run credlens data fetch --source uci-default-credit
+          uv run credlens data verify
+
       # Slow-marked modeling/model_validation integration tests (full
       # staged pipeline + independent recomputation on the real 30k-row
       # UCI benchmark), run once here rather than in the fast matrix.
@@ -318,11 +370,10 @@ jobs:
             tests/test_cli_model.py tests/test_reason_code_policy.py -m slow -q
 
       # Behavioral early-warning model (Phase 8): the same staged CLI a
-      # human operator runs, on the real acquired UCI benchmark (already
-      # on disk, never downloaded here), under a CI-only experiment_id/
-      # model_id so it can never collide with or overwrite the official
-      # EXP_behavioral_default_v1/MODEL_behavioral_default_v1 committed to
-      # the repo.
+      # human operator runs, on the real acquired UCI benchmark (fetched
+      # above), under a CI-only experiment_id/model_id so it can never
+      # collide with or overwrite the official EXP_behavioral_default_v1/
+      # MODEL_behavioral_default_v1 committed to the repo.
       - name: Model - data audit and feature validation
         run: |
           uv run credlens model data-audit

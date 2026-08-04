@@ -67,6 +67,16 @@ data/metadata/licenses/*
 # as a real, previously-silent gap during Phase 4A - see this phase's
 # final report.
 !tests/fixtures/**/*.csv
+# dbt seeds are, by dbt's own convention, checked into version control
+# (small, static reference/dimension data, never real or acquired data
+# - see warehouse/seeds/dim_dpd_bucket.csv itself). The blanket *.csv
+# rule above silently caught this one too - confirmed as a real,
+# 100%-reproducible-on-Linux dbt compilation error ("depends on a node
+# named 'dim_dpd_bucket' which was not found") on a genuinely fresh
+# clone, since the seed CSV was never committed despite the dbt model
+# that declares/patches it (models/dimensions/_dimensions__models.yml)
+# being tracked all along.
+!warehouse/seeds/*.csv
 *.tsv
 *.parquet
 *.feather
