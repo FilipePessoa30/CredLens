@@ -114,16 +114,26 @@ class TestBuildReleaseInventoryRealRepo:
         assert inventory.unresolved == (), [e.path for e in inventory.unresolved]
 
     @pytest.mark.slow
-    def test_real_repo_flags_the_known_ephemeral_tracked_directories(self) -> None:
-        """Fase 11A's central finding: reports/modeling/quarantine/ and
-        reports/monitoring/{runs,alerts}/ are tracked but never actually
-        release content - real, accidentally-committed test byproducts."""
+    def test_real_repo_no_longer_tracks_the_fase_11a_ephemeral_directories(self) -> None:
+        """Fase 11A found reports/modeling/quarantine/, reports/monitoring/
+        {runs,alerts}/, and coverage.json TRACKED despite never being
+        actual release content - real, accidentally-committed test
+        byproducts (credlens.release.cleanup's Gate B). Fase 11B removed
+        all 1,024 of them from the index (`git rm --cached`, files kept
+        on disk) and added specific `.gitignore` rules - a regression
+        here means one of those paths was accidentally re-tracked."""
         inventory = build_release_inventory(Path.cwd())
-        temp_paths = {e.path for e in inventory.entries if e.classification == "temporary_excluded"}
-        assert any(p.startswith("reports/modeling/quarantine/") for p in temp_paths)
-        assert any(p.startswith("reports/monitoring/runs/") for p in temp_paths)
-        assert any(p.startswith("reports/monitoring/alerts/") for p in temp_paths)
-        assert "coverage.json" in temp_paths
+        tracked_paths = {e.path for e in inventory.entries if e.tracking_status == "tracked"}
+        assert not any(p.startswith("reports/modeling/quarantine/") for p in tracked_paths)
+        assert not any(p.startswith("reports/monitoring/runs/RUN_") for p in tracked_paths)
+        assert not any(p.startswith("reports/monitoring/alerts/") for p in tracked_paths)
+        assert "coverage.json" not in tracked_paths
+        # The one load-bearing reference fixture under runs/ must remain
+        # tracked - Gate B's cleanup deliberately excluded it.
+        assert (
+            "reports/monitoring/runs/BATCHSET_REF_MODEL_behavioral_default_v1/batch_manifest.json"
+            in tracked_paths
+        )
 
     @pytest.mark.slow
     def test_real_repo_fingerprint_is_stable_across_two_calls(self) -> None:

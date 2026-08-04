@@ -1,12 +1,12 @@
 {
-  "coverage_percent": 95.2305,
-  "total_statements": 15096,
-  "covered_statements": 14376,
-  "missing_statements": 720,
-  "test_count": 1815,
-  "command": "uv run pytest --cov=credlens --cov-report=term-missing --cov-report=json:coverage.json --cov-fail-under=95",
+  "coverage_percent": 95.2262,
+  "total_statements": 15250,
+  "covered_statements": 14522,
+  "missing_statements": 728,
+  "test_count": 1864,
+  "command": "uv run pytest --cov=credlens --cov-report=json:coverage.json --cov-fail-under=95 -q",
   "pytest_exit_code": 0,
   "project_version": "1.0.0rc2",
-  "source_snapshot_fingerprint": "e602f7e055aa55088a1539f355ad0337194c0204323b54370bbfe026ecaea942",
-  "measured_at_utc": "2026-08-03T04:28:15.185021+00:00"
+  "source_snapshot_fingerprint": "8e005bae8a1331c918bed0a1faf3b230c9d6b056ec7d8b007ab432a5fff8649f",
+  "measured_at_utc": "2026-08-04T05:25:11.225329+00:00"
 }

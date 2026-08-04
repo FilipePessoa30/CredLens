@@ -1,9 +1,9 @@
 {
-  "content_fingerprint": "b5eb032bb15caf91153fdc6ad3c38040f6d4b2225e11d0ed665a6a4ab7be41e5",
-  "generated_at_utc": "2026-08-04T03:57:44.353440+00:00",
+  "content_fingerprint": "9294132164da4ae0eb3dd01e40d650c9f6d7135eb333b16503d1f8759d223947",
+  "generated_at_utc": "2026-08-04T05:00:36.618257+00:00",
   "reports_written": [
     "monitoring_report.md",
     "monitoring_report.pt-BR.md"
   ],
-  "run_id": "RUN_BATCHSET_REF_TEST_cli9_model_20260804T035740"
+  "run_id": "RUN_BATCHSET_REF_TEST_cli9_model_20260804T050031"
 }
