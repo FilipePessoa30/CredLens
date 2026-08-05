@@ -56,6 +56,13 @@ jobs:
           uv sync --all-groups --extra warehouse --extra analysis --extra dashboard \
             --extra notebook --extra modeling --python ${{ matrix.python-version }}
 
+      # Fase 11C Gate A 4.2 - makes the actual interpreter driving every
+      # step below directly visible in the raw log, not just inferred
+      # from the matrix label - the exact ambiguity the --python pins
+      # below exist to eliminate.
+      - name: Confirm the real Python version this job will use
+        run: uv run --python "${{ matrix.python-version }}" python --version
+
       # Every `uv run` below pins --python explicitly: this repo commits
       # a `.python-version` file (pinned to "3.11", for local/editor
       # convenience) - `uv run` with NO --python flag consults that file
@@ -108,6 +115,10 @@ jobs:
         run: |
           uv sync --all-groups --extra warehouse --extra analysis --extra dashboard \
             --extra notebook --extra modeling --python ${{ matrix.python-version }}
+
+      # Fase 11C Gate A 4.2 - see the `quality` job's identical step.
+      - name: Confirm the real Python version this job will use
+        run: uv run --python "${{ matrix.python-version }}" python --version
 
       # `data/raw/` is gitignored and never committed - tests/
       # test_analysis_benchmark.py's TestProfilePublicSources reads the
@@ -500,6 +511,24 @@ jobs:
         with:
           name: ci-model-smoke-artifacts
           path: .
+
+      # Fase 11C Gate H - this job is a fresh runner with no filesystem
+      # shared with `modeling-validation` (only the small model/experiment
+      # artifact above crosses that boundary): `data/raw/` is gitignored
+      # (data/* - see .gitignore) and never committed, yet BOTH `credlens
+      # monitor create-reference` below (-> credlens.monitoring.reference.
+      # build_reference -> credlens.modeling.data.load_uci_default_credit)
+      # AND every slow test in tests/test_monitoring_*.py that uses the
+      # `phase9_isolated_repo_root` fixture (tests/conftest.py, which
+      # copies data/raw/uci_default_credit/ from the real checkout) need
+      # it on disk. Found by static audit (Fase 11C Gate H): this gap
+      # predates this phase and was never observed on a real run because
+      # `needs: modeling-validation` has kept this job from executing at
+      # all while that job's own separate UCI-fetch-step issue is open -
+      # see this phase's final report for the distinction between a
+      # statically-found gap and a remotely-observed failure.
+      - name: Fetch the UCI benchmark dataset
+        run: uv run credlens data fetch --source uci-default-credit
 
       # Slow-marked monitoring integration tests, run once here.
       - name: Monitoring slow tests

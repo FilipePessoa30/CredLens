@@ -110,6 +110,9 @@ def load_validated_dashboard_data(
     except DashboardConfigError as exc:
         raise BootstrapError(str(exc)) from exc
 
+    if config.mode == "demo":
+        _ensure_demo_bundle_exists(config.demo_data_dir)
+
     try:
         validate_dashboard_source(config)
     except DashboardValidationError as exc:
@@ -121,6 +124,53 @@ def load_validated_dashboard_data(
         raise BootstrapError(str(exc)) from exc
 
     return config, data
+
+
+def _ensure_demo_bundle_exists(demo_data_dir: Path) -> None:
+    """Fase 11C Gate C - the demo package is a deterministically
+    regenerable ARTIFACT (credlens.demo.factory), never a file a fresh
+    checkout is expected to already have on disk. Generates it in-
+    process the first time a page needs it - the SAME library the `uv
+    run credlens demo prepare` CLI itself calls, never a subprocess.
+    Attempts regeneration whenever the package is missing OR fails its
+    own integrity check (incomplete/corrupted/stale), not just when the
+    directory is entirely empty - "detectar artefatos incompletos" is
+    an explicit factory requirement, and a tampered/corrupted LOCAL
+    demo cache has no adversarial threat model worth preserving (it is
+    synthetic, non-sensitive, regenerable data, not a security
+    boundary). `credlens.demo.factory._atomic_replace_dir`'s own
+    "never delete unrecognized non-factory content" safety check still
+    applies underneath this - a directory that predates this factory
+    (e.g. this repo's own currently-tracked dashboard/demo_data/
+    manifest.json + insights.yml, kept versioned before this factory
+    existed) is correctly refused, surfacing as the actionable error
+    below rather than a silent no-op or a stack trace."""
+    from credlens.dashboard.demo_package import DemoPackageError, validate_demo_package
+    from credlens.demo.factory import (
+        DEFAULT_DASHBOARD_SEED,
+        DemoFactoryError,
+        prepare_dashboard_demo,
+    )
+
+    try:
+        validate_demo_package(demo_data_dir)
+        return
+    except DemoPackageError:
+        pass
+
+    try:
+        prepare_dashboard_demo(
+            seed=DEFAULT_DASHBOARD_SEED, output_dir=demo_data_dir, force=True, quiet=True
+        )
+    except DemoFactoryError as exc:
+        raise BootstrapError(
+            f"The demo package at '{demo_data_dir}' is missing or incomplete and could not be "
+            f"generated automatically: {exc}\n"
+            "If this directory carries older, manually-managed content, either remove it "
+            "and retry, or point --demo-data-dir at an empty directory - `credlens demo "
+            "prepare --component dashboard --output <dir> --force` builds a fresh bundle "
+            "deterministically from a seed."
+        ) from exc
 
 
 def demo_package_summary(demo_data_dir: Path) -> str:

@@ -1,0 +1,7 @@
+name,type,target_value,threshold,label_en,label_pt_br,n_flagged,n_total,true_positive,true_negative,false_positive,false_negative,precision,recall,specificity,f1,balanced_accuracy
+top_5_pct,population_share,0.05,0.652499,Illustrative review-capacity scenario,Cenário ilustrativo de capacidade de revisão,336,6000,236,4573,100,1091,0.702381,0.177845,0.9786,0.283824,0.578223
+top_10_pct,population_share,0.1,0.489193,Illustrative review-capacity scenario,Cenário ilustrativo de capacidade de revisão,621,6000,403,4455,218,924,0.648953,0.303693,0.953349,0.413758,0.628521
+top_20_pct,population_share,0.2,0.32741,Illustrative review-capacity scenario,Cenário ilustrativo de capacidade de revisão,1193,6000,636,4116,557,691,0.53311,0.479277,0.880805,0.504762,0.680041
+recall_50,recall,0.5,0.313452,Illustrative review-capacity scenario,Cenário ilustrativo de capacidade de revisão,1255,6000,662,4080,593,665,0.52749,0.49887,0.873101,0.512781,0.685985
+recall_70,recall,0.7,0.159444,Illustrative review-capacity scenario,Cenário ilustrativo de capacidade de revisão,2351,6000,896,3218,1455,431,0.381114,0.675207,0.688637,0.487221,0.681922
+recall_80,recall,0.8,0.132342,Illustrative review-capacity scenario,Cenário ilustrativo de capacidade de revisão,3295,6000,1038,2416,2257,289,0.315023,0.782216,0.517013,0.449156,0.649614

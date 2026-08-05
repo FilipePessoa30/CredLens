@@ -575,6 +575,54 @@ def _build_parser() -> argparse.ArgumentParser:
         "--json", action="store_true", help="Emit machine-readable JSON output."
     )
 
+    demo_parser = subparsers.add_parser(
+        "demo",
+        help="Deterministic demo-data factory (Fase 11C) - prepares the dashboard's demo "
+        "Parquet bundle and/or the monitoring reference+batches from scratch, so neither "
+        "depends on a locally-generated file already sitting on disk.",
+    )
+    demo_subparsers = demo_parser.add_subparsers(dest="demo_command")
+
+    demo_prepare_parser = demo_subparsers.add_parser(
+        "prepare",
+        help="Generate one or both demo-data components deterministically.",
+    )
+    demo_prepare_parser.add_argument(
+        "--component",
+        choices=["dashboard", "monitoring", "all"],
+        required=True,
+        help="Which component to prepare.",
+    )
+    demo_prepare_parser.add_argument(
+        "--seed",
+        type=int,
+        default=42,
+        help="Seed for the dashboard component's synthetic suite (default: 42). Ignored for "
+        "'monitoring', which is deterministic from the already-registered, already-frozen "
+        "official model instead.",
+    )
+    demo_prepare_parser.add_argument(
+        "--output",
+        default=None,
+        help="Where to write the dashboard component's bundle (default: dashboard/demo_data). "
+        "Not applicable to 'monitoring', which always (re)writes the existing, already-"
+        "gitignored reports/monitoring/ locations its own evaluation commands read from.",
+    )
+    demo_prepare_parser.add_argument(
+        "--model-id",
+        default=None,
+        help="Model id for the monitoring component (default: the official "
+        "MODEL_behavioral_default_v1).",
+    )
+    demo_prepare_parser.add_argument(
+        "--force",
+        action="store_true",
+        help="Regenerate even if a complete, matching bundle already exists.",
+    )
+    demo_prepare_parser.add_argument(
+        "--json", action="store_true", help="Emit machine-readable JSON output."
+    )
+
     model_parser = subparsers.add_parser(
         "model",
         help="Interpretable behavioral early-warning default model on the UCI public "
@@ -2655,6 +2703,8 @@ def main(argv: list[str] | None = None) -> int:
         return _dispatch_analysis_command(args)
     if args.command == "dashboard":
         return _dispatch_dashboard_command(args)
+    if args.command == "demo":
+        return _dispatch_demo_command(args)
     if args.command == "model":
         return _dispatch_model_command(args)
     if args.command == "monitor":
@@ -2887,6 +2937,57 @@ def _cmd_dashboard_status(demo_data_dir: str | None, as_json: bool) -> int:
     else:
         print(f"demo package:     not found at '{resolved_demo_dir}'")
     return 0
+
+
+def _cmd_demo_prepare(
+    component: str, seed: int, output: str | None, model_id: str | None, force: bool, as_json: bool
+) -> int:
+    from credlens.demo.factory import (
+        DEFAULT_MODEL_ID,
+        DemoFactoryError,
+        prepare_dashboard_demo,
+        prepare_monitoring_demo,
+    )
+
+    resolved_output = Path(output) if output else _DEFAULT_DEMO_DATA_DIR
+    resolved_model_id = model_id or DEFAULT_MODEL_ID
+    results: dict[str, Any] = {}
+    try:
+        if component in ("dashboard", "all"):
+            manifest = prepare_dashboard_demo(
+                seed=seed, output_dir=resolved_output, force=force, quiet=as_json
+            )
+            results["dashboard"] = manifest.to_dict()
+        if component in ("monitoring", "all"):
+            manifest = prepare_monitoring_demo(
+                model_id=resolved_model_id, force=force, quiet=as_json
+            )
+            results["monitoring"] = manifest.to_dict()
+    except DemoFactoryError as exc:
+        print(f"Error: {exc}")
+        return 1
+
+    if as_json:
+        print(json.dumps(results, indent=2))
+    else:
+        print(f"CredLens demo prepare: {component}")
+        print("=" * 40)
+        for name, manifest_dict in results.items():
+            print(f"[{name}] generator_version={manifest_dict['generator_version']}")
+            for key, value in manifest_dict["outputs"].items():
+                print(f"  {key}: {value}")
+    return 0
+
+
+def _dispatch_demo_command(args: argparse.Namespace) -> int:
+    if args.demo_command == "prepare":
+        return _cmd_demo_prepare(
+            args.component, args.seed, args.output, args.model_id, args.force, args.json
+        )
+
+    print("usage: credlens demo {prepare} ...")
+    print("Run 'credlens demo <command> --help' for details.")
+    return 1
 
 
 def _dispatch_dashboard_command(args: argparse.Namespace) -> int:

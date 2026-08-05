@@ -77,6 +77,26 @@ data/metadata/licenses/*
 # that declares/patches it (models/dimensions/_dimensions__models.yml)
 # being tracked all along.
 !warehouse/seeds/*.csv
+# Fase 11C Gate D - the OFFICIAL model's own frozen split assignment
+# (which UCI rows are train/validation/test) and the small classifier-
+# threshold summary table it needs are both load-bearing INPUTS to
+# monitoring reference reconstruction (credlens.monitoring.reference.
+# build_reference / credlens.monitoring.runner._top10_threshold), not
+# generated demo data - confirmed as a real, direct blocker of
+# `credlens monitor evaluate-detection` on a genuinely fresh clone
+# (FileNotFoundError for both, reproduced in a real clean-room tree).
+# Small (403 KB / 1.3 KB) and deterministic given the already-frozen
+# EXP_behavioral_default_v1 experiment - the same "small, static,
+# never-real-acquired-data" category as warehouse/seeds/dim_dpd_bucket.
+# csv above, not the bulkier per-row prediction tables this same
+# directory also holds (those stay gitignored - regenerable via
+# `credlens model evaluate`, and genuinely bulk generated output, not a
+# frozen reference constant). Currently NOT yet added to the index -
+# see this phase's final report; this rule only prevents a future
+# regeneration of either from being silently re-excluded once a human
+# authorizes committing them.
+!reports/modeling/experiments/*/split_assignment.csv
+!reports/modeling/tables/*__thresholds.csv
 *.tsv
 *.parquet
 *.feather
@@ -110,6 +130,31 @@ Thumbs.db
 # --- Logs ---
 *.log
 logs/
+
+# --- Dashboard demo package (Phase 7 / Fase 11C Gate B) ---
+# `credlens demo prepare --component dashboard` (src/credlens/demo/
+# factory.py) deterministically regenerates the ENTIRE demo bundle
+# (Parquet tables + manifest.json + insights.yml) from a seed - the
+# dashboard's own --demo mode now auto-generates it in-process the
+# first time it's needed (credlens.dashboard.bootstrap), so nothing
+# under here needs to be committed for the dashboard demo to work from
+# a fresh clone. manifest.json/insights.yml are CURRENTLY still tracked
+# from before this factory existed (the *.parquet tables were already
+# gitignored, which is exactly the inconsistency Fase 11C found and
+# fixed at the pipeline level) - removing them from the index is a
+# deliberate act for a human to authorize (git rm --cached), not
+# something this phase's own "no index changes" rule permits doing
+# automatically; this rule only prevents a FUTURE regeneration from
+# being accidentally re-tracked. The two exceptions below are NOT an
+# oversight: an ignore rule that still matches an ALREADY-TRACKED path
+# makes `git add <that-path>` (explicit, not a wildcard expansion) fail
+# with "paths are ignored ... use -f" - exactly what credlens.release.
+# staging's dry-run staging-plan tooling does for every currently-
+# included file - so the two still-tracked files must stay excluded
+# from the pattern until a human actually removes them from the index.
+dashboard/demo_data/*
+!dashboard/demo_data/manifest.json
+!dashboard/demo_data/insights.yml
 
 # --- Jupyter (Phase 7 notebook extra) ---
 # Checkpoint files and an ad hoc executed-notebook copy are transient
@@ -147,13 +192,33 @@ reports/model_validation/evidence/
 # monitoring-pipeline invocation (164 + 138 accidentally-tracked files
 # found - see reports/release/tracked_cleanup_manifest.json) - fully
 # reproducible via `credlens monitor run`/`evaluate`, never curated
-# release content. The `RUN_*/` glob deliberately does NOT match
-# reports/monitoring/runs/BATCHSET_REF_MODEL_behavioral_default_v1/ -
-# that directory's batch_manifest.json is a genuine, load-bearing
-# reference fixture the monitoring pipeline reads as INPUT, not
-# ephemeral output, and stays versioned.
+# release content.
 reports/monitoring/alerts/
-reports/monitoring/runs/RUN_*/
+# Fase 11C Gate D: `credlens demo prepare --component monitoring`
+# (src/credlens/demo/factory.py) now deterministically regenerates the
+# reference (REF_<model_id>.json/__population.csv/__alert_thresholds.
+# json) and the simulated batch set (BATCHSET_<reference_id>/, incl.
+# batch_manifest.json) from the already-committed, already-frozen
+# official model - superseding Fase 11B's decision to keep
+# BATCHSET_REF_MODEL_behavioral_default_v1/batch_manifest.json tracked
+# as "load-bearing" (true at the time; no regeneration path existed
+# yet). reports/monitoring/reference/REF_MODEL_behavioral_default_v1.
+# json and its __alert_thresholds.json sibling are CURRENTLY still
+# tracked from before this factory existed - removing them from the
+# index is a deliberate act for a human to authorize (git rm --cached),
+# not something this phase's own "no index changes" rule permits doing
+# automatically; this rule only prevents a FUTURE regeneration from
+# being accidentally re-tracked. The exceptions below are NOT an
+# oversight - see the identical dashboard/demo_data/ comment above for
+# why an ignore rule that still matches an already-tracked path breaks
+# credlens.release.staging's dry-run tooling.
+reports/monitoring/reference/*
+!reports/monitoring/reference/REF_MODEL_behavioral_default_v1.json
+!reports/monitoring/reference/REF_MODEL_behavioral_default_v1__alert_thresholds.json
+reports/monitoring/runs/*
+!reports/monitoring/runs/BATCHSET_REF_MODEL_behavioral_default_v1/
+reports/monitoring/runs/BATCHSET_REF_MODEL_behavioral_default_v1/*
+!reports/monitoring/runs/BATCHSET_REF_MODEL_behavioral_default_v1/batch_manifest.json
 
 # --- Warehouse (Phase 5: DuckDB + dbt) ---
 # warehouse/ itself (SQL/YAML/macros/seeds/analyses/tests) IS versioned -

@@ -254,11 +254,20 @@ uv run credlens analysis scenarios --build-id <build_id>
 uv run credlens analysis benchmark
 uv run credlens analysis reproduce --output-dir reports/portfolio_analysis
 
-# Decision Intelligence Dashboard (Phase 7) - requires `--extra dashboard` too
-uv run credlens dashboard run --demo                           # no warehouse needed at all
-uv run credlens dashboard export-demo --build-id <build_id>
+# Decision Intelligence Dashboard (Phase 7) - requires `--extra dashboard` too.
+# --demo mode generates its own small demo bundle on first use (Fase
+# 11C) - no warehouse, no pre-existing local data, nothing to download.
+uv run credlens dashboard run --demo
+uv run credlens dashboard export-demo --build-id <build_id>    # package a REAL build's analysis output instead
 uv run credlens dashboard validate --build-id <build_id>       # or --demo
 uv run credlens dashboard status
+
+# Demo-data factory (Fase 11C) - the SAME generator --demo mode calls
+# automatically; use directly to pre-generate, regenerate, or inspect
+# either component.
+uv run credlens demo prepare --component dashboard --seed 42
+uv run credlens demo prepare --component monitoring   # needs the UCI benchmark fetched above
+uv run credlens demo prepare --component all --force
 
 # Behavioral early-warning model (Phase 8) - requires `--extra modeling` too;
 # runs on the real, already-acquired UCI benchmark, never on the synthetic portfolio
@@ -359,6 +368,17 @@ Phase 10 documentation: [`config/model_validation/remediation_policy.yml`](confi
 ## Data strategy (summary)
 
 The target strategy is **public data + a reproducible synthetic operational layer**: real, licensed public credit/macroeconomic datasets provide realistic structure and distributions; a documented, code-generated synthetic layer fills in the operational detail (e.g., day-to-day delinquency transitions) that public datasets don't expose, without ever presenting synthetic values as real observed outcomes. As of Phase 2, four sources are acquired and licensed (two UCI individual-level benchmarks, two Banco Central do Brasil macro series); a fifth (Kaggle) is blocked pending user-provided credentials this project will not request. As of Phase 3, the synthetic layer's conceptual model, contracts, and generation *specification* existed but no generator was built. **As of Phase 4A, the generator itself is real for the `baseline` scenario** - `credlens synthetic generate --scenario baseline` produces a full, contract-valid, deterministic synthetic portfolio; every other scenario remains specification-only. See [`docs/data_strategy.md`](docs/data_strategy.md), [`docs/synthetic_generation_spec.md`](docs/synthetic_generation_spec.md), and [`docs/synthetic_generation_implementation.md`](docs/synthetic_generation_implementation.md) for the full picture.
+
+## Clean-clone guarantee
+
+A fresh `git clone` of this repository, followed only by the commands below, produces a working dashboard and a working monitoring simulation — no file generated on a prior contributor's machine is ever required (Fase 11C).
+
+- **Versioned**: all source code, SQL, config, tests, docs, the dbt seed ([`warehouse/seeds/dim_dpd_bucket.csv`](warehouse/seeds/dim_dpd_bucket.csv) — small, static reference data, not generated/acquired data), the official candidate model artifacts (`reports/modeling/models/*.joblib`), and the 8 dashboard screenshots (`docs/assets/dashboard/`).
+- **Generated on demand, never committed**: the dashboard's demo Parquet bundle and the monitoring reference/simulated batches — both produced deterministically by `credlens demo prepare` (`src/credlens/demo/factory.py`), reusing the same synthetic-generation/warehouse/analysis pipeline described above, never a second implementation. `credlens dashboard run --demo` calls this automatically the first time it's needed; nothing to run by hand for the common case.
+- **Downloaded on demand, never committed**: the real, public UCI "Default of Credit Card Clients" benchmark (`credlens data fetch --source uci-default-credit`) — required by the modeling/monitoring commands, never by the synthetic-portfolio or dashboard-demo path. This is the only step needing network access; everything else is fully offline and deterministic.
+- **Where generated/downloaded data lives**: under this repo's own working tree (`dashboard/demo_data/`, `reports/monitoring/reference/`, `reports/monitoring/runs/`, `data/raw/`, `data/warehouse/`) — all covered by `.gitignore`, never staged by `git add -A`.
+- **Regenerate**: `credlens demo prepare --component all --force`. Idempotent otherwise — re-running without `--force` is a fast no-op once a matching bundle already exists.
+- **Clean up only recognized artifacts**: `credlens demo prepare` never deletes a directory it didn't itself create (it refuses, with an explicit error, to overwrite any `--output` that is non-empty and doesn't carry its own completion marker) — so pointing `--output` somewhere is always safe to retry.
 
 ## Limitations
 

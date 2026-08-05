@@ -1,29 +1,31 @@
 {
-  "release_id": "RC_1.0.0rc2_8e005bae",
+  "release_id": "RC_1.0.0rc2_96c88686",
   "project_version": "1.0.0rc2",
-  "base_commit": "6003f58c761d351d25a909555ba291b617afad4e",
-  "source_snapshot_fingerprint": "8e005bae8a1331c918bed0a1faf3b230c9d6b056ec7d8b007ab432a5fff8649f",
-  "release_inventory_fingerprint": "5f4f4928240fc3715475c409bb46168df4fa5d4df0ee02c188dc34d633b74d78",
+  "base_commit": "14f6ed40c36df4470ade0d1d751b73881248d9f2",
+  "source_snapshot_fingerprint": "96c88686d98c0a253ce84d6abe35fd197448b7b2cb6fe5dde5fa177c6344853c",
+  "release_inventory_fingerprint": "fa6e43913521c85037b4c04d9931223705281648da46074dd66c810454a24e1b",
   "release_inventory_summary": {
-    "n_entries": 690,
-    "n_included": 689,
+    "n_entries": 697,
+    "n_included": 696,
     "n_excluded": 1,
     "n_unresolved": 0,
-    "n_needs_human_review": 0
+    "n_needs_human_review": 6
   },
-  "working_tree_clean": true,
-  "modified_file_count": 0,
+  "working_tree_clean": false,
+  "modified_file_count": 22,
   "model_v1_present": true,
   "model_v2_remediated_present": true,
   "challenger_registered": true,
   "validation_decision": "validation_passed_with_limitations",
   "monitoring_run_present": true,
   "demo_package_present": true,
-  "test_counts": {},
+  "test_counts": {
+    "total": 1924
+  },
   "dbt_reconciliation_status": "reconciled_within_tolerance",
   "notebook_status": "executed_end_to_end",
   "dashboard_status": "validated_apptest_plus_headless_browser",
-  "visual_qa_status": "not_verified",
+  "visual_qa_status": "verified_locally",
   "docker_status": "not_executed",
   "ci_status": "not_run_remotely_this_session",
   "license_inventory_summary": {
@@ -46,6 +48,6 @@
   ],
   "release_blockers": [],
   "readiness_decision": "release_candidate_ready_with_limitations",
-  "generated_at_utc": "2026-08-04T05:41:02.246786+00:00",
-  "content_fingerprint": "e15c8f355532d579377d9540da0a40b4e52671d14d5d7897908e0017405bf0ec"
+  "generated_at_utc": "2026-08-05T16:36:08.083677+00:00",
+  "content_fingerprint": "9e09bba95a2de441a0830387fd7353688f3dc6a09a5ca5f1b00339490d50f928"
 }

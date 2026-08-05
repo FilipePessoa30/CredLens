@@ -28,6 +28,7 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 
 WORKFLOW_PATH = Path(__file__).resolve().parent.parent / ".github" / "workflows" / "ci.yml"
 PYPROJECT_PATH = Path(__file__).resolve().parent.parent / "pyproject.toml"
+GITIGNORE_PATH = Path(__file__).resolve().parent.parent / ".gitignore"
 
 # Shared with credlens.release.integrity (the `credlens release validate`
 # CLI check runs the exact same denylist/parser against this same file) -
@@ -271,4 +272,108 @@ class TestMypyPythonVersionMatchesTheCiMatrix:
         assert minimum in matrix_versions, (
             f"pyproject.toml requires-python={requires_python!r} but ci.yml's "
             f"quality job matrix only tests {matrix_versions!r}"
+        )
+
+
+class TestDemoFactoryGitignoreRules:
+    """Fase 11C Gate B - `credlens demo prepare` regenerates the
+    dashboard's demo bundle and the monitoring reference+batches
+    on demand; none of it may ever be silently re-tracked. Verified
+    against REAL git behavior (`git check-ignore`), not just a string
+    search over .gitignore's own text, in a throwaway tmp_path repo
+    that copies this repo's real .gitignore - never the real repo's
+    own index."""
+
+    @pytest.fixture()
+    def gitignore_copy_repo(self, tmp_path: Path) -> Path:
+        subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
+        (tmp_path / ".gitignore").write_bytes(GITIGNORE_PATH.read_bytes())
+        return tmp_path
+
+    @pytest.mark.parametrize(
+        "candidate_path",
+        [
+            "dashboard/demo_data/funnel_monthly.parquet",
+            "dashboard/demo_data/demo_factory_manifest.json",
+            "reports/monitoring/reference/REF_SOME_MODEL.json",
+            "reports/monitoring/reference/REF_SOME_MODEL__population.csv",
+            "reports/monitoring/reference/REF_SOME_MODEL__alert_thresholds.json",
+            "reports/monitoring/reference/REF_SOME_MODEL__factory_manifest.json",
+            "reports/monitoring/runs/BATCHSET_REF_SOME_MODEL/batch_manifest.json",
+            "reports/monitoring/runs/RUN_x/run.json",
+        ],
+    )
+    def test_generated_artifact_paths_are_ignored(
+        self, gitignore_copy_repo: Path, candidate_path: str
+    ) -> None:
+        result = subprocess.run(
+            ["git", "check-ignore", "-q", candidate_path],
+            cwd=gitignore_copy_repo,
+            capture_output=True,
+        )
+        assert result.returncode == 0, f"expected '{candidate_path}' to be gitignored"
+
+    @pytest.mark.parametrize(
+        "candidate_path",
+        [
+            "reports/monitoring/monitoring_report.md",
+            "reports/monitoring/detection_evaluation.json",
+            "reports/monitoring/false_alert_study.json",
+            "warehouse/seeds/dim_dpd_bucket.csv",
+            "reports/modeling/experiments/EXP_behavioral_default_v1/split_assignment.csv",
+            "reports/modeling/tables/EXP_behavioral_default_v1__thresholds.csv",
+            "reports/modeling/models/MODEL_behavioral_default_v1.joblib",
+            "src/credlens/demo/factory.py",
+            # Still tracked from before this factory existed - see the
+            # matching .gitignore comments for why these two specific
+            # files stay excepted from the blanket dashboard/demo_data/
+            # and reports/monitoring/reference/ ignore rules until a
+            # human authorizes `git rm --cached` for them.
+            "dashboard/demo_data/manifest.json",
+            "dashboard/demo_data/insights.yml",
+            "reports/monitoring/reference/REF_MODEL_behavioral_default_v1.json",
+            "reports/monitoring/reference/REF_MODEL_behavioral_default_v1__alert_thresholds.json",
+            "reports/monitoring/runs/BATCHSET_REF_MODEL_behavioral_default_v1/batch_manifest.json",
+        ],
+    )
+    def test_official_evidence_and_source_paths_are_never_ignored(
+        self, gitignore_copy_repo: Path, candidate_path: str
+    ) -> None:
+        result = subprocess.run(
+            ["git", "check-ignore", "-q", candidate_path],
+            cwd=gitignore_copy_repo,
+            capture_output=True,
+        )
+        assert result.returncode == 1, f"'{candidate_path}' must NOT be gitignored"
+
+
+class TestMonitoringJobFetchesUciDataset:
+    """Fase 11C Gate H - static-audit regression test: the `monitoring`
+    job runs on its own fresh runner (only a small model/experiment
+    artifact crosses the `needs: modeling-validation` boundary), and both
+    `credlens monitor create-reference` and every `tests/test_monitoring_
+    *.py` slow test that uses the `phase9_isolated_repo_root` fixture
+    (tests/conftest.py) need data/raw/uci_default_credit/ on disk -
+    gitignored, never committed, and never fetched by an earlier job on
+    the SAME runner. Without an explicit fetch step here, this job fails
+    as soon as it actually gets to run - previously masked in practice by
+    `modeling-validation`'s own separate failure keeping `needs:` from
+    ever letting this job start at all."""
+
+    def test_monitoring_job_fetches_the_uci_dataset_before_using_it(self) -> None:
+        workflow, _raw_text = _load_workflow()
+        monitoring_job = workflow["jobs"]["monitoring"]
+        run_steps = [step.get("run", "") for step in monitoring_job["steps"] if "run" in step]
+
+        fetch_indices = [i for i, run in enumerate(run_steps) if "credlens data fetch" in run]
+        assert fetch_indices, "the `monitoring` job never fetches the UCI benchmark dataset"
+
+        needs_it_indices = [
+            i
+            for i, run in enumerate(run_steps)
+            if "test_monitoring_" in run or "monitor create-reference" in run
+        ]
+        assert needs_it_indices, "expected steps that need the UCI dataset were not found"
+        assert fetch_indices[0] < min(needs_it_indices), (
+            "the UCI fetch step must run before anything that needs data/raw/ on disk"
         )
