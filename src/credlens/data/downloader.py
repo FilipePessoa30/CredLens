@@ -24,14 +24,26 @@ from credlens.logging_config import get_logger
 logger = get_logger("data.downloader")
 
 DEFAULT_USER_AGENT = (
-    "credlens-data-acquisition/0.1 "
-    "(+https://github.com/OWNER/credlens-credit-analytics; portfolio project)"
+    "credlens-data-acquisition/0.1 (+https://github.com/FilipePessoa30/CredLens; portfolio project)"
 )
 _CHUNK_SIZE = 256 * 1024  # 256 KiB
 
 
 class DownloadError(Exception):
     """A download could not be completed, or was refused for safety reasons."""
+
+
+class RateLimitedError(DownloadError):
+    """The server responded 429 Too Many Requests - unlike a genuine 4xx
+    client error (a wrong/missing resource, which no retry will ever
+    fix), a 429 is HTTP's own standard way of saying "you legitimately
+    can succeed, just not yet" (RFC 6585) - the one 4xx status this
+    downloader retries, honoring a numeric `Retry-After` header if the
+    server sent one."""
+
+    def __init__(self, message: str, *, retry_after_seconds: float | None) -> None:
+        super().__init__(message)
+        self.retry_after_seconds = retry_after_seconds
 
 
 class DestinationExistsError(DownloadError):
@@ -63,6 +75,20 @@ def _resolve_within_directory(directory: Path, filename: str) -> Path:
 def _redact_url(url: str) -> str:
     """Strip a query string before logging, in case a URL ever carries a token."""
     return url.split("?")[0]
+
+
+def _parse_retry_after(raw_value: str | None) -> float | None:
+    """RFC 9110 section 10.2.3 defines `Retry-After` as EITHER an integer number
+    of seconds OR an HTTP-date - only the numeric-seconds form (what
+    every server this project talks to actually sends) is parsed; an
+    HTTP-date or a missing/malformed header falls back to this
+    downloader's own fixed backoff instead of failing the download."""
+    if raw_value is None:
+        return None
+    try:
+        return max(0.0, float(raw_value))
+    except ValueError:
+        return None
 
 
 def download_file(
@@ -109,6 +135,23 @@ def download_file(
                 expected_content_types=expected_content_types,
                 attempt=attempt,
             )
+        except RateLimitedError as exc:
+            last_error = exc
+            wait_seconds = (
+                exc.retry_after_seconds
+                if exc.retry_after_seconds is not None
+                else retry_backoff_seconds * attempt
+            )
+            logger.warning(
+                "Attempt %d/%d rate-limited (429) for %s - waiting %.1fs before retrying: %s",
+                attempt,
+                max_retries,
+                _redact_url(url),
+                wait_seconds,
+                exc,
+            )
+            if attempt < max_retries:
+                time.sleep(wait_seconds)
         except DownloadError:
             raise
         except requests.RequestException as exc:
@@ -139,6 +182,11 @@ def _attempt_download(
     attempt: int,
 ) -> DownloadResult:
     with requests.get(url, headers=headers, timeout=timeout_seconds, stream=True) as response:
+        if response.status_code == 429:
+            raise RateLimitedError(
+                f"Source rate-limited the request: HTTP 429 for {_redact_url(url)}.",
+                retry_after_seconds=_parse_retry_after(response.headers.get("Retry-After")),
+            )
         if 400 <= response.status_code < 500:
             raise DownloadError(
                 f"Source unavailable or refused the request: HTTP {response.status_code} "

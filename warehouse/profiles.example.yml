@@ -17,3 +17,20 @@ credlens_warehouse:
       type: duckdb
       path: "{{ env_var('CREDLENS_WAREHOUSE_DB_PATH', 'warehouse/target/dev.duckdb') }}"
       threads: 4
+      # Fase 11D - pins DuckDB's OWN query engine to a single thread
+      # (separate from dbt's `threads: 4` above, which controls how many
+      # dbt MODELS build concurrently, not a single model's internal
+      # query execution). Confirmed as a real, intermittent (~1 in 3
+      # runs) source of non-determinism: floating-point avg()/sum()
+      # aggregations (e.g. mart_macro_stress_pre_post's avg(par90) etc.)
+      # partition across threads, and float addition is not associative
+      # - the combined result's last bits can differ run to run with the
+      # IDENTICAL input data, breaking the demo-data factory's
+      # byte-for-byte determinism guarantee (Fase 11C Gate B) for
+      # whichever table happens to hit this code path. At this
+      # project's smoke/sample build scale, the performance cost of
+      # single-threaded DuckDB execution is negligible next to a
+      # correctness guarantee this project's fingerprinting/tamper-
+      # detection/coverage-gate machinery already assumes holds.
+      settings:
+        threads: "1"

@@ -5,7 +5,7 @@
 Esta é uma demonstração de METODOLOGIA de monitoramento, não um sistema de monitoramento de produção real - os batches são partições simuladas de um benchmark histórico, nunca dados reais de produção com data real.
 
 ## Execução
-`RUN_BATCHSET_REF_TEST_cli9_model_20260805T154355` - referência `REF_TEST_cli9_model`,
+`RUN_BATCHSET_REF_TEST_cli9_model_20260806T180937` - referência `REF_TEST_cli9_model`,
 conjunto de batches `BATCHSET_REF_TEST_cli9_model`, modelo `TEST_cli9_model`.
 
 ## Batches simulados
@@ -27,81 +27,81 @@ conjunto de batches `BATCHSET_REF_TEST_cli9_model`, modelo `TEST_cli9_model`.
 ## Alertas (75)
 | Alert ID | Batch | Severidade | Categoria | Métrica | Status |
 |---|---|---|---|---|---|
-| ALERT_RUN_BATCHSET_REF_TEST_cli9_model_20260805T154355_0151 | 1 | high | feature_drift | psi__delinquency_trend | material_deviation |
-| ALERT_RUN_BATCHSET_REF_TEST_cli9_model_20260805T154355_0152 | 1 | high | feature_drift | psi__bill_trend | material_deviation |
-| ALERT_RUN_BATCHSET_REF_TEST_cli9_model_20260805T154355_0153 | 1 | medium | performance_drift | roc_auc_delta | review |
-| ALERT_RUN_BATCHSET_REF_TEST_cli9_model_20260805T154355_0154 | 2 | high | feature_drift | psi__bill_trend | material_deviation |
-| ALERT_RUN_BATCHSET_REF_TEST_cli9_model_20260805T154355_0155 | 2 | high | feature_drift | psi__payment_to_bill_ratio | material_deviation |
-| ALERT_RUN_BATCHSET_REF_TEST_cli9_model_20260805T154355_0156 | 3 | high | feature_drift | psi__total_bill_amount | material_deviation |
-| ALERT_RUN_BATCHSET_REF_TEST_cli9_model_20260805T154355_0157 | 3 | high | feature_drift | psi__avg_bill_amount | material_deviation |
-| ALERT_RUN_BATCHSET_REF_TEST_cli9_model_20260805T154355_0158 | 3 | high | feature_drift | psi__bill_trend | material_deviation |
-| ALERT_RUN_BATCHSET_REF_TEST_cli9_model_20260805T154355_0159 | 3 | high | feature_drift | psi__bill_variability | material_deviation |
-| ALERT_RUN_BATCHSET_REF_TEST_cli9_model_20260805T154355_0160 | 3 | high | feature_drift | psi__utilization_ratio | material_deviation |
-| ALERT_RUN_BATCHSET_REF_TEST_cli9_model_20260805T154355_0161 | 3 | high | feature_drift | psi__payment_to_bill_ratio | material_deviation |
-| ALERT_RUN_BATCHSET_REF_TEST_cli9_model_20260805T154355_0162 | 3 | high | feature_drift | psi__payment_coverage_rate | material_deviation |
-| ALERT_RUN_BATCHSET_REF_TEST_cli9_model_20260805T154355_0163 | 3 | high | feature_drift | psi__worst_payment_to_bill_ratio | material_deviation |
-| ALERT_RUN_BATCHSET_REF_TEST_cli9_model_20260805T154355_0164 | 3 | high | feature_drift | psi__limit_exposure_distance | material_deviation |
-| ALERT_RUN_BATCHSET_REF_TEST_cli9_model_20260805T154355_0165 | 4 | medium | feature_drift | psi__bill_trend | review |
-| ALERT_RUN_BATCHSET_REF_TEST_cli9_model_20260805T154355_0166 | 4 | high | feature_drift | psi__payment_to_bill_ratio | material_deviation |
-| ALERT_RUN_BATCHSET_REF_TEST_cli9_model_20260805T154355_0167 | 4 | high | feature_drift | psi__payment_coverage_rate | material_deviation |
-| ALERT_RUN_BATCHSET_REF_TEST_cli9_model_20260805T154355_0168 | 4 | high | feature_drift | psi__worst_payment_to_bill_ratio | material_deviation |
-| ALERT_RUN_BATCHSET_REF_TEST_cli9_model_20260805T154355_0169 | 4 | medium | performance_drift | roc_auc_delta | review |
-| ALERT_RUN_BATCHSET_REF_TEST_cli9_model_20260805T154355_0170 | 5 | high | feature_drift | psi__max_delinquency_status | material_deviation |
-| ALERT_RUN_BATCHSET_REF_TEST_cli9_model_20260805T154355_0171 | 5 | high | feature_drift | psi__months_delinquent_count | material_deviation |
-| ALERT_RUN_BATCHSET_REF_TEST_cli9_model_20260805T154355_0172 | 5 | high | feature_drift | psi__most_recent_delinquency_status | material_deviation |
-| ALERT_RUN_BATCHSET_REF_TEST_cli9_model_20260805T154355_0173 | 5 | high | feature_drift | psi__consecutive_months_delinquent | material_deviation |
-| ALERT_RUN_BATCHSET_REF_TEST_cli9_model_20260805T154355_0174 | 5 | high | feature_drift | psi__worst_payment_to_bill_ratio | material_deviation |
-| ALERT_RUN_BATCHSET_REF_TEST_cli9_model_20260805T154355_0175 | 5 | high | score_drift | score_mean_shift | material_deviation |
-| ALERT_RUN_BATCHSET_REF_TEST_cli9_model_20260805T154355_0176 | 5 | high | performance_drift | roc_auc_delta | material_deviation |
-| ALERT_RUN_BATCHSET_REF_TEST_cli9_model_20260805T154355_0177 | 6 | high | feature_drift | psi__max_delinquency_status | material_deviation |
-| ALERT_RUN_BATCHSET_REF_TEST_cli9_model_20260805T154355_0178 | 6 | high | feature_drift | psi__total_bill_amount | material_deviation |
-| ALERT_RUN_BATCHSET_REF_TEST_cli9_model_20260805T154355_0179 | 6 | high | feature_drift | psi__avg_bill_amount | material_deviation |
-| ALERT_RUN_BATCHSET_REF_TEST_cli9_model_20260805T154355_0180 | 6 | high | feature_drift | psi__bill_trend | material_deviation |
-| ALERT_RUN_BATCHSET_REF_TEST_cli9_model_20260805T154355_0181 | 6 | high | feature_drift | psi__bill_variability | material_deviation |
-| ALERT_RUN_BATCHSET_REF_TEST_cli9_model_20260805T154355_0182 | 6 | high | feature_drift | psi__payment_to_bill_ratio | material_deviation |
-| ALERT_RUN_BATCHSET_REF_TEST_cli9_model_20260805T154355_0183 | 6 | high | feature_drift | psi__payment_variation | material_deviation |
-| ALERT_RUN_BATCHSET_REF_TEST_cli9_model_20260805T154355_0184 | 6 | high | score_drift | score_mean_shift | material_deviation |
-| ALERT_RUN_BATCHSET_REF_TEST_cli9_model_20260805T154355_0185 | 7 | high | feature_drift | psi__max_delinquency_status | material_deviation |
-| ALERT_RUN_BATCHSET_REF_TEST_cli9_model_20260805T154355_0186 | 7 | high | feature_drift | psi__most_recent_delinquency_status | material_deviation |
-| ALERT_RUN_BATCHSET_REF_TEST_cli9_model_20260805T154355_0187 | 7 | medium | feature_drift | psi__utilization_ratio | review |
-| ALERT_RUN_BATCHSET_REF_TEST_cli9_model_20260805T154355_0188 | 7 | high | feature_drift | psi__payment_to_bill_ratio | material_deviation |
-| ALERT_RUN_BATCHSET_REF_TEST_cli9_model_20260805T154355_0189 | 7 | high | feature_drift | psi__worst_payment_to_bill_ratio | material_deviation |
-| ALERT_RUN_BATCHSET_REF_TEST_cli9_model_20260805T154355_0190 | 7 | high | score_drift | score_mean_shift | material_deviation |
-| ALERT_RUN_BATCHSET_REF_TEST_cli9_model_20260805T154355_0191 | 8 | high | feature_drift | psi__delinquency_trend | material_deviation |
-| ALERT_RUN_BATCHSET_REF_TEST_cli9_model_20260805T154355_0192 | 8 | high | feature_drift | psi__bill_trend | material_deviation |
-| ALERT_RUN_BATCHSET_REF_TEST_cli9_model_20260805T154355_0193 | 8 | high | feature_drift | psi__bill_variability | material_deviation |
-| ALERT_RUN_BATCHSET_REF_TEST_cli9_model_20260805T154355_0194 | 8 | high | feature_drift | psi__payment_to_bill_ratio | material_deviation |
-| ALERT_RUN_BATCHSET_REF_TEST_cli9_model_20260805T154355_0195 | 8 | high | feature_drift | psi__payment_variation | material_deviation |
-| ALERT_RUN_BATCHSET_REF_TEST_cli9_model_20260805T154355_0196 | 9 | high | feature_drift | psi__max_delinquency_status | material_deviation |
-| ALERT_RUN_BATCHSET_REF_TEST_cli9_model_20260805T154355_0197 | 9 | high | feature_drift | psi__months_delinquent_count | material_deviation |
-| ALERT_RUN_BATCHSET_REF_TEST_cli9_model_20260805T154355_0198 | 9 | high | feature_drift | psi__most_recent_delinquency_status | material_deviation |
-| ALERT_RUN_BATCHSET_REF_TEST_cli9_model_20260805T154355_0199 | 9 | high | feature_drift | psi__consecutive_months_delinquent | material_deviation |
-| ALERT_RUN_BATCHSET_REF_TEST_cli9_model_20260805T154355_0200 | 9 | high | feature_drift | psi__bill_trend | material_deviation |
-| ALERT_RUN_BATCHSET_REF_TEST_cli9_model_20260805T154355_0201 | 9 | high | feature_drift | psi__utilization_ratio | material_deviation |
-| ALERT_RUN_BATCHSET_REF_TEST_cli9_model_20260805T154355_0202 | 9 | high | feature_drift | psi__payment_to_bill_ratio | material_deviation |
-| ALERT_RUN_BATCHSET_REF_TEST_cli9_model_20260805T154355_0203 | 9 | high | feature_drift | psi__payment_coverage_rate | material_deviation |
-| ALERT_RUN_BATCHSET_REF_TEST_cli9_model_20260805T154355_0204 | 9 | high | feature_drift | psi__worst_payment_to_bill_ratio | material_deviation |
-| ALERT_RUN_BATCHSET_REF_TEST_cli9_model_20260805T154355_0205 | 9 | high | feature_drift | psi__limit_exposure_distance | material_deviation |
-| ALERT_RUN_BATCHSET_REF_TEST_cli9_model_20260805T154355_0206 | 9 | high | score_drift | score_mean_shift | material_deviation |
-| ALERT_RUN_BATCHSET_REF_TEST_cli9_model_20260805T154355_0207 | 10 | high | feature_drift | psi__max_delinquency_status | material_deviation |
-| ALERT_RUN_BATCHSET_REF_TEST_cli9_model_20260805T154355_0208 | 10 | high | feature_drift | psi__months_delinquent_count | material_deviation |
-| ALERT_RUN_BATCHSET_REF_TEST_cli9_model_20260805T154355_0209 | 10 | high | feature_drift | psi__most_recent_delinquency_status | material_deviation |
-| ALERT_RUN_BATCHSET_REF_TEST_cli9_model_20260805T154355_0210 | 10 | high | feature_drift | psi__delinquency_trend | material_deviation |
-| ALERT_RUN_BATCHSET_REF_TEST_cli9_model_20260805T154355_0211 | 10 | high | feature_drift | psi__consecutive_months_delinquent | material_deviation |
-| ALERT_RUN_BATCHSET_REF_TEST_cli9_model_20260805T154355_0212 | 10 | high | feature_drift | psi__total_bill_amount | material_deviation |
-| ALERT_RUN_BATCHSET_REF_TEST_cli9_model_20260805T154355_0213 | 10 | high | feature_drift | psi__avg_bill_amount | material_deviation |
-| ALERT_RUN_BATCHSET_REF_TEST_cli9_model_20260805T154355_0214 | 10 | high | feature_drift | psi__bill_trend | material_deviation |
-| ALERT_RUN_BATCHSET_REF_TEST_cli9_model_20260805T154355_0215 | 10 | high | feature_drift | psi__bill_variability | material_deviation |
-| ALERT_RUN_BATCHSET_REF_TEST_cli9_model_20260805T154355_0216 | 10 | high | feature_drift | psi__utilization_ratio | material_deviation |
-| ALERT_RUN_BATCHSET_REF_TEST_cli9_model_20260805T154355_0217 | 10 | high | feature_drift | psi__payment_to_bill_ratio | material_deviation |
-| ALERT_RUN_BATCHSET_REF_TEST_cli9_model_20260805T154355_0218 | 10 | high | feature_drift | psi__payment_coverage_rate | material_deviation |
-| ALERT_RUN_BATCHSET_REF_TEST_cli9_model_20260805T154355_0219 | 10 | high | feature_drift | psi__payment_variation | material_deviation |
-| ALERT_RUN_BATCHSET_REF_TEST_cli9_model_20260805T154355_0220 | 10 | high | feature_drift | psi__worst_payment_to_bill_ratio | material_deviation |
-| ALERT_RUN_BATCHSET_REF_TEST_cli9_model_20260805T154355_0221 | 10 | medium | performance_drift | roc_auc_delta | review |
-| ALERT_RUN_BATCHSET_REF_TEST_cli9_model_20260805T154355_0222 | 11 | high | feature_drift | psi__payment_to_bill_ratio | material_deviation |
-| ALERT_RUN_BATCHSET_REF_TEST_cli9_model_20260805T154355_0223 | 11 | high | feature_drift | psi__worst_payment_to_bill_ratio | material_deviation |
-| ALERT_RUN_BATCHSET_REF_TEST_cli9_model_20260805T154355_0224 | 11 | medium | score_drift | score_mean_shift | review |
-| ALERT_RUN_BATCHSET_REF_TEST_cli9_model_20260805T154355_0225 | 12 | high | data_quality | schema_validity | blocked_input |
+| ALERT_RUN_BATCHSET_REF_TEST_cli9_model_20260806T180937_0151 | 1 | high | feature_drift | psi__delinquency_trend | material_deviation |
+| ALERT_RUN_BATCHSET_REF_TEST_cli9_model_20260806T180937_0152 | 1 | high | feature_drift | psi__bill_trend | material_deviation |
+| ALERT_RUN_BATCHSET_REF_TEST_cli9_model_20260806T180937_0153 | 1 | medium | performance_drift | roc_auc_delta | review |
+| ALERT_RUN_BATCHSET_REF_TEST_cli9_model_20260806T180937_0154 | 2 | high | feature_drift | psi__bill_trend | material_deviation |
+| ALERT_RUN_BATCHSET_REF_TEST_cli9_model_20260806T180937_0155 | 2 | high | feature_drift | psi__payment_to_bill_ratio | material_deviation |
+| ALERT_RUN_BATCHSET_REF_TEST_cli9_model_20260806T180937_0156 | 3 | high | feature_drift | psi__total_bill_amount | material_deviation |
+| ALERT_RUN_BATCHSET_REF_TEST_cli9_model_20260806T180937_0157 | 3 | high | feature_drift | psi__avg_bill_amount | material_deviation |
+| ALERT_RUN_BATCHSET_REF_TEST_cli9_model_20260806T180937_0158 | 3 | high | feature_drift | psi__bill_trend | material_deviation |
+| ALERT_RUN_BATCHSET_REF_TEST_cli9_model_20260806T180937_0159 | 3 | high | feature_drift | psi__bill_variability | material_deviation |
+| ALERT_RUN_BATCHSET_REF_TEST_cli9_model_20260806T180937_0160 | 3 | high | feature_drift | psi__utilization_ratio | material_deviation |
+| ALERT_RUN_BATCHSET_REF_TEST_cli9_model_20260806T180937_0161 | 3 | high | feature_drift | psi__payment_to_bill_ratio | material_deviation |
+| ALERT_RUN_BATCHSET_REF_TEST_cli9_model_20260806T180937_0162 | 3 | high | feature_drift | psi__payment_coverage_rate | material_deviation |
+| ALERT_RUN_BATCHSET_REF_TEST_cli9_model_20260806T180937_0163 | 3 | high | feature_drift | psi__worst_payment_to_bill_ratio | material_deviation |
+| ALERT_RUN_BATCHSET_REF_TEST_cli9_model_20260806T180937_0164 | 3 | high | feature_drift | psi__limit_exposure_distance | material_deviation |
+| ALERT_RUN_BATCHSET_REF_TEST_cli9_model_20260806T180937_0165 | 4 | medium | feature_drift | psi__bill_trend | review |
+| ALERT_RUN_BATCHSET_REF_TEST_cli9_model_20260806T180937_0166 | 4 | high | feature_drift | psi__payment_to_bill_ratio | material_deviation |
+| ALERT_RUN_BATCHSET_REF_TEST_cli9_model_20260806T180937_0167 | 4 | high | feature_drift | psi__payment_coverage_rate | material_deviation |
+| ALERT_RUN_BATCHSET_REF_TEST_cli9_model_20260806T180937_0168 | 4 | high | feature_drift | psi__worst_payment_to_bill_ratio | material_deviation |
+| ALERT_RUN_BATCHSET_REF_TEST_cli9_model_20260806T180937_0169 | 4 | medium | performance_drift | roc_auc_delta | review |
+| ALERT_RUN_BATCHSET_REF_TEST_cli9_model_20260806T180937_0170 | 5 | high | feature_drift | psi__max_delinquency_status | material_deviation |
+| ALERT_RUN_BATCHSET_REF_TEST_cli9_model_20260806T180937_0171 | 5 | high | feature_drift | psi__months_delinquent_count | material_deviation |
+| ALERT_RUN_BATCHSET_REF_TEST_cli9_model_20260806T180937_0172 | 5 | high | feature_drift | psi__most_recent_delinquency_status | material_deviation |
+| ALERT_RUN_BATCHSET_REF_TEST_cli9_model_20260806T180937_0173 | 5 | high | feature_drift | psi__consecutive_months_delinquent | material_deviation |
+| ALERT_RUN_BATCHSET_REF_TEST_cli9_model_20260806T180937_0174 | 5 | high | feature_drift | psi__worst_payment_to_bill_ratio | material_deviation |
+| ALERT_RUN_BATCHSET_REF_TEST_cli9_model_20260806T180937_0175 | 5 | high | score_drift | score_mean_shift | material_deviation |
+| ALERT_RUN_BATCHSET_REF_TEST_cli9_model_20260806T180937_0176 | 5 | high | performance_drift | roc_auc_delta | material_deviation |
+| ALERT_RUN_BATCHSET_REF_TEST_cli9_model_20260806T180937_0177 | 6 | high | feature_drift | psi__max_delinquency_status | material_deviation |
+| ALERT_RUN_BATCHSET_REF_TEST_cli9_model_20260806T180937_0178 | 6 | high | feature_drift | psi__total_bill_amount | material_deviation |
+| ALERT_RUN_BATCHSET_REF_TEST_cli9_model_20260806T180937_0179 | 6 | high | feature_drift | psi__avg_bill_amount | material_deviation |
+| ALERT_RUN_BATCHSET_REF_TEST_cli9_model_20260806T180937_0180 | 6 | high | feature_drift | psi__bill_trend | material_deviation |
+| ALERT_RUN_BATCHSET_REF_TEST_cli9_model_20260806T180937_0181 | 6 | high | feature_drift | psi__bill_variability | material_deviation |
+| ALERT_RUN_BATCHSET_REF_TEST_cli9_model_20260806T180937_0182 | 6 | high | feature_drift | psi__payment_to_bill_ratio | material_deviation |
+| ALERT_RUN_BATCHSET_REF_TEST_cli9_model_20260806T180937_0183 | 6 | high | feature_drift | psi__payment_variation | material_deviation |
+| ALERT_RUN_BATCHSET_REF_TEST_cli9_model_20260806T180937_0184 | 6 | high | score_drift | score_mean_shift | material_deviation |
+| ALERT_RUN_BATCHSET_REF_TEST_cli9_model_20260806T180937_0185 | 7 | high | feature_drift | psi__max_delinquency_status | material_deviation |
+| ALERT_RUN_BATCHSET_REF_TEST_cli9_model_20260806T180937_0186 | 7 | high | feature_drift | psi__most_recent_delinquency_status | material_deviation |
+| ALERT_RUN_BATCHSET_REF_TEST_cli9_model_20260806T180937_0187 | 7 | medium | feature_drift | psi__utilization_ratio | review |
+| ALERT_RUN_BATCHSET_REF_TEST_cli9_model_20260806T180937_0188 | 7 | high | feature_drift | psi__payment_to_bill_ratio | material_deviation |
+| ALERT_RUN_BATCHSET_REF_TEST_cli9_model_20260806T180937_0189 | 7 | high | feature_drift | psi__worst_payment_to_bill_ratio | material_deviation |
+| ALERT_RUN_BATCHSET_REF_TEST_cli9_model_20260806T180937_0190 | 7 | high | score_drift | score_mean_shift | material_deviation |
+| ALERT_RUN_BATCHSET_REF_TEST_cli9_model_20260806T180937_0191 | 8 | high | feature_drift | psi__delinquency_trend | material_deviation |
+| ALERT_RUN_BATCHSET_REF_TEST_cli9_model_20260806T180937_0192 | 8 | high | feature_drift | psi__bill_trend | material_deviation |
+| ALERT_RUN_BATCHSET_REF_TEST_cli9_model_20260806T180937_0193 | 8 | high | feature_drift | psi__bill_variability | material_deviation |
+| ALERT_RUN_BATCHSET_REF_TEST_cli9_model_20260806T180937_0194 | 8 | high | feature_drift | psi__payment_to_bill_ratio | material_deviation |
+| ALERT_RUN_BATCHSET_REF_TEST_cli9_model_20260806T180937_0195 | 8 | high | feature_drift | psi__payment_variation | material_deviation |
+| ALERT_RUN_BATCHSET_REF_TEST_cli9_model_20260806T180937_0196 | 9 | high | feature_drift | psi__max_delinquency_status | material_deviation |
+| ALERT_RUN_BATCHSET_REF_TEST_cli9_model_20260806T180937_0197 | 9 | high | feature_drift | psi__months_delinquent_count | material_deviation |
+| ALERT_RUN_BATCHSET_REF_TEST_cli9_model_20260806T180937_0198 | 9 | high | feature_drift | psi__most_recent_delinquency_status | material_deviation |
+| ALERT_RUN_BATCHSET_REF_TEST_cli9_model_20260806T180937_0199 | 9 | high | feature_drift | psi__consecutive_months_delinquent | material_deviation |
+| ALERT_RUN_BATCHSET_REF_TEST_cli9_model_20260806T180937_0200 | 9 | high | feature_drift | psi__bill_trend | material_deviation |
+| ALERT_RUN_BATCHSET_REF_TEST_cli9_model_20260806T180937_0201 | 9 | high | feature_drift | psi__utilization_ratio | material_deviation |
+| ALERT_RUN_BATCHSET_REF_TEST_cli9_model_20260806T180937_0202 | 9 | high | feature_drift | psi__payment_to_bill_ratio | material_deviation |
+| ALERT_RUN_BATCHSET_REF_TEST_cli9_model_20260806T180937_0203 | 9 | high | feature_drift | psi__payment_coverage_rate | material_deviation |
+| ALERT_RUN_BATCHSET_REF_TEST_cli9_model_20260806T180937_0204 | 9 | high | feature_drift | psi__worst_payment_to_bill_ratio | material_deviation |
+| ALERT_RUN_BATCHSET_REF_TEST_cli9_model_20260806T180937_0205 | 9 | high | feature_drift | psi__limit_exposure_distance | material_deviation |
+| ALERT_RUN_BATCHSET_REF_TEST_cli9_model_20260806T180937_0206 | 9 | high | score_drift | score_mean_shift | material_deviation |
+| ALERT_RUN_BATCHSET_REF_TEST_cli9_model_20260806T180937_0207 | 10 | high | feature_drift | psi__max_delinquency_status | material_deviation |
+| ALERT_RUN_BATCHSET_REF_TEST_cli9_model_20260806T180937_0208 | 10 | high | feature_drift | psi__months_delinquent_count | material_deviation |
+| ALERT_RUN_BATCHSET_REF_TEST_cli9_model_20260806T180937_0209 | 10 | high | feature_drift | psi__most_recent_delinquency_status | material_deviation |
+| ALERT_RUN_BATCHSET_REF_TEST_cli9_model_20260806T180937_0210 | 10 | high | feature_drift | psi__delinquency_trend | material_deviation |
+| ALERT_RUN_BATCHSET_REF_TEST_cli9_model_20260806T180937_0211 | 10 | high | feature_drift | psi__consecutive_months_delinquent | material_deviation |
+| ALERT_RUN_BATCHSET_REF_TEST_cli9_model_20260806T180937_0212 | 10 | high | feature_drift | psi__total_bill_amount | material_deviation |
+| ALERT_RUN_BATCHSET_REF_TEST_cli9_model_20260806T180937_0213 | 10 | high | feature_drift | psi__avg_bill_amount | material_deviation |
+| ALERT_RUN_BATCHSET_REF_TEST_cli9_model_20260806T180937_0214 | 10 | high | feature_drift | psi__bill_trend | material_deviation |
+| ALERT_RUN_BATCHSET_REF_TEST_cli9_model_20260806T180937_0215 | 10 | high | feature_drift | psi__bill_variability | material_deviation |
+| ALERT_RUN_BATCHSET_REF_TEST_cli9_model_20260806T180937_0216 | 10 | high | feature_drift | psi__utilization_ratio | material_deviation |
+| ALERT_RUN_BATCHSET_REF_TEST_cli9_model_20260806T180937_0217 | 10 | high | feature_drift | psi__payment_to_bill_ratio | material_deviation |
+| ALERT_RUN_BATCHSET_REF_TEST_cli9_model_20260806T180937_0218 | 10 | high | feature_drift | psi__payment_coverage_rate | material_deviation |
+| ALERT_RUN_BATCHSET_REF_TEST_cli9_model_20260806T180937_0219 | 10 | high | feature_drift | psi__payment_variation | material_deviation |
+| ALERT_RUN_BATCHSET_REF_TEST_cli9_model_20260806T180937_0220 | 10 | high | feature_drift | psi__worst_payment_to_bill_ratio | material_deviation |
+| ALERT_RUN_BATCHSET_REF_TEST_cli9_model_20260806T180937_0221 | 10 | medium | performance_drift | roc_auc_delta | review |
+| ALERT_RUN_BATCHSET_REF_TEST_cli9_model_20260806T180937_0222 | 11 | high | feature_drift | psi__payment_to_bill_ratio | material_deviation |
+| ALERT_RUN_BATCHSET_REF_TEST_cli9_model_20260806T180937_0223 | 11 | high | feature_drift | psi__worst_payment_to_bill_ratio | material_deviation |
+| ALERT_RUN_BATCHSET_REF_TEST_cli9_model_20260806T180937_0224 | 11 | medium | score_drift | score_mean_shift | review |
+| ALERT_RUN_BATCHSET_REF_TEST_cli9_model_20260806T180937_0225 | 12 | high | data_quality | schema_validity | blocked_input |
 
 ## Taxa de falso alerta (batch baseline-like)
 0.1429

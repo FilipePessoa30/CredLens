@@ -295,6 +295,12 @@ class TestDemoFactoryGitignoreRules:
         [
             "dashboard/demo_data/funnel_monthly.parquet",
             "dashboard/demo_data/demo_factory_manifest.json",
+            # Fase 11D - git rm --cached'd: orphaned once the *.parquet
+            # tables they reference became gitignored (Fase 11C), a
+            # confirmed regression on a genuinely fresh clone (see the
+            # matching .gitignore comment). The factory regenerates both.
+            "dashboard/demo_data/manifest.json",
+            "dashboard/demo_data/insights.yml",
             "reports/monitoring/reference/REF_SOME_MODEL.json",
             "reports/monitoring/reference/REF_SOME_MODEL__population.csv",
             "reports/monitoring/reference/REF_SOME_MODEL__alert_thresholds.json",
@@ -322,15 +328,21 @@ class TestDemoFactoryGitignoreRules:
             "warehouse/seeds/dim_dpd_bucket.csv",
             "reports/modeling/experiments/EXP_behavioral_default_v1/split_assignment.csv",
             "reports/modeling/tables/EXP_behavioral_default_v1__thresholds.csv",
+            # Fase 11D - same category: a small, deterministic, per-
+            # feature summary of the already-frozen official model, read
+            # by production code (credlens.model_validation), not a bulk
+            # per-row output - see the matching .gitignore comment.
+            "reports/model_validation/tables/EXP_behavioral_default_v1__coefficient_classification.csv",
             "reports/modeling/models/MODEL_behavioral_default_v1.joblib",
             "src/credlens/demo/factory.py",
             # Still tracked from before this factory existed - see the
-            # matching .gitignore comments for why these two specific
-            # files stay excepted from the blanket dashboard/demo_data/
-            # and reports/monitoring/reference/ ignore rules until a
-            # human authorizes `git rm --cached` for them.
-            "dashboard/demo_data/manifest.json",
-            "dashboard/demo_data/insights.yml",
+            # matching .gitignore comment for why this one specific file
+            # stays excepted from the blanket reports/monitoring/
+            # reference/ ignore rule until a human authorizes `git rm
+            # --cached` for it (unlike dashboard/demo_data/manifest.json/
+            # insights.yml above, already removed in Fase 11D - this one
+            # was audited separately and found NOT to break anything on
+            # a fresh clone the way the dashboard pair did).
             "reports/monitoring/reference/REF_MODEL_behavioral_default_v1.json",
             "reports/monitoring/reference/REF_MODEL_behavioral_default_v1__alert_thresholds.json",
             "reports/monitoring/runs/BATCHSET_REF_MODEL_behavioral_default_v1/batch_manifest.json",

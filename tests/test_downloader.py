@@ -72,6 +72,90 @@ def test_download_file_client_error_is_not_retried(tmp_path: Path) -> None:
 
 
 @responses.activate
+def test_download_file_retries_on_429_then_succeeds(tmp_path: Path) -> None:
+    # Fase 11D - unlike a genuine 4xx (a wrong/missing resource, never
+    # fixed by retrying), 429 is HTTP's own standard signal that a later
+    # attempt can legitimately succeed (e.g. a source rate-limiting a
+    # shared IP range, such as a CI provider's runners) - confirmed as a
+    # real gap: this downloader previously treated 429 identically to a
+    # permanent 404/403 and never retried it.
+    responses.add(responses.GET, FIXTURE_URL, status=429)
+    responses.add(responses.GET, FIXTURE_URL, body=b"recovered after rate limit", status=200)
+
+    download_file(
+        FIXTURE_URL,
+        tmp_path,
+        "fixture.csv",
+        source_id="fixture",
+        max_retries=2,
+        retry_backoff_seconds=0,
+    )
+
+    assert len(responses.calls) == 2
+    assert (tmp_path / "fixture.csv").read_bytes() == b"recovered after rate limit"
+
+
+@responses.activate
+def test_download_file_honors_numeric_retry_after_header(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    sleep_calls: list[float] = []
+    monkeypatch.setattr("credlens.data.downloader.time.sleep", sleep_calls.append)
+    responses.add(responses.GET, FIXTURE_URL, status=429, headers={"Retry-After": "5"})
+    responses.add(responses.GET, FIXTURE_URL, body=b"ok", status=200)
+
+    download_file(
+        FIXTURE_URL,
+        tmp_path,
+        "fixture.csv",
+        source_id="fixture",
+        max_retries=2,
+    )
+
+    assert sleep_calls == [5.0]
+
+
+@responses.activate
+def test_download_file_429_without_retry_after_uses_default_backoff(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    sleep_calls: list[float] = []
+    monkeypatch.setattr("credlens.data.downloader.time.sleep", sleep_calls.append)
+    responses.add(responses.GET, FIXTURE_URL, status=429)
+    responses.add(responses.GET, FIXTURE_URL, body=b"ok", status=200)
+
+    download_file(
+        FIXTURE_URL,
+        tmp_path,
+        "fixture.csv",
+        source_id="fixture",
+        max_retries=2,
+        retry_backoff_seconds=3,
+    )
+
+    assert sleep_calls == [3.0]
+
+
+@responses.activate
+def test_download_file_429_exhausts_retries_and_raises(tmp_path: Path) -> None:
+    responses.add(responses.GET, FIXTURE_URL, status=429)
+    responses.add(responses.GET, FIXTURE_URL, status=429)
+
+    with pytest.raises(DownloadError, match="after 2 attempt"):
+        download_file(
+            FIXTURE_URL,
+            tmp_path,
+            "fixture.csv",
+            source_id="fixture",
+            max_retries=2,
+            retry_backoff_seconds=0,
+        )
+
+    assert len(responses.calls) == 2
+    assert not (tmp_path / "fixture.csv").exists()
+
+
+@responses.activate
 def test_download_file_retries_on_server_error_then_succeeds(tmp_path: Path) -> None:
     responses.add(responses.GET, FIXTURE_URL, status=503)
     responses.add(responses.GET, FIXTURE_URL, body=b"recovered", status=200)

@@ -91,12 +91,20 @@ data/metadata/licenses/*
 # csv above, not the bulkier per-row prediction tables this same
 # directory also holds (those stay gitignored - regenerable via
 # `credlens model evaluate`, and genuinely bulk generated output, not a
-# frozen reference constant). Currently NOT yet added to the index -
-# see this phase's final report; this rule only prevents a future
-# regeneration of either from being silently re-excluded once a human
-# authorizes committing them.
+# frozen reference constant). Committed in Fase 11C/11D.
 !reports/modeling/experiments/*/split_assignment.csv
 !reports/modeling/tables/*__thresholds.csv
+# Fase 11D - same category as the two exceptions above: a small (19
+# rows, ~5 KB), deterministic, per-FEATURE (never per-individual)
+# summary of the already-frozen EXP_behavioral_default_v1 model's
+# coefficient-stability classification, read by production code
+# (credlens.model_validation.remediation/reporting), not just a test
+# fixture. Confirmed missing on a genuinely fresh clean-room clone,
+# breaking tests/test_model_validation_remediation.py - the same
+# blanket `*.csv` rule silently caught it too. No PII, no raw/acquired
+# data, no individual-level rows - only aggregate statistics over the
+# already-licensed (CC BY 4.0) UCI benchmark's engineered features.
+!reports/model_validation/tables/*__coefficient_classification.csv
 *.tsv
 *.parquet
 *.feather
@@ -138,23 +146,15 @@ logs/
 # dashboard's own --demo mode now auto-generates it in-process the
 # first time it's needed (credlens.dashboard.bootstrap), so nothing
 # under here needs to be committed for the dashboard demo to work from
-# a fresh clone. manifest.json/insights.yml are CURRENTLY still tracked
-# from before this factory existed (the *.parquet tables were already
-# gitignored, which is exactly the inconsistency Fase 11C found and
-# fixed at the pipeline level) - removing them from the index is a
-# deliberate act for a human to authorize (git rm --cached), not
-# something this phase's own "no index changes" rule permits doing
-# automatically; this rule only prevents a FUTURE regeneration from
-# being accidentally re-tracked. The two exceptions below are NOT an
-# oversight: an ignore rule that still matches an ALREADY-TRACKED path
-# makes `git add <that-path>` (explicit, not a wildcard expansion) fail
-# with "paths are ignored ... use -f" - exactly what credlens.release.
-# staging's dry-run staging-plan tooling does for every currently-
-# included file - so the two still-tracked files must stay excluded
-# from the pattern until a human actually removes them from the index.
+# a fresh clone. manifest.json/insights.yml were tracked from before
+# this factory existed, orphaned once the *.parquet tables they
+# reference became gitignored (Fase 11C) - a real, confirmed regression
+# on a genuinely fresh clone (Fase 11D): `_skip_if_absent()`-style test
+# guards see manifest.json present and proceed, then fail with
+# "Demo table 'X' is missing" since its parquets were never committed.
+# Fase 11D `git rm --cached` both, closing the gap the auto-generation
+# above already exists to fill.
 dashboard/demo_data/*
-!dashboard/demo_data/manifest.json
-!dashboard/demo_data/insights.yml
 
 # --- Jupyter (Phase 7 notebook extra) ---
 # Checkpoint files and an ad hoc executed-notebook copy are transient

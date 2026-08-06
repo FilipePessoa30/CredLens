@@ -372,6 +372,42 @@ jobs:
           uv run credlens data fetch --source uci-default-credit
           uv run credlens data verify
 
+      # Fase 11D - this job is a fresh runner: `reports/modeling/
+      # experiments/EXP_behavioral_default_v1/models/*.joblib` and
+      # `reports/modeling/tables/EXP_behavioral_default_v1__predictions_
+      # test.csv` are intentionally gitignored (bulky, regenerable
+      # per-experiment working output, never a frozen reference constant
+      # - see .gitignore's reports/modeling comment), yet several of the
+      # slow tests below (tests/test_reason_code_policy.py's
+      # TestEnforcementOnTheRealOfficialModel) read them directly from
+      # disk. Found by direct clean-room reproduction: this job's own
+      # slow-tests step failed with FileNotFoundError for both, on every
+      # run, once the UCI-fetch/dashboard-orphan gaps above were fixed
+      # and this job could finally run far enough to reach them.
+      #
+      # Retraining is NOT byte-reproducible for this experiment (unlike
+      # `model validate-independent`, which has no timestamp field):
+      # `EXP_behavioral_default_v1.json` and the bilingual reports/tables
+      # embed `created_at_utc` and the installed `credlens` version, so
+      # `git checkout --` immediately after restores every TRACKED file
+      # this touches to its exact committed content - only the newly
+      # created, gitignored working artifacts (the .joblib files,
+      # predictions_test.csv, ...) are left in place. Mirrors this job's
+      # own already-established "restore the official decision/report"
+      # step for the same reason.
+      - name: Model - regenerate the official EXP_behavioral_default_v1 working artifacts
+        run: |
+          uv run credlens model train --experiment-id EXP_behavioral_default_v1 --seed 42
+          uv run credlens model evaluate --experiment-id EXP_behavioral_default_v1
+          uv run credlens model compare --experiment-id EXP_behavioral_default_v1
+          uv run credlens model explain --experiment-id EXP_behavioral_default_v1
+          uv run credlens model audit-groups --experiment-id EXP_behavioral_default_v1
+          uv run credlens model stress-test --experiment-id EXP_behavioral_default_v1
+          uv run credlens model register-challenger --experiment-id EXP_behavioral_default_v1
+          uv run credlens model compare-candidates --experiment-id EXP_behavioral_default_v1
+          uv run credlens model audit-collinearity --model-id MODEL_behavioral_default_v1
+          git checkout -- reports/modeling/ reports/model_validation/
+
       # Slow-marked modeling/model_validation integration tests (full
       # staged pipeline + independent recomputation on the real 30k-row
       # UCI benchmark), run once here rather than in the fast matrix.
@@ -529,6 +565,54 @@ jobs:
       # statically-found gap and a remotely-observed failure.
       - name: Fetch the UCI benchmark dataset
         run: uv run credlens data fetch --source uci-default-credit
+
+      # Fase 11D - this job's own runner (separate from modeling-
+      # validation's) also has none of the OFFICIAL EXP_behavioral_
+      # default_v1's gitignored working artifacts (needed by tests/
+      # test_cli_model_validation_monitor.py's `registered_throwaway_
+      # model` fixture, which registers a NEW model_id against this
+      # SAME already-trained experiment) nor the official monitoring
+      # reference's population table (reports/monitoring/reference/
+      # REF_MODEL_behavioral_default_v1__population.csv - gitignored,
+      # needed by tests/test_monitoring_calibration_incidents_
+      # detection.py). `credlens demo prepare --component monitoring`
+      # (src/credlens/demo/factory.py, Fase 11C) reuses the existing
+      # create-reference/calibrate/simulate-batches pipeline against the
+      # already-committed, curated MODEL_behavioral_default_v1.joblib -
+      # unrelated to the per-experiment retrain, but needs it done first
+      # regardless for the CLI-registration test above. See the
+      # modeling-validation job's identical retrain+restore step and
+      # comment for why `git checkout --` runs immediately after.
+      - name: Model - regenerate the official EXP_behavioral_default_v1 working artifacts
+        run: |
+          uv run credlens model train --experiment-id EXP_behavioral_default_v1 --seed 42
+          uv run credlens model evaluate --experiment-id EXP_behavioral_default_v1
+          uv run credlens model compare --experiment-id EXP_behavioral_default_v1
+          uv run credlens model explain --experiment-id EXP_behavioral_default_v1
+          uv run credlens model audit-groups --experiment-id EXP_behavioral_default_v1
+          uv run credlens model stress-test --experiment-id EXP_behavioral_default_v1
+          git checkout -- reports/modeling/ reports/model_validation/
+
+      # `REF_MODEL_behavioral_default_v1.json`/`__alert_thresholds.json`
+      # are still tracked (like the modeling experiment above, they
+      # embed a `created_at_utc`/hash that a regeneration cannot
+      # reproduce byte-for-byte) - `git checkout --` restores them,
+      # leaving only the gitignored `__population.csv` this job's tests
+      # actually need. Confirmed by direct reproduction that the tests
+      # below never cross-check the restored reference's stored hash
+      # against the freshly (re)generated population table's actual
+      # content, so this mismatch is harmless in practice.
+      #
+      # --force is required: `REF_MODEL_behavioral_default_v1.json`
+      # being tracked means it is ALWAYS present on any fresh checkout,
+      # so the factory's own idempotency check always sees "a reference
+      # already exists" and refuses without it - confirmed by direct
+      # reproduction (the exact error without --force: "pass force=True
+      # (CLI: --force) to regenerate it").
+      - name: Monitoring - prepare the official reference (reused by the slow tests below)
+        run: |
+          uv run credlens demo prepare --component monitoring --force
+          git checkout -- reports/monitoring/
 
       # Slow-marked monitoring integration tests, run once here.
       - name: Monitoring slow tests

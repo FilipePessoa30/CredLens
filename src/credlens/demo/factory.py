@@ -187,7 +187,14 @@ def prepare_dashboard_demo(
     # final bundle.
     tmp_path = Path(tempfile.gettempdir()) / "credlens_demo_factory" / f"dashboard_seed_{seed}"
     if tmp_path.exists():
-        shutil.rmtree(tmp_path)
+        # Fase 11D - a prior invocation's DuckDB/dbt connection over a
+        # *.duckdb file under this same tmp_path can still be releasing
+        # its OS-level file handle asynchronously (see `_rmtree_with_
+        # retry`'s own docstring) when this next call starts - confirmed
+        # by direct reproduction on Windows (PermissionError/WinError32
+        # deleting a sibling *.parquet mid-rmtree, immediately after a
+        # previous call to this same seed's staging path).
+        _rmtree_with_retry(tmp_path)
     tmp_path.mkdir(parents=True)
     try:
         operational_dir = tmp_path / "operational"
@@ -279,7 +286,10 @@ def prepare_dashboard_demo(
                 except PermissionError:
                     shutil.rmtree(build_dir, ignore_errors=True)
     finally:
-        shutil.rmtree(tmp_path, ignore_errors=True)
+        try:
+            _rmtree_with_retry(tmp_path)
+        except PermissionError:
+            shutil.rmtree(tmp_path, ignore_errors=True)
 
     _log("done.")
     return factory_manifest

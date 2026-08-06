@@ -130,8 +130,17 @@ class TestEmptyStateWhenNoExperimentExists:
 
 
 @pytest.mark.skipif(
-    not Path("reports/modeling/experiments/EXP_behavioral_default_v1.json").is_file(),
-    reason="Requires the official Phase 8 experiment to have been run.",
+    not Path("reports/modeling/tables/EXP_behavioral_default_v1__predictions_test.csv").is_file(),
+    reason=(
+        "Requires the official Phase 8 experiment's predictions_test table - "
+        "intentionally gitignored (bulk, regenerable per-row output, never a frozen "
+        "reference constant - see .gitignore's reports/modeling/tables comment), so a "
+        "genuinely fresh clone/CI checkout never has it without first running "
+        "'credlens model evaluate --experiment-id EXP_behavioral_default_v1' locally. "
+        "The experiment's OWN metadata JSON is committed and always present, which is "
+        "not, by itself, evidence this table exists too (confirmed as a real, "
+        "previously-unaudited gap on a genuinely fresh clone - Fase 11D)."
+    ),
 )
 class TestRealExperimentRendersWithoutError:
     def test_defaults_to_the_registered_candidate_not_a_gate_d_sibling(self) -> None:
