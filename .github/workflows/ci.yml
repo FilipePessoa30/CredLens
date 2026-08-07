@@ -370,7 +370,7 @@ jobs:
       - name: Fetch the UCI benchmark dataset
         run: |
           uv run credlens data fetch --source uci-default-credit
-          uv run credlens data verify
+          uv run credlens data verify --source uci-default-credit
 
       # Fase 11D - this job is a fresh runner: `reports/modeling/
       # experiments/EXP_behavioral_default_v1/models/*.joblib` and

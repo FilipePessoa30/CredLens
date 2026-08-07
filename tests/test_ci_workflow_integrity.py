@@ -396,3 +396,35 @@ class TestMonitoringJobFetchesUciDataset:
         assert fetch_indices[0] < min(needs_it_indices), (
             "the UCI fetch step must run before anything that needs data/raw/ on disk"
         )
+
+
+class TestDataVerifyCallsAreScopedToWhatWasActuallyFetched:
+    """Fase 11E - `credlens data verify` (no --source) checks EVERY
+    source in the registry (uci-default-credit, south-german-credit, the
+    two bcb-sgs series), not just whatever a preceding `credlens data
+    fetch` call actually downloaded in THIS job. The `modeling-
+    validation` job only ever fetches uci-default-credit, so an unscoped
+    `data verify` right after it deterministically failed on every real
+    run (100% reproducible, confirmed from an actual GitHub Actions log -
+    not the network/rate-limit flakiness this was mistakenly assumed to
+    be across three prior phases): "[MISSING] bcb-sgs-... / south-german-
+    credit..." for the six sources this job never fetches, even though
+    "[OK] uci-default-credit" - the one source that matters here -
+    always passed. `--source <id>` scopes the check to exactly what was
+    fetched."""
+
+    def test_every_unscoped_data_fetch_is_not_followed_by_an_unscoped_data_verify(self) -> None:
+        workflow, _raw_text = _load_workflow()
+        for job_name, job in workflow.get("jobs", {}).items():
+            run_steps = [step.get("run", "") for step in job.get("steps", []) if "run" in step]
+            for run in run_steps:
+                if "credlens data fetch --source" not in run:
+                    continue
+                assert "credlens data verify\n" not in run and not run.rstrip().endswith(
+                    "credlens data verify"
+                ), (
+                    f"job '{job_name}' runs an unscoped 'credlens data verify' after fetching "
+                    "only specific source(s) - it will always report every OTHER registered "
+                    "source as missing. Use 'credlens data verify --source <id>' scoped to "
+                    "exactly what this job fetched."
+                )
