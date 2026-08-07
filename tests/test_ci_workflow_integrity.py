@@ -439,3 +439,46 @@ class TestDataVerifyCallsAreScopedToWhatWasActuallyFetched:
                     "source as missing. Use 'credlens data verify --source <id>' scoped to "
                     "exactly what this job fetched."
                 )
+
+
+class TestJobsRunningDashboardAppTestsInstallTheDashboardExtra:
+    """Fase 11E - `streamlit` is only ever pulled in via the `dashboard`
+    extra (see pyproject.toml / uv.lock: it has no dependency edge from
+    the `dev` group or any other extra) - a job whose `Install
+    dependencies` step omits `--extra dashboard` but later runs a test
+    file that imports `streamlit.testing.v1.AppTest` at module scope
+    fails deterministically at collection time with ModuleNotFoundError,
+    never flakiness. Confirmed from a real GitHub Actions run
+    (31193005240, PR #2, SHA 2a20874): `modeling-validation`'s "Model
+    Lab - AppTest execution of the 9th dashboard page" step (`pytest
+    tests/test_dashboard_model_lab.py`) failed this way, right after the
+    VIF-table gap above was fixed and the job could finally run far
+    enough to reach it. `monitoring`'s otherwise-identical `Install
+    dependencies` step had the same gap for `tests/test_dashboard_
+    monitoring_lab.py` - only masked so far by `needs: modeling-
+    validation` keeping that job from ever starting."""
+
+    def test_jobs_running_a_streamlit_apptest_file_install_the_dashboard_extra(self) -> None:
+        workflow, _raw_text = _load_workflow()
+        tests_dir = REPO_ROOT / "tests"
+        apptest_files = sorted(
+            path.name
+            for path in tests_dir.glob("test_dashboard_*.py")
+            if "from streamlit" in path.read_text(encoding="utf-8")
+        )
+        assert apptest_files, "expected at least one dashboard AppTest test file"
+
+        for job_name, job in workflow.get("jobs", {}).items():
+            run_steps = [step.get("run", "") for step in job.get("steps", []) if "run" in step]
+            runs_an_apptest_file = any(
+                any(fname in run for fname in apptest_files) for run in run_steps
+            )
+            if not runs_an_apptest_file:
+                continue
+            installs_dashboard_extra = any("--extra dashboard" in run for run in run_steps)
+            assert installs_dashboard_extra, (
+                f"job '{job_name}' runs a streamlit AppTest test file but its 'Install "
+                "dependencies' step never passes '--extra dashboard' - streamlit is only "
+                "pulled in via that extra (see uv.lock), so pytest will fail to even "
+                "collect the file with ModuleNotFoundError."
+            )

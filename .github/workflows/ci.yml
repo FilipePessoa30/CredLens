@@ -357,7 +357,7 @@ jobs:
         run: uv python install "3.11"
 
       - name: Install dependencies
-        run: uv sync --all-groups --extra analysis --extra modeling --python "3.11"
+        run: uv sync --all-groups --extra analysis --extra modeling --extra dashboard --python "3.11"
 
       # `data/raw/` is gitignored (data/* - see .gitignore) and this raw,
       # real, third-party benchmark is never committed - a fresh checkout
@@ -540,7 +540,7 @@ jobs:
         run: uv python install "3.11"
 
       - name: Install dependencies
-        run: uv sync --all-groups --extra analysis --extra modeling --python "3.11"
+        run: uv sync --all-groups --extra analysis --extra modeling --extra dashboard --python "3.11"
 
       - name: Download the CI-scoped model/experiment artifacts from modeling-validation
         uses: actions/download-artifact@v4
