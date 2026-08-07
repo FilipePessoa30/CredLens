@@ -1,9 +1,9 @@
 {
-  "release_id": "RC_1.0.0rc2_1e6803bc",
+  "release_id": "RC_1.0.0rc2_86c758c4",
   "project_version": "1.0.0rc2",
-  "base_commit": "d6ae2ac0332b8f994c3518c457aaf25a0a8e5f60",
-  "source_snapshot_fingerprint": "1e6803bc997c9896b8cce36690080bee826f08cfda435683a7fbc7dcd4e0af9e",
-  "release_inventory_fingerprint": "d78fd9900b5d47f701a15d8ba8f364e83ce6e2b1800ad15843bbc70d6103cc73",
+  "base_commit": "4132949caa2a33cdae3ca4397ba9997d137d0fbf",
+  "source_snapshot_fingerprint": "86c758c495659ddfcd3117e3d69e1d3058e437cb6633d15ad41fb9431fbf2db6",
+  "release_inventory_fingerprint": "baa297fc2985ab8bdbe975cfe0aed2f30fef20ce092e88279338751b407b5fef",
   "release_inventory_summary": {
     "n_entries": 714,
     "n_included": 713,
@@ -12,7 +12,7 @@
     "n_needs_human_review": 0
   },
   "working_tree_clean": false,
-  "modified_file_count": 5,
+  "modified_file_count": 12,
   "model_v1_present": true,
   "model_v2_remediated_present": true,
   "challenger_registered": true,
@@ -46,6 +46,6 @@
   ],
   "release_blockers": [],
   "readiness_decision": "release_candidate_ready_with_limitations",
-  "generated_at_utc": "2026-08-07T21:24:22.978600+00:00",
-  "content_fingerprint": "ffbba9cc1a7ab5b6b190825c406e8cdabc26e174bae0b35a69f1be2fa7fa617c"
+  "generated_at_utc": "2026-08-07T23:03:28.949227+00:00",
+  "content_fingerprint": "7c7ea1ec59e915f6b53377489c8a249a1c3799dd69bcdff5aa4dec442298dfc5"
 }
