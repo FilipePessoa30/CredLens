@@ -307,6 +307,20 @@ class TestDemoFactoryGitignoreRules:
             "reports/monitoring/reference/REF_SOME_MODEL__factory_manifest.json",
             "reports/monitoring/runs/BATCHSET_REF_SOME_MODEL/batch_manifest.json",
             "reports/monitoring/runs/RUN_x/run.json",
+            # Fase 11E - the three `EXP_behavioral_default_v*__{suffix}.
+            # csv` exceptions below must NOT also un-ignore a CI-scoped
+            # experiment sharing the same table-name suffix - confirmed
+            # as a real, direct contributor to "Prove no official
+            # modeling/model_validation artifact was ever altered"
+            # failing on a genuine GitHub Actions run (31219985691, PR
+            # #2, SHA 4132949): CI_MODEL_SMOKE__vif.csv/__coefficient_
+            # classification.csv/__thresholds.csv showed up as
+            # untracked-but-not-ignored - see the matching .gitignore
+            # comments (narrowed from a bare `*` to the official
+            # experiment-id family).
+            "reports/model_validation/tables/CI_MODEL_SMOKE__vif.csv",
+            "reports/model_validation/tables/CI_MODEL_SMOKE__coefficient_classification.csv",
+            "reports/modeling/tables/CI_MODEL_SMOKE__thresholds.csv",
         ],
     )
     def test_generated_artifact_paths_are_ignored(
@@ -526,4 +540,65 @@ class TestModelLabAppTestRunsBeforeTheCiScopedCandidateExists:
             "own real-repo regression check (which asserts the page defaults to "
             "EXP_behavioral_default_v1) fails, since it sorts after CI_MODEL_SMOKE_v1 "
             "alphabetically."
+        )
+
+
+class TestModelingValidationIntegrityCheckIgnoresItsOwnCiScopedOutput:
+    """Fase 11E - `modeling-validation`'s own CI-scoped pipeline
+    legitimately leaves untracked CI_MODEL_SMOKE* output under
+    reports/modeling/ and reports/model_validation/ (models/experiments/
+    tables/figures/lifecycle - none of it gitignored by design, since a
+    genuinely new OFFICIAL candidate must be free to land in the same
+    paths), cleaned up in a dedicated later step. Confirmed from a real
+    GitHub Actions run (31219985691, PR #2, SHA 4132949) and by local
+    reproduction of the exact CI pipeline: a plain `git status
+    --porcelain` (no `--untracked-files=no`) on "Prove no official
+    modeling/model_validation artifact was ever altered" sees those `??`
+    entries too and fails regardless of whether any OFFICIAL/tracked
+    artifact was actually altered. Separately, `reports/model_
+    validation/lifecycle/MODEL_behavioral_default_v1.json` is an
+    append-only, `timestamp_utc`-stamped audit log - never byte-
+    reproducible by re-running `validate-independent` - so the restore
+    step must also `git checkout --` afterward, exactly like the
+    official EXP_behavioral_default_v1 retrain step above it already
+    does."""
+
+    def test_the_integrity_check_excludes_untracked_files(self) -> None:
+        workflow, _raw_text = _load_workflow()
+        job = workflow["jobs"]["modeling-validation"]
+        run_steps = [step.get("run", "") for step in job["steps"] if "run" in step]
+        check_step = next(
+            (
+                run
+                for run in run_steps
+                if "Prove no official" not in run and "git status --porcelain" in run
+            ),
+            None,
+        )
+        assert check_step is not None, "expected a 'git status --porcelain ...' integrity check"
+        assert "--untracked-files=no" in check_step, (
+            "the modeling-validation job's integrity check must pass '--untracked-files=no' - "
+            "this job's own CI-scoped pipeline legitimately leaves untracked (and, by design, "
+            "not gitignored) CI_MODEL_SMOKE* output under the same directories, cleaned up in "
+            "a later step, not here."
+        )
+
+    def test_the_restore_step_checks_out_afterward(self) -> None:
+        workflow, _raw_text = _load_workflow()
+        job = workflow["jobs"]["modeling-validation"]
+        restore_step = next(
+            (
+                step
+                for step in job["steps"]
+                if step.get("name") == "Model validation - restore the official decision/report"
+            ),
+            None,
+        )
+        assert restore_step is not None, "expected the restore step to still exist"
+        run = restore_step.get("run", "")
+        assert "git checkout -- reports/modeling/ reports/model_validation/" in run, (
+            "the restore step must 'git checkout --' reports/modeling/ and reports/"
+            "model_validation/ afterward - reports/model_validation/lifecycle/"
+            "MODEL_behavioral_default_v1.json is an append-only, timestamp-stamped audit log "
+            "that re-running validate-independent can never byte-reproduce."
         )

@@ -510,16 +510,41 @@ jobs:
       # Restorative step (shared-singleton-path tension: credlens.
       # model_validation.decision/report write to a SINGLE shared path,
       # not one keyed by experiment_id - the CI-scoped run above already
-      # overwrote them with CI_MODEL_SMOKE content). Both are fully
-      # deterministic (no timestamp field), so re-running validate-
-      # independent against the OFFICIAL model reproduces the exact
-      # committed content.
+      # overwrote them with CI_MODEL_SMOKE content). decision.json/
+      # validation_report.md(+pt-BR)/the permutation-control tables/the
+      # null-distribution figure ARE fully deterministic given the
+      # already-frozen EXP_behavioral_default_v1 experiment, confirmed by
+      # byte-for-byte hash comparison across repeated local runs - so
+      # re-running validate-independent against the OFFICIAL model
+      # reproduces their exact committed content. The lifecycle file
+      # (reports/model_validation/lifecycle/MODEL_behavioral_default_v1.
+      # json) is the one genuine exception: it is an append-only audit
+      # log stamped with `timestamp_utc`, so every invocation adds a new
+      # entry by design - `git checkout --` (mirroring the official
+      # EXP_behavioral_default_v1 retrain step above) restores it (and
+      # guards the rest against any other non-determinism) without
+      # relying on an assumption that doesn't hold for every file it
+      # touches.
       - name: Model validation - restore the official decision/report
-        run: uv run credlens model validate-independent --model-id MODEL_behavioral_default_v1
+        run: |
+          uv run credlens model validate-independent --model-id MODEL_behavioral_default_v1
+          git checkout -- reports/modeling/ reports/model_validation/
 
+      # `--untracked-files=no`: this job's own CI-scoped pipeline above
+      # legitimately leaves plenty of untracked CI_MODEL_SMOKE* output
+      # under these same two directories (models/experiments/tables/
+      # figures/lifecycle - none of it gitignored, by design, since a
+      # genuinely new OFFICIAL candidate must be free to land in these
+      # same paths) - cleaned up in its own dedicated step further below,
+      # not here. Confirmed by direct reproduction that a plain `git
+      # status --porcelain` (no `--untracked-files=no`) sees those `??`
+      # entries too and fails this check regardless of whether any
+      # OFFICIAL/tracked artifact was actually altered - this check's own
+      # purpose, scoped correctly.
       - name: Prove no official modeling/model_validation artifact was ever altered
         run: |
-          git status --porcelain reports/modeling/ reports/model_validation/ | tee ci_git_status_modeling.txt
+          git status --porcelain --untracked-files=no reports/modeling/ reports/model_validation/ \
+            | tee ci_git_status_modeling.txt
           test ! -s ci_git_status_modeling.txt
 
       # Hands the CI-scoped registered candidate off to the `monitoring`
