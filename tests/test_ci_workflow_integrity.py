@@ -482,3 +482,48 @@ class TestJobsRunningDashboardAppTestsInstallTheDashboardExtra:
                 "pulled in via that extra (see uv.lock), so pytest will fail to even "
                 "collect the file with ModuleNotFoundError."
             )
+
+
+class TestModelLabAppTestRunsBeforeTheCiScopedCandidateExists:
+    """Fase 11E - `credlens.dashboard.model_lab._default_experiment_index`
+    has no notion of "the official candidate": it returns the experiment
+    behind the alphabetically-FIRST `*.manifest.json` with status
+    "candidate". `tests/test_dashboard_model_lab.py::test_defaults_to_
+    the_registered_candidate_not_a_gate_d_sibling` is a real-repo
+    regression check that asserts the page defaults to
+    EXP_behavioral_default_v1 specifically - true as long as it is the
+    ONLY registered candidate. The `modeling-validation` job's own
+    CI-scoped pipeline registers a second candidate,
+    CI_MODEL_SMOKE_v1, which sorts alphabetically before
+    MODEL_behavioral_default_v1 - confirmed by direct reproduction (and
+    a real GitHub Actions run, 31206294665: PR #2, SHA d6ae2ac) that
+    once both exist, the assertion fails on real content, not a code
+    defect. The AppTest step must run before that second candidate is
+    registered."""
+
+    def test_apptest_step_precedes_ci_scoped_candidate_registration(self) -> None:
+        workflow, _raw_text = _load_workflow()
+        job = workflow["jobs"]["modeling-validation"]
+        step_names = [step.get("name", "") for step in job["steps"]]
+
+        apptest_index = next(
+            (i for i, name in enumerate(step_names) if "Model Lab - AppTest execution" in name),
+            None,
+        )
+        register_index = next(
+            (
+                i
+                for i, name in enumerate(step_names)
+                if "register a candidate and validate it" in name
+            ),
+            None,
+        )
+        assert apptest_index is not None, "expected a 'Model Lab - AppTest execution' step"
+        assert register_index is not None, "expected a 'register a candidate' step"
+        assert apptest_index < register_index, (
+            "the Model Lab AppTest step must run BEFORE 'register a candidate and validate "
+            "it' - once CI_MODEL_SMOKE_v1 is also registered as a candidate, the AppTest's "
+            "own real-repo regression check (which asserts the page defaults to "
+            "EXP_behavioral_default_v1) fails, since it sorts after CI_MODEL_SMOKE_v1 "
+            "alphabetically."
+        )

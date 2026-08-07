@@ -416,6 +416,23 @@ jobs:
           uv run pytest tests/test_modeling_*.py tests/test_model_validation_*.py \
             tests/test_cli_model.py tests/test_reason_code_policy.py -m slow -q
 
+      # Runs here - BEFORE the CI-scoped CI_MODEL_SMOKE pipeline below ever
+      # registers a second "candidate" model - because tests/test_dashboard_
+      # model_lab.py::test_defaults_to_the_registered_candidate_not_a_gate_d_
+      # sibling is a real-repo regression check that asserts the page
+      # defaults to EXP_behavioral_default_v1 specifically. `_default_
+      # experiment_index` (src/credlens/dashboard/model_lab.py) has no
+      # notion of "the official one" - it returns the experiment behind
+      # the alphabetically-first `*.manifest.json` whose status is
+      # "candidate", so once CI_MODEL_SMOKE_v1 (alphabetically before
+      # MODEL_behavioral_default_v1) is also registered as a candidate,
+      # the assertion fails on real content, not a code defect - confirmed
+      # by direct reproduction (a real GitHub Actions run, 31206294665: PR
+      # #2, SHA d6ae2ac) and locally, immediately after adding `--extra
+      # dashboard` let this step run for the first time ever.
+      - name: Model Lab - AppTest execution of the 9th dashboard page
+        run: uv run pytest tests/test_dashboard_model_lab.py -q
+
       # Behavioral early-warning model (Phase 8): the same staged CLI a
       # human operator runs, on the real acquired UCI benchmark (fetched
       # above), under a CI-only experiment_id/model_id so it can never
@@ -450,9 +467,6 @@ jobs:
           uv run credlens model predict-batch --model-id CI_MODEL_SMOKE_v1 \
             --input /tmp/ci_model_batch_sample.csv --output /tmp/ci_model_batch_scored.csv
           test -s /tmp/ci_model_batch_scored.csv
-
-      - name: Model Lab - AppTest execution of the 9th dashboard page
-        run: uv run pytest tests/test_dashboard_model_lab.py -q
 
       # Independent model validation (Phase 9, hardened Phase 10 gate B):
       # `--ci` uses the reduced permutation counts (99 for both controls,
