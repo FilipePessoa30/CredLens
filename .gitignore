@@ -105,6 +105,26 @@ data/metadata/licenses/*
 # data, no individual-level rows - only aggregate statistics over the
 # already-licensed (CC BY 4.0) UCI benchmark's engineered features.
 !reports/model_validation/tables/*__coefficient_classification.csv
+# Fase 11E - same category and same directory as the exception directly
+# above: a tiny (9-19 rows, <1 KB each), deterministic, per-FEATURE
+# (never per-individual) VIF (variance inflation factor) table, read
+# unconditionally by production code (credlens.model_validation.
+# remediation.compare_five_models, via `credlens model remediate`) for
+# the already-frozen EXP_behavioral_default_v1 model - not just a test
+# fixture. Confirmed as a real, direct blocker on a genuine GitHub
+# Actions Linux runner: tests/test_model_validation_remediation.py::
+# TestCliRemediate::test_cli_remediate_and_compare failed with
+# FileNotFoundError on a fresh checkout because the blanket `*.csv` rule
+# silently caught this one too, exactly like the coefficient-
+# classification table before it. No PII, no raw/acquired data, no
+# individual-level rows - only aggregate VIF statistics over the
+# already-licensed (CC BY 4.0) UCI benchmark's engineered features. The
+# v2_reduced/v2_reduced_stability_only siblings are the already-computed,
+# equally small outputs of the same completed Gate D remediation
+# exercise as their already-tracked *__coefficient_classification.csv
+# counterparts, so this exception (like that one) is left general to the
+# directory rather than pinned to the v1 filename only.
+!reports/model_validation/tables/*__vif.csv
 # Fase 11E - the portfolio-analysis layer's own official, versioned
 # output tables (aggregate business metrics only - run_id/suite_id/
 # scenario/month grain, never a customer/contract-level row; largest is

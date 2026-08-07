@@ -333,6 +333,17 @@ class TestDemoFactoryGitignoreRules:
             # by production code (credlens.model_validation), not a bulk
             # per-row output - see the matching .gitignore comment.
             "reports/model_validation/tables/EXP_behavioral_default_v1__coefficient_classification.csv",
+            # Fase 11E - same category as the entry directly above: a
+            # small, deterministic, per-feature VIF table for the
+            # already-frozen official model, read unconditionally by
+            # production code (credlens.model_validation.remediation.
+            # compare_five_models) - confirmed missing on a genuine
+            # GitHub Actions Linux runner (FileNotFoundError in
+            # test_cli_remediate_and_compare) - see the matching
+            # .gitignore comment.
+            "reports/model_validation/tables/EXP_behavioral_default_v1__vif.csv",
+            "reports/model_validation/tables/EXP_behavioral_default_v2_reduced__vif.csv",
+            "reports/model_validation/tables/EXP_behavioral_default_v2_reduced_stability_only__vif.csv",
             # Fase 11E - the portfolio-analysis layer's own official,
             # versioned output tables (aggregate-only, no PII) that the
             # committed case-study notebook reads directly - confirmed
