@@ -3,10 +3,10 @@
   "total_statements": 15503,
   "covered_statements": 14739,
   "missing_statements": 764,
-  "test_count": 1934,
+  "test_count": 1935,
   "command": "uv run pytest --cov=credlens --cov-report=json:coverage.json --cov-fail-under=95",
   "pytest_exit_code": 0,
   "project_version": "1.0.0rc2",
-  "source_snapshot_fingerprint": "dedbad489f7cb1a9e1e81276bebad6441050ff54320ac92f9c308a0863e38bb4",
-  "measured_at_utc": "2026-08-07T15:22:29.002752+00:00"
+  "source_snapshot_fingerprint": "0d3a4e24c4c7d76b17059ae244de2208138f5a4570b578c643c4bd2be98c3036",
+  "measured_at_utc": "2026-08-07T18:16:03.570619+00:00"
 }
