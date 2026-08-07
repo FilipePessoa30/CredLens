@@ -1,18 +1,18 @@
 {
-  "release_id": "RC_1.0.0rc2_25456922",
+  "release_id": "RC_1.0.0rc2_7e9129da",
   "project_version": "1.0.0rc2",
-  "base_commit": "f9cd38697ece1991f0680d910d6756ed7bd772f3",
-  "source_snapshot_fingerprint": "25456922afd9a54456dd12ebaf46589ac62982c57cafb52cb691ace56393bf99",
-  "release_inventory_fingerprint": "80ea09fda5671d3100ea935b558d2a5b8d3fec649d2ece08370a643afd13a0f4",
+  "base_commit": "df956963986933d2345bd96d3bc3cc89310d470d",
+  "source_snapshot_fingerprint": "7e9129daf884ecb053796df7c85620852e332b157acaf399e010b8804f95a468",
+  "release_inventory_fingerprint": "3b0249b1bdc4440af191c4908cae6bf8e8dca9743fc8e0a328966a73b1911484",
   "release_inventory_summary": {
-    "n_entries": 698,
-    "n_included": 697,
+    "n_entries": 711,
+    "n_included": 710,
     "n_excluded": 1,
     "n_unresolved": 0,
-    "n_needs_human_review": 3
+    "n_needs_human_review": 0
   },
   "working_tree_clean": false,
-  "modified_file_count": 21,
+  "modified_file_count": 3,
   "model_v1_present": true,
   "model_v2_remediated_present": true,
   "challenger_registered": true,
@@ -20,7 +20,7 @@
   "monitoring_run_present": true,
   "demo_package_present": true,
   "test_counts": {
-    "total": 1928
+    "total": 1931
   },
   "dbt_reconciliation_status": "reconciled_within_tolerance",
   "notebook_status": "executed_end_to_end",
@@ -48,6 +48,6 @@
   ],
   "release_blockers": [],
   "readiness_decision": "release_candidate_ready_with_limitations",
-  "generated_at_utc": "2026-08-06T22:38:49.799201+00:00",
-  "content_fingerprint": "7c28e294acfa7f63bc7a5cc35d53e6f28372d3e1ac09b12dd11b60429e9c550f"
+  "generated_at_utc": "2026-08-07T02:50:10.906135+00:00",
+  "content_fingerprint": "6e6bd8ed65aed823263d5e8d561d2b33bca6684ef2161d509bea85d856fee87e"
 }

@@ -105,6 +105,24 @@ data/metadata/licenses/*
 # data, no individual-level rows - only aggregate statistics over the
 # already-licensed (CC BY 4.0) UCI benchmark's engineered features.
 !reports/model_validation/tables/*__coefficient_classification.csv
+# Fase 11E - the portfolio-analysis layer's own official, versioned
+# output tables (aggregate business metrics only - run_id/suite_id/
+# scenario/month grain, never a customer/contract-level row; largest is
+# 1.3 MB, 1.6 MB total for all 12) were caught by the blanket `*.csv`
+# rule too, even though every OTHER file this same `credlens analysis
+# run` invocation writes to reports/portfolio_analysis/ (insights.yml,
+# manifest.json, the bilingual reports, the *.png figures) was already
+# committed. Confirmed as a real, direct blocker on a genuine GitHub
+# Actions Linux runner (reproduced identically in WSL): the committed,
+# versioned case-study notebook (notebooks/credit_portfolio_case_study.
+# ipynb) reads these tables directly and fails with FileNotFoundError
+# without them - this is deliberately-versioned analysis evidence for
+# the notebook to demonstrate against, not scratch/regenerable CI-build
+# output (that lives under data/warehouse/, already covered by data/*
+# above). No PII, no real/acquired data - entirely synthetic portfolio
+# metrics. Scoped to this exact directory only, never a blanket
+# unignore of CSVs elsewhere.
+!reports/portfolio_analysis/tables/*.csv
 *.tsv
 *.parquet
 *.feather

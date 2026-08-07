@@ -333,6 +333,13 @@ class TestDemoFactoryGitignoreRules:
             # by production code (credlens.model_validation), not a bulk
             # per-row output - see the matching .gitignore comment.
             "reports/model_validation/tables/EXP_behavioral_default_v1__coefficient_classification.csv",
+            # Fase 11E - the portfolio-analysis layer's own official,
+            # versioned output tables (aggregate-only, no PII) that the
+            # committed case-study notebook reads directly - confirmed
+            # missing on a genuine GitHub Actions Linux runner and via
+            # WSL reproduction - see the matching .gitignore comment.
+            "reports/portfolio_analysis/tables/funnel_monthly.csv",
+            "reports/portfolio_analysis/tables/portfolio_monthly.csv",
             "reports/modeling/models/MODEL_behavioral_default_v1.joblib",
             "src/credlens/demo/factory.py",
             # Still tracked from before this factory existed - see the
