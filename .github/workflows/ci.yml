@@ -552,7 +552,16 @@ jobs:
       # (monitoring needs an already-registered, already-frozen model to
       # build a reference against; duplicating the training sequence in
       # the monitoring job instead would waste CI minutes re-doing
-      # identical work).
+      # identical work). `tables/CI_MODEL_SMOKE*` (specifically
+      # `__thresholds.csv`) is a load-bearing input, not incidental
+      # output - `credlens.monitoring.runner._top10_threshold` reads it
+      # directly (same dependency the .gitignore comment for the
+      # official EXP_behavioral_default_v1__thresholds.csv documents) -
+      # confirmed missing by direct reproduction and a real GitHub
+      # Actions run (31226055768, PR #2, SHA 00c8143): `credlens monitor
+      # run` in the `monitoring` job failed with FileNotFoundError for
+      # reports/modeling/tables/CI_MODEL_SMOKE__thresholds.csv, since
+      # only experiments/ and models/ were ever uploaded.
       - name: Upload the CI-scoped model/experiment artifacts for the monitoring job
         uses: actions/upload-artifact@v4
         with:
@@ -560,6 +569,7 @@ jobs:
           path: |
             reports/modeling/experiments/CI_MODEL_SMOKE*
             reports/modeling/models/CI_MODEL_SMOKE*
+            reports/modeling/tables/CI_MODEL_SMOKE*
           retention-days: 1
 
   monitoring:

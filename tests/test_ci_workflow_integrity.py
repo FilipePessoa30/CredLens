@@ -602,3 +602,39 @@ class TestModelingValidationIntegrityCheckIgnoresItsOwnCiScopedOutput:
             "MODEL_behavioral_default_v1.json is an append-only, timestamp-stamped audit log "
             "that re-running validate-independent can never byte-reproduce."
         )
+
+
+class TestCiModelSmokeArtifactUploadIncludesTheThresholdsTable:
+    """Fase 11E - `credlens.monitoring.runner._top10_threshold` reads
+    `reports/modeling/tables/{experiment_id}__thresholds.csv` directly -
+    a load-bearing input to `credlens monitor run`, not incidental
+    output (the same dependency the .gitignore comment for the official
+    EXP_behavioral_default_v1__thresholds.csv documents). The
+    `modeling-validation` job's "Upload the CI-scoped model/experiment
+    artifacts for the monitoring job" step only uploaded experiments/
+    and models/, never tables/ - confirmed missing by direct
+    reproduction and a real GitHub Actions run (31226055768, PR #2, SHA
+    00c8143): `credlens monitor run` in the `monitoring` job failed with
+    FileNotFoundError for reports/modeling/tables/
+    CI_MODEL_SMOKE__thresholds.csv."""
+
+    def test_the_upload_step_includes_the_tables_directory(self) -> None:
+        workflow, _raw_text = _load_workflow()
+        job = workflow["jobs"]["modeling-validation"]
+        upload_step = next(
+            (
+                step
+                for step in job["steps"]
+                if step.get("name")
+                == "Upload the CI-scoped model/experiment artifacts for the monitoring job"
+            ),
+            None,
+        )
+        assert upload_step is not None, "expected the CI-scoped artifact upload step to exist"
+        upload_path = upload_step.get("with", {}).get("path", "")
+        assert "reports/modeling/tables/CI_MODEL_SMOKE" in upload_path, (
+            "the CI-scoped artifact upload step must also include reports/modeling/tables/"
+            "CI_MODEL_SMOKE* - credlens.monitoring.runner._top10_threshold reads "
+            "{experiment_id}__thresholds.csv directly from there, and the `monitoring` job "
+            "runs on a fresh runner with no filesystem shared with modeling-validation."
+        )
