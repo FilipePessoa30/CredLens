@@ -1,9 +1,9 @@
 {
-  "release_id": "RC_1.0.0rc2_d0cff251",
+  "release_id": "RC_1.0.0rc2_4be73fc1",
   "project_version": "1.0.0rc2",
-  "base_commit": "662f539c20c5bd79dfa346a2f5f99085f7508539",
-  "source_snapshot_fingerprint": "d0cff25169a53e4e35e30cdfc4084f404abda83bc6823113c8c683fd60f6119e",
-  "release_inventory_fingerprint": "fc0de1da94cd7834ebe724416ade3885475b8deb998a3b534da4afd22cbf86e7",
+  "base_commit": "d2bc40629c5b23c01c9d0c8f5301e4720b7c23fa",
+  "source_snapshot_fingerprint": "4be73fc1233e7f747d9371ab69c9b515e8a4d971c3b63e4ae7f302ea1656256a",
+  "release_inventory_fingerprint": "1fe207694eb357fdada7c216c1fb0498784d1306c0a1e6a686baaaedd66be3b3",
   "release_inventory_summary": {
     "n_entries": 714,
     "n_included": 713,
@@ -46,6 +46,6 @@
   ],
   "release_blockers": [],
   "readiness_decision": "release_candidate_ready_with_limitations",
-  "generated_at_utc": "2026-08-08T18:13:45.582536+00:00",
-  "content_fingerprint": "fecfb3733291c6b2cd07ac84f992ac348579f28e7e97eebb32db3d40f704043d"
+  "generated_at_utc": "2026-08-08T21:45:33.023741+00:00",
+  "content_fingerprint": "dffaf9ef3ebaf574db0501ce7b559c2be6c6093b0aa41c6e92901c9433a1e75c"
 }
