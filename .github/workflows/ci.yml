@@ -591,11 +591,31 @@ jobs:
       - name: Install dependencies
         run: uv sync --all-groups --extra analysis --extra modeling --extra dashboard --python "3.11"
 
+      # `path: reports/modeling` (not `.`): `actions/upload-artifact@v4`'s
+      # own documented behavior for a MULTI-pattern `path:` input is to
+      # root the artifact at the least common ancestor of all the given
+      # search paths - here, `reports/modeling/` (shared by the
+      # experiments/models/tables patterns in the upload step above) -
+      # so the artifact's own internal structure is already
+      # `experiments/CI_MODEL_SMOKE*`, `models/CI_MODEL_SMOKE*`, `tables/
+      # CI_MODEL_SMOKE*` with that common prefix stripped. Downloading
+      # with `path: .` therefore landed those three directories directly
+      # under the repo root instead of under reports/modeling/ -
+      # confirmed as the real, evidence-based root cause (not a guess)
+      # from two consecutive real GitHub Actions runs (31226055768 and
+      # 31268400344, PR #2) both failing this job's very next step in
+      # ~1 second - too fast to be the deep FileNotFoundError on
+      # __thresholds.csv previously (and wrongly) diagnosed from a local
+      # reproduction that never actually exercised the real upload/
+      # download round trip - and cross-checked against actions/
+      # upload-artifact's own README ("If multiple paths are provided as
+      # input, the least common ancestor of all the search paths will be
+      # used as the root directory of the artifact").
       - name: Download the CI-scoped model/experiment artifacts from modeling-validation
         uses: actions/download-artifact@v4
         with:
           name: ci-model-smoke-artifacts
-          path: .
+          path: reports/modeling
 
       # Fase 11C Gate H - this job is a fresh runner with no filesystem
       # shared with `modeling-validation` (only the small model/experiment

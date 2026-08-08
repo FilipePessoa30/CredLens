@@ -12,6 +12,7 @@ Fast, pure parsing test - no subprocess, no CredLens import.
 
 from __future__ import annotations
 
+import posixpath
 import re
 import subprocess
 import sys
@@ -637,4 +638,77 @@ class TestCiModelSmokeArtifactUploadIncludesTheThresholdsTable:
             "CI_MODEL_SMOKE* - credlens.monitoring.runner._top10_threshold reads "
             "{experiment_id}__thresholds.csv directly from there, and the `monitoring` job "
             "runs on a fresh runner with no filesystem shared with modeling-validation."
+        )
+
+
+def _least_common_ancestor_of_glob_patterns(patterns: list[str]) -> str:
+    """Mirrors `actions/upload-artifact@v4`'s own documented behavior:
+    "the least common ancestor of all the search paths will be used as
+    the root directory of the artifact" - computed here as the common
+    directory prefix across every pattern's non-wildcard leading
+    segments."""
+    static_dirs = []
+    for pattern in patterns:
+        segments = pattern.split("/")
+        static_segments = []
+        for segment in segments:
+            if any(ch in segment for ch in "*?["):
+                break
+            static_segments.append(segment)
+        static_dirs.append("/".join(static_segments[:-1]))
+    return posixpath.commonpath(static_dirs) if all(static_dirs) else ""
+
+
+class TestCiModelSmokeArtifactDownloadPathMatchesTheUploadRoot:
+    """Fase 11E - `actions/upload-artifact@v4` roots a multi-pattern
+    upload at the LEAST COMMON ANCESTOR of the given search paths (its
+    own documented behavior), not at the repo root - for the three
+    `reports/modeling/{experiments,models,tables}/CI_MODEL_SMOKE*`
+    upload patterns, that ancestor is `reports/modeling`, so the
+    artifact's own internal structure already has that prefix stripped.
+    Downloading with `path: .` therefore lands the three directories
+    directly under the repo root instead of under reports/modeling/ -
+    confirmed as the real root cause (not the FileNotFoundError on
+    __thresholds.csv previously, and wrongly, diagnosed from a local
+    reproduction that never exercised the real upload/download round
+    trip) from two consecutive real GitHub Actions runs (31226055768 and
+    31268400344, PR #2) both failing the very next step in ~1 second -
+    far too fast to be a deep failure late in that step's four
+    commands."""
+
+    def test_download_path_matches_the_upload_patterns_common_ancestor(self) -> None:
+        workflow, _raw_text = _load_workflow()
+        job = workflow["jobs"]["modeling-validation"]
+        upload_step = next(
+            (
+                step
+                for step in job["steps"]
+                if step.get("name")
+                == "Upload the CI-scoped model/experiment artifacts for the monitoring job"
+            ),
+            None,
+        )
+        assert upload_step is not None
+        upload_patterns = [
+            line.strip() for line in upload_step["with"]["path"].splitlines() if line.strip()
+        ]
+        expected_root = _least_common_ancestor_of_glob_patterns(upload_patterns)
+
+        monitoring_job = workflow["jobs"]["monitoring"]
+        download_step = next(
+            (
+                step
+                for step in monitoring_job["steps"]
+                if step.get("name")
+                == "Download the CI-scoped model/experiment artifacts from modeling-validation"
+            ),
+            None,
+        )
+        assert download_step is not None
+        download_path = download_step["with"]["path"].rstrip("/")
+        assert download_path == expected_root, (
+            f"the download step's path ({download_path!r}) must match the upload patterns' "
+            f"least common ancestor ({expected_root!r}) - actions/upload-artifact@v4 roots a "
+            "multi-pattern upload at that ancestor, so downloading anywhere else silently "
+            "misplaces every file the CI-scoped pipeline depends on."
         )
