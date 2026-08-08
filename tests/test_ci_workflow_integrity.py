@@ -307,6 +307,20 @@ class TestDemoFactoryGitignoreRules:
             "reports/monitoring/reference/REF_SOME_MODEL__factory_manifest.json",
             "reports/monitoring/runs/BATCHSET_REF_SOME_MODEL/batch_manifest.json",
             "reports/monitoring/runs/RUN_x/run.json",
+            # Fase 11E - the three `EXP_behavioral_default_v*__{suffix}.
+            # csv` exceptions below must NOT also un-ignore a CI-scoped
+            # experiment sharing the same table-name suffix - confirmed
+            # as a real, direct contributor to "Prove no official
+            # modeling/model_validation artifact was ever altered"
+            # failing on a genuine GitHub Actions run (31219985691, PR
+            # #2, SHA 4132949): CI_MODEL_SMOKE__vif.csv/__coefficient_
+            # classification.csv/__thresholds.csv showed up as
+            # untracked-but-not-ignored - see the matching .gitignore
+            # comments (narrowed from a bare `*` to the official
+            # experiment-id family).
+            "reports/model_validation/tables/CI_MODEL_SMOKE__vif.csv",
+            "reports/model_validation/tables/CI_MODEL_SMOKE__coefficient_classification.csv",
+            "reports/modeling/tables/CI_MODEL_SMOKE__thresholds.csv",
         ],
     )
     def test_generated_artifact_paths_are_ignored(
@@ -333,6 +347,17 @@ class TestDemoFactoryGitignoreRules:
             # by production code (credlens.model_validation), not a bulk
             # per-row output - see the matching .gitignore comment.
             "reports/model_validation/tables/EXP_behavioral_default_v1__coefficient_classification.csv",
+            # Fase 11E - same category as the entry directly above: a
+            # small, deterministic, per-feature VIF table for the
+            # already-frozen official model, read unconditionally by
+            # production code (credlens.model_validation.remediation.
+            # compare_five_models) - confirmed missing on a genuine
+            # GitHub Actions Linux runner (FileNotFoundError in
+            # test_cli_remediate_and_compare) - see the matching
+            # .gitignore comment.
+            "reports/model_validation/tables/EXP_behavioral_default_v1__vif.csv",
+            "reports/model_validation/tables/EXP_behavioral_default_v2_reduced__vif.csv",
+            "reports/model_validation/tables/EXP_behavioral_default_v2_reduced_stability_only__vif.csv",
             # Fase 11E - the portfolio-analysis layer's own official,
             # versioned output tables (aggregate-only, no PII) that the
             # committed case-study notebook reads directly - confirmed
@@ -395,4 +420,221 @@ class TestMonitoringJobFetchesUciDataset:
         assert needs_it_indices, "expected steps that need the UCI dataset were not found"
         assert fetch_indices[0] < min(needs_it_indices), (
             "the UCI fetch step must run before anything that needs data/raw/ on disk"
+        )
+
+
+class TestDataVerifyCallsAreScopedToWhatWasActuallyFetched:
+    """Fase 11E - `credlens data verify` (no --source) checks EVERY
+    source in the registry (uci-default-credit, south-german-credit, the
+    two bcb-sgs series), not just whatever a preceding `credlens data
+    fetch` call actually downloaded in THIS job. The `modeling-
+    validation` job only ever fetches uci-default-credit, so an unscoped
+    `data verify` right after it deterministically failed on every real
+    run (100% reproducible, confirmed from an actual GitHub Actions log -
+    not the network/rate-limit flakiness this was mistakenly assumed to
+    be across three prior phases): "[MISSING] bcb-sgs-... / south-german-
+    credit..." for the six sources this job never fetches, even though
+    "[OK] uci-default-credit" - the one source that matters here -
+    always passed. `--source <id>` scopes the check to exactly what was
+    fetched."""
+
+    def test_every_unscoped_data_fetch_is_not_followed_by_an_unscoped_data_verify(self) -> None:
+        workflow, _raw_text = _load_workflow()
+        for job_name, job in workflow.get("jobs", {}).items():
+            run_steps = [step.get("run", "") for step in job.get("steps", []) if "run" in step]
+            for run in run_steps:
+                if "credlens data fetch --source" not in run:
+                    continue
+                assert "credlens data verify\n" not in run and not run.rstrip().endswith(
+                    "credlens data verify"
+                ), (
+                    f"job '{job_name}' runs an unscoped 'credlens data verify' after fetching "
+                    "only specific source(s) - it will always report every OTHER registered "
+                    "source as missing. Use 'credlens data verify --source <id>' scoped to "
+                    "exactly what this job fetched."
+                )
+
+
+class TestJobsRunningDashboardAppTestsInstallTheDashboardExtra:
+    """Fase 11E - `streamlit` is only ever pulled in via the `dashboard`
+    extra (see pyproject.toml / uv.lock: it has no dependency edge from
+    the `dev` group or any other extra) - a job whose `Install
+    dependencies` step omits `--extra dashboard` but later runs a test
+    file that imports `streamlit.testing.v1.AppTest` at module scope
+    fails deterministically at collection time with ModuleNotFoundError,
+    never flakiness. Confirmed from a real GitHub Actions run
+    (31193005240, PR #2, SHA 2a20874): `modeling-validation`'s "Model
+    Lab - AppTest execution of the 9th dashboard page" step (`pytest
+    tests/test_dashboard_model_lab.py`) failed this way, right after the
+    VIF-table gap above was fixed and the job could finally run far
+    enough to reach it. `monitoring`'s otherwise-identical `Install
+    dependencies` step had the same gap for `tests/test_dashboard_
+    monitoring_lab.py` - only masked so far by `needs: modeling-
+    validation` keeping that job from ever starting."""
+
+    def test_jobs_running_a_streamlit_apptest_file_install_the_dashboard_extra(self) -> None:
+        workflow, _raw_text = _load_workflow()
+        tests_dir = REPO_ROOT / "tests"
+        apptest_files = sorted(
+            path.name
+            for path in tests_dir.glob("test_dashboard_*.py")
+            if "from streamlit" in path.read_text(encoding="utf-8")
+        )
+        assert apptest_files, "expected at least one dashboard AppTest test file"
+
+        for job_name, job in workflow.get("jobs", {}).items():
+            run_steps = [step.get("run", "") for step in job.get("steps", []) if "run" in step]
+            runs_an_apptest_file = any(
+                any(fname in run for fname in apptest_files) for run in run_steps
+            )
+            if not runs_an_apptest_file:
+                continue
+            installs_dashboard_extra = any("--extra dashboard" in run for run in run_steps)
+            assert installs_dashboard_extra, (
+                f"job '{job_name}' runs a streamlit AppTest test file but its 'Install "
+                "dependencies' step never passes '--extra dashboard' - streamlit is only "
+                "pulled in via that extra (see uv.lock), so pytest will fail to even "
+                "collect the file with ModuleNotFoundError."
+            )
+
+
+class TestModelLabAppTestRunsBeforeTheCiScopedCandidateExists:
+    """Fase 11E - `credlens.dashboard.model_lab._default_experiment_index`
+    has no notion of "the official candidate": it returns the experiment
+    behind the alphabetically-FIRST `*.manifest.json` with status
+    "candidate". `tests/test_dashboard_model_lab.py::test_defaults_to_
+    the_registered_candidate_not_a_gate_d_sibling` is a real-repo
+    regression check that asserts the page defaults to
+    EXP_behavioral_default_v1 specifically - true as long as it is the
+    ONLY registered candidate. The `modeling-validation` job's own
+    CI-scoped pipeline registers a second candidate,
+    CI_MODEL_SMOKE_v1, which sorts alphabetically before
+    MODEL_behavioral_default_v1 - confirmed by direct reproduction (and
+    a real GitHub Actions run, 31206294665: PR #2, SHA d6ae2ac) that
+    once both exist, the assertion fails on real content, not a code
+    defect. The AppTest step must run before that second candidate is
+    registered."""
+
+    def test_apptest_step_precedes_ci_scoped_candidate_registration(self) -> None:
+        workflow, _raw_text = _load_workflow()
+        job = workflow["jobs"]["modeling-validation"]
+        step_names = [step.get("name", "") for step in job["steps"]]
+
+        apptest_index = next(
+            (i for i, name in enumerate(step_names) if "Model Lab - AppTest execution" in name),
+            None,
+        )
+        register_index = next(
+            (
+                i
+                for i, name in enumerate(step_names)
+                if "register a candidate and validate it" in name
+            ),
+            None,
+        )
+        assert apptest_index is not None, "expected a 'Model Lab - AppTest execution' step"
+        assert register_index is not None, "expected a 'register a candidate' step"
+        assert apptest_index < register_index, (
+            "the Model Lab AppTest step must run BEFORE 'register a candidate and validate "
+            "it' - once CI_MODEL_SMOKE_v1 is also registered as a candidate, the AppTest's "
+            "own real-repo regression check (which asserts the page defaults to "
+            "EXP_behavioral_default_v1) fails, since it sorts after CI_MODEL_SMOKE_v1 "
+            "alphabetically."
+        )
+
+
+class TestModelingValidationIntegrityCheckIgnoresItsOwnCiScopedOutput:
+    """Fase 11E - `modeling-validation`'s own CI-scoped pipeline
+    legitimately leaves untracked CI_MODEL_SMOKE* output under
+    reports/modeling/ and reports/model_validation/ (models/experiments/
+    tables/figures/lifecycle - none of it gitignored by design, since a
+    genuinely new OFFICIAL candidate must be free to land in the same
+    paths), cleaned up in a dedicated later step. Confirmed from a real
+    GitHub Actions run (31219985691, PR #2, SHA 4132949) and by local
+    reproduction of the exact CI pipeline: a plain `git status
+    --porcelain` (no `--untracked-files=no`) on "Prove no official
+    modeling/model_validation artifact was ever altered" sees those `??`
+    entries too and fails regardless of whether any OFFICIAL/tracked
+    artifact was actually altered. Separately, `reports/model_
+    validation/lifecycle/MODEL_behavioral_default_v1.json` is an
+    append-only, `timestamp_utc`-stamped audit log - never byte-
+    reproducible by re-running `validate-independent` - so the restore
+    step must also `git checkout --` afterward, exactly like the
+    official EXP_behavioral_default_v1 retrain step above it already
+    does."""
+
+    def test_the_integrity_check_excludes_untracked_files(self) -> None:
+        workflow, _raw_text = _load_workflow()
+        job = workflow["jobs"]["modeling-validation"]
+        run_steps = [step.get("run", "") for step in job["steps"] if "run" in step]
+        check_step = next(
+            (
+                run
+                for run in run_steps
+                if "Prove no official" not in run and "git status --porcelain" in run
+            ),
+            None,
+        )
+        assert check_step is not None, "expected a 'git status --porcelain ...' integrity check"
+        assert "--untracked-files=no" in check_step, (
+            "the modeling-validation job's integrity check must pass '--untracked-files=no' - "
+            "this job's own CI-scoped pipeline legitimately leaves untracked (and, by design, "
+            "not gitignored) CI_MODEL_SMOKE* output under the same directories, cleaned up in "
+            "a later step, not here."
+        )
+
+    def test_the_restore_step_checks_out_afterward(self) -> None:
+        workflow, _raw_text = _load_workflow()
+        job = workflow["jobs"]["modeling-validation"]
+        restore_step = next(
+            (
+                step
+                for step in job["steps"]
+                if step.get("name") == "Model validation - restore the official decision/report"
+            ),
+            None,
+        )
+        assert restore_step is not None, "expected the restore step to still exist"
+        run = restore_step.get("run", "")
+        assert "git checkout -- reports/modeling/ reports/model_validation/" in run, (
+            "the restore step must 'git checkout --' reports/modeling/ and reports/"
+            "model_validation/ afterward - reports/model_validation/lifecycle/"
+            "MODEL_behavioral_default_v1.json is an append-only, timestamp-stamped audit log "
+            "that re-running validate-independent can never byte-reproduce."
+        )
+
+
+class TestCiModelSmokeArtifactUploadIncludesTheThresholdsTable:
+    """Fase 11E - `credlens.monitoring.runner._top10_threshold` reads
+    `reports/modeling/tables/{experiment_id}__thresholds.csv` directly -
+    a load-bearing input to `credlens monitor run`, not incidental
+    output (the same dependency the .gitignore comment for the official
+    EXP_behavioral_default_v1__thresholds.csv documents). The
+    `modeling-validation` job's "Upload the CI-scoped model/experiment
+    artifacts for the monitoring job" step only uploaded experiments/
+    and models/, never tables/ - confirmed missing by direct
+    reproduction and a real GitHub Actions run (31226055768, PR #2, SHA
+    00c8143): `credlens monitor run` in the `monitoring` job failed with
+    FileNotFoundError for reports/modeling/tables/
+    CI_MODEL_SMOKE__thresholds.csv."""
+
+    def test_the_upload_step_includes_the_tables_directory(self) -> None:
+        workflow, _raw_text = _load_workflow()
+        job = workflow["jobs"]["modeling-validation"]
+        upload_step = next(
+            (
+                step
+                for step in job["steps"]
+                if step.get("name")
+                == "Upload the CI-scoped model/experiment artifacts for the monitoring job"
+            ),
+            None,
+        )
+        assert upload_step is not None, "expected the CI-scoped artifact upload step to exist"
+        upload_path = upload_step.get("with", {}).get("path", "")
+        assert "reports/modeling/tables/CI_MODEL_SMOKE" in upload_path, (
+            "the CI-scoped artifact upload step must also include reports/modeling/tables/"
+            "CI_MODEL_SMOKE* - credlens.monitoring.runner._top10_threshold reads "
+            "{experiment_id}__thresholds.csv directly from there, and the `monitoring` job "
+            "runs on a fresh runner with no filesystem shared with modeling-validation."
         )
