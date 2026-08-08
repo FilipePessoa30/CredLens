@@ -730,6 +730,21 @@ jobs:
                  reports/monitoring/alerts/RUN_BATCHSET_REF_CI_MODEL_SMOKE_v1_*.json \
                  ci_monitor_ref.json ci_monitor_batches.json ci_monitor_run.json
 
+      # Restorative step (same shared-singleton-path tension as
+      # modeling-validation's own "restore the official decision/
+      # report" step above): `credlens.release.monitoring_gate.
+      # DETECTION_EVIDENCE_PATH` is a SINGLE fixed path
+      # (reports/monitoring/detection_evaluation.json), not one keyed by
+      # reference_id - the CI-scoped `evaluate-detection --reference-id
+      # REF_CI_MODEL_SMOKE_v1` call above already overwrote it with
+      # CI_MODEL_SMOKE content. `git checkout --` restores the official,
+      # already-committed evidence - confirmed missing by direct
+      # reproduction and a real GitHub Actions run (31271464386, PR #2,
+      # SHA d2bc406): this is the first real CI run to ever reach this
+      # check, since every earlier run failed upstream.
+      - name: Monitoring - restore the official detection evidence
+        run: git checkout -- reports/monitoring/
+
       - name: Prove no official monitoring/ artifact was ever altered
         run: |
           git status --porcelain reports/monitoring/ | tee ci_git_status_monitoring.txt

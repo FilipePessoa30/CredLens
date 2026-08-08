@@ -712,3 +712,60 @@ class TestCiModelSmokeArtifactDownloadPathMatchesTheUploadRoot:
             "multi-pattern upload at that ancestor, so downloading anywhere else silently "
             "misplaces every file the CI-scoped pipeline depends on."
         )
+
+
+class TestMonitoringRestoresTheOfficialDetectionEvidenceBeforeTheIntegrityCheck:
+    """Fase 11E - `credlens.release.monitoring_gate.DETECTION_EVIDENCE_
+    PATH` is a single fixed path (reports/monitoring/detection_
+    evaluation.json), not one keyed by reference_id - the `monitoring`
+    job's own CI-scoped "status, alerts, validate, detection evaluation"
+    step calls `evaluate-detection --reference-id REF_CI_MODEL_SMOKE_v1`
+    and overwrites it, exactly the same shared-singleton-path tension
+    `modeling-validation`'s own "restore the official decision/report"
+    step already exists to handle. Confirmed missing by direct
+    reproduction and a real GitHub Actions run (31271464386, PR #2, SHA
+    d2bc406) - the first real CI run to ever reach "Prove no official
+    monitoring/ artifact was ever altered", since every earlier run
+    failed upstream."""
+
+    def test_a_restore_step_runs_between_the_ci_scoped_evaluation_and_the_integrity_check(
+        self,
+    ) -> None:
+        workflow, _raw_text = _load_workflow()
+        job = workflow["jobs"]["monitoring"]
+        step_names = [step.get("name", "") for step in job["steps"]]
+
+        evaluate_index = next(
+            (
+                i
+                for i, step in enumerate(job["steps"])
+                if "evaluate-detection" in step.get("run", "")
+                and "CI_MONITOR_REFERENCE_ID" in step.get("run", "")
+            ),
+            None,
+        )
+        check_index = next(
+            (
+                i
+                for i, name in enumerate(step_names)
+                if name == "Prove no official monitoring/ artifact was ever altered"
+            ),
+            None,
+        )
+        assert evaluate_index is not None, "expected the CI-scoped evaluate-detection step"
+        assert check_index is not None, "expected the monitoring integrity-check step"
+
+        restore_step = next(
+            (
+                step
+                for step in job["steps"][evaluate_index + 1 : check_index]
+                if "git checkout -- reports/monitoring/" in step.get("run", "")
+            ),
+            None,
+        )
+        assert restore_step is not None, (
+            "expected a 'git checkout -- reports/monitoring/' restore step between the "
+            "CI-scoped evaluate-detection call and the integrity check - otherwise the "
+            "official reports/monitoring/detection_evaluation.json (a single fixed path, "
+            "not keyed by reference_id) stays overwritten with CI_MODEL_SMOKE content."
+        )
