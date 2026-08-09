@@ -1,27 +1,25 @@
 {
-  "release_id": "RC_1.0.0rc2_7e9129da",
+  "release_id": "RC_1.0.0rc2_4be73fc1",
   "project_version": "1.0.0rc2",
-  "base_commit": "df956963986933d2345bd96d3bc3cc89310d470d",
-  "source_snapshot_fingerprint": "7e9129daf884ecb053796df7c85620852e332b157acaf399e010b8804f95a468",
-  "release_inventory_fingerprint": "3b0249b1bdc4440af191c4908cae6bf8e8dca9743fc8e0a328966a73b1911484",
+  "base_commit": "d2bc40629c5b23c01c9d0c8f5301e4720b7c23fa",
+  "source_snapshot_fingerprint": "4be73fc1233e7f747d9371ab69c9b515e8a4d971c3b63e4ae7f302ea1656256a",
+  "release_inventory_fingerprint": "1fe207694eb357fdada7c216c1fb0498784d1306c0a1e6a686baaaedd66be3b3",
   "release_inventory_summary": {
-    "n_entries": 711,
-    "n_included": 710,
+    "n_entries": 714,
+    "n_included": 713,
     "n_excluded": 1,
     "n_unresolved": 0,
     "n_needs_human_review": 0
   },
   "working_tree_clean": false,
-  "modified_file_count": 3,
+  "modified_file_count": 5,
   "model_v1_present": true,
   "model_v2_remediated_present": true,
   "challenger_registered": true,
   "validation_decision": "validation_passed_with_limitations",
   "monitoring_run_present": true,
   "demo_package_present": true,
-  "test_counts": {
-    "total": 1931
-  },
+  "test_counts": {},
   "dbt_reconciliation_status": "reconciled_within_tolerance",
   "notebook_status": "executed_end_to_end",
   "dashboard_status": "validated_apptest_plus_headless_browser",
@@ -48,6 +46,6 @@
   ],
   "release_blockers": [],
   "readiness_decision": "release_candidate_ready_with_limitations",
-  "generated_at_utc": "2026-08-07T02:50:10.906135+00:00",
-  "content_fingerprint": "6e6bd8ed65aed823263d5e8d561d2b33bca6684ef2161d509bea85d856fee87e"
+  "generated_at_utc": "2026-08-08T21:45:33.023741+00:00",
+  "content_fingerprint": "dffaf9ef3ebaf574db0501ce7b559c2be6c6093b0aa41c6e92901c9433a1e75c"
 }
