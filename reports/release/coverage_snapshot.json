@@ -7,6 +7,6 @@
   "command": "uv run pytest --cov=credlens --cov-report=json:coverage.json --cov-fail-under=95",
   "pytest_exit_code": 0,
   "project_version": "1.0.0rc2",
-  "source_snapshot_fingerprint": "7b77ebb466e75a40c0363f00f5d910fb5f220f6aebc8b710f22e380998a2f912",
-  "measured_at_utc": "2026-08-12T03:50:25.435203+00:00"
+  "source_snapshot_fingerprint": "c67f5d9b79252613c41d553c2432dc62170bae35cf749167c91a3219d6b1e259",
+  "measured_at_utc": "2026-08-12T05:07:44.648354+00:00"
 }
