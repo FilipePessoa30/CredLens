@@ -54,6 +54,52 @@ def _file_present(repo_root: Path, rel_path: str) -> bool:
     return (repo_root / rel_path).is_file()
 
 
+def describe_release_state(repo_root: Path) -> dict[str, Any]:
+    """Fase 12 - an honest, tested answer to "is this working tree an
+    already-published release, or unreleased development past one?"
+    without inventing a parallel state machine: `git describe --tags
+    --long` already encodes exactly this relationship (nearest reachable
+    tag, commit count past it, abbreviated SHA). A manifest built on a
+    freshly-tagged commit (0 commits past the nearest tag) is
+    `tagged_release`; built on ANY later commit it is `unreleased_
+    development` - this manifest's own `release_id`/fingerprint are then
+    real and internally consistent for THIS commit, but they do not
+    correspond to any published GitHub Release and must never be
+    presented as if they did. Never raises: a repo with no tags at all
+    reachable from HEAD (or no git repo present, e.g. an isolated test
+    fixture) is reported as `no_tags_reachable`, not an error - this
+    function only describes state, it never blocks anything."""
+    try:
+        described = _git(["describe", "--tags", "--long", "--always"], repo_root)
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        return {
+            "release_state": "no_tags_reachable",
+            "nearest_tag": None,
+            "commits_since_tag": None,
+            "git_describe": None,
+        }
+    # "<tag>-<count>-g<sha>" when a tag is reachable; `--always` falls
+    # back to a bare abbreviated SHA (no dashes-with-that-shape) when it
+    # is not - distinguished by whether the last two '-'-separated
+    # segments are "<int>" and "g<hex>".
+    parts = described.rsplit("-", 2)
+    if len(parts) == 3 and parts[1].isdigit() and parts[2].startswith("g"):
+        tag, count_str, _abbrev_sha = parts
+        count = int(count_str)
+        return {
+            "release_state": "tagged_release" if count == 0 else "unreleased_development",
+            "nearest_tag": tag,
+            "commits_since_tag": count,
+            "git_describe": described,
+        }
+    return {
+        "release_state": "no_tags_reachable",
+        "nearest_tag": None,
+        "commits_since_tag": None,
+        "git_describe": described,
+    }
+
+
 @dataclass(frozen=True)
 class ReleaseManifest:
     release_id: str
@@ -82,6 +128,9 @@ class ReleaseManifest:
     known_limitations: list[str]
     release_blockers: list[str]
     readiness_decision: ReadinessDecision
+    release_state: str = "no_tags_reachable"
+    nearest_tag: str | None = None
+    commits_since_tag: int | None = None
     generated_at_utc: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
     content_fingerprint: str = ""
 
@@ -113,6 +162,9 @@ class ReleaseManifest:
             "known_limitations": self.known_limitations,
             "release_blockers": self.release_blockers,
             "readiness_decision": self.readiness_decision,
+            "release_state": self.release_state,
+            "nearest_tag": self.nearest_tag,
+            "commits_since_tag": self.commits_since_tag,
             "generated_at_utc": self.generated_at_utc,
             "content_fingerprint": self.content_fingerprint,
         }
@@ -272,6 +324,7 @@ def build_release_manifest(
     # clean, this is legitimately equal to what a HEAD-derived id would
     # have produced - equality is then correct, not a bug.
     release_id = f"RC_{__version__}_{source_snapshot.fingerprint[:8]}"
+    release_state_info = describe_release_state(repo_root)
     manifest = ReleaseManifest(
         release_id=release_id,
         project_version=__version__,
@@ -312,6 +365,9 @@ def build_release_manifest(
         known_limitations=KNOWN_LIMITATIONS_EN,
         release_blockers=blockers,
         readiness_decision=readiness_decision,
+        release_state=release_state_info["release_state"],
+        nearest_tag=release_state_info["nearest_tag"],
+        commits_since_tag=release_state_info["commits_since_tag"],
     )
     fingerprint_payload = {k: v for k, v in manifest.to_dict().items() if k != "generated_at_utc"}
     fingerprint = hashlib.sha256(

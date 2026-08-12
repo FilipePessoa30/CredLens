@@ -38,6 +38,21 @@ deterministic) breaks the cycle; a genuine source/config change
 (including a change to calibrated thresholds these evidence files
 actually depend on, e.g. `reference/*__alert_thresholds.json`) still
 correctly changes the fingerprint and invalidates stale evidence.
+
+Fase 12 added `license_inventory.json` and `SHA256SUMS` to this same
+exclusion list - the identical self-reference bug, found while fixing
+the `v1.0.0rc2` Pre-Release's stale-checksums incident:
+`license_inventory.json` has no `source_snapshot_fingerprint` field of
+its own, but it IS one of `credlens.release.checksums.
+CANONICAL_RELEASE_ASSETS`, so regenerating it (even to fully
+deterministic, unchanged content, since it carries no timestamp either)
+still touches the tracked-file set the coverage/monitoring gates had
+already stamped themselves against moments earlier - and `SHA256SUMS`
+is, by construction, generated LAST (`credlens release checksums`),
+strictly after `release_manifest.json` has already recorded a
+fingerprint, so including it here would make that just-recorded
+fingerprint stale the instant `SHA256SUMS` itself is written, with no
+possible correct ordering that converges.
 """
 
 from __future__ import annotations
@@ -64,6 +79,8 @@ _EXCLUDED_PATH_FRAGMENTS = (
     "reports/monitoring/false_alert_study.json",
     "reports/release/release_manifest.json",
     "reports/release/sbom.cyclonedx.json",
+    "reports/release/license_inventory.json",
+    "reports/release/SHA256SUMS",
 )
 
 

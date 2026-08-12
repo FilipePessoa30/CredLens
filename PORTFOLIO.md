@@ -1,6 +1,6 @@
 # CredLens — Portfolio Summary
 
-*A 2-minute read. For the full technical detail, see [README.md](README.md); for a one-page recruiter view, see [docs/recruiter_brief.md](docs/recruiter_brief.md); for interview-ready answers, see [docs/interview_guide.md](docs/interview_guide.md). Versão em português: [PORTFOLIO.pt-BR.md](PORTFOLIO.pt-BR.md).*
+*A 2-minute read. For the full technical detail, see [README.md](README.md). Versão em português: [PORTFOLIO.pt-BR.md](PORTFOLIO.pt-BR.md).*
 
 ![CredLens Executive Overview dashboard](docs/assets/dashboard/executive_overview.png)
 

@@ -143,13 +143,21 @@ class TestSourceSnapshot:
         others' stamped fingerprint, and no sequence of re-runs can ever
         converge. Excluding these three specific evidence files from the
         digest breaks the cycle: writing them must NEVER change the
-        fingerprint."""
+        fingerprint. Fase 12 added license_inventory.json/SHA256SUMS to
+        the same exclusion list after the identical bug bit `credlens
+        release manifest` (regenerating license_inventory.json - one of
+        the canonical release assets - between `measure-coverage` and
+        `release manifest` made the just-recorded coverage snapshot
+        stale, and SHA256SUMS is generated strictly LAST, after
+        release_manifest.json already recorded a fingerprint)."""
         (tmp_path / "a.txt").write_text("hello", encoding="utf-8")
         reports_dir = tmp_path / "reports" / "release"
         reports_dir.mkdir(parents=True)
         (reports_dir / "coverage_snapshot.json").write_text('{"coverage_percent": 90}')
         (reports_dir / "release_manifest.json").write_text('{"readiness_decision": "x"}')
         (reports_dir / "sbom.cyclonedx.json").write_text('{"serialNumber": "urn:uuid:aaa"}')
+        (reports_dir / "license_inventory.json").write_text('{"n_dependencies": 1}')
+        (reports_dir / "SHA256SUMS").write_text("aaaa  reports/release/sbom.cyclonedx.json\n")
         monitoring_dir = tmp_path / "reports" / "monitoring"
         monitoring_dir.mkdir(parents=True)
         (monitoring_dir / "detection_evaluation.json").write_text('{"rate": 0.5}')
@@ -162,6 +170,8 @@ class TestSourceSnapshot:
         (reports_dir / "coverage_snapshot.json").write_text('{"coverage_percent": 99}')
         (reports_dir / "release_manifest.json").write_text('{"readiness_decision": "y"}')
         (reports_dir / "sbom.cyclonedx.json").write_text('{"serialNumber": "urn:uuid:bbb"}')
+        (reports_dir / "license_inventory.json").write_text('{"n_dependencies": 2}')
+        (reports_dir / "SHA256SUMS").write_text("bbbb  reports/release/sbom.cyclonedx.json\n")
         (monitoring_dir / "detection_evaluation.json").write_text('{"rate": 1.0}')
         (monitoring_dir / "false_alert_study.json").write_text('{"rate": 0.03}')
         after = compute_source_snapshot(tmp_path)
@@ -780,3 +790,57 @@ class TestReleaseErrata:
         )
         with pytest.raises(ReleaseErrataError):
             write_release_errata(entry, repo_root=tmp_path)
+
+
+class TestDescribeReleaseState:
+    """Fase 12 - `credlens release manifest`/`status` must honestly
+    distinguish an already-tagged, published release commit from
+    unreleased development past it (Fase 12 section 8/16), without
+    inventing a parallel state machine: `git describe --tags --long`
+    already encodes exactly this relationship."""
+
+    def test_no_tags_at_all_is_reported_honestly(self, tiny_git_repo: Path) -> None:
+        from credlens.release.manifest import describe_release_state
+
+        result = describe_release_state(tiny_git_repo)
+        assert result["release_state"] == "no_tags_reachable"
+        assert result["nearest_tag"] is None
+        assert result["commits_since_tag"] is None
+
+    def test_head_at_the_tag_is_a_tagged_release(self, tiny_git_repo: Path) -> None:
+        from credlens.release.manifest import describe_release_state
+
+        subprocess.run(
+            ["git", "tag", "-a", "v1.0.0rc2", "-m", "test tag"],
+            cwd=tiny_git_repo,
+            check=True,
+        )
+        result = describe_release_state(tiny_git_repo)
+        assert result["release_state"] == "tagged_release"
+        assert result["nearest_tag"] == "v1.0.0rc2"
+        assert result["commits_since_tag"] == 0
+
+    def test_commits_past_the_tag_are_unreleased_development(self, tiny_git_repo: Path) -> None:
+        from credlens.release.manifest import describe_release_state
+
+        subprocess.run(
+            ["git", "tag", "-a", "v1.0.0rc2", "-m", "test tag"],
+            cwd=tiny_git_repo,
+            check=True,
+        )
+        (tiny_git_repo / "c.txt").write_text("new file", encoding="utf-8")
+        subprocess.run(["git", "add", "-A"], cwd=tiny_git_repo, check=True)
+        subprocess.run(
+            ["git", "commit", "-q", "-m", "post-release work"], cwd=tiny_git_repo, check=True
+        )
+
+        result = describe_release_state(tiny_git_repo)
+        assert result["release_state"] == "unreleased_development"
+        assert result["nearest_tag"] == "v1.0.0rc2"
+        assert result["commits_since_tag"] == 1
+
+    def test_never_raises_on_a_non_git_directory(self, tmp_path: Path) -> None:
+        from credlens.release.manifest import describe_release_state
+
+        result = describe_release_state(tmp_path)
+        assert result["release_state"] == "no_tags_reachable"

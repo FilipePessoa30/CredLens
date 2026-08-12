@@ -1,6 +1,6 @@
 # CredLens — Resumo de Portfólio
 
-*Leitura de 2 minutos. Para o detalhe técnico completo, ver [README.md](README.md) (inglês, principal) e [README.pt-BR.md](README.pt-BR.md); para uma visão de uma página para recrutadores, ver [docs/recruiter_brief.pt-BR.md](docs/recruiter_brief.pt-BR.md); para respostas prontas para entrevista, ver [docs/interview_guide.pt-BR.md](docs/interview_guide.pt-BR.md). English version: [PORTFOLIO.md](PORTFOLIO.md).*
+*Leitura de 2 minutos. Para o detalhe técnico completo, ver [README.md](README.md) (inglês, principal) e [README.pt-BR.md](README.pt-BR.md). English version: [PORTFOLIO.md](PORTFOLIO.md).*
 
 ## O problema
 

@@ -15,9 +15,9 @@ Credit portfolio management involves several teams (risk, credit, collections, f
 
 Build a reproducible, tested, end-to-end analytics project that demonstrates how these problems are solved in practice: a documented KPI layer, a modeled SQL warehouse, portfolio/vintage/risk analysis, and (in later phases) a simple policy simulator and dashboard — all built incrementally, with each phase's output validated before the next begins.
 
-## Value proposition
+## What this project demonstrates
 
-For a portfolio reviewer (recruiter, hiring manager, technical interviewer), CredLens is evidence — not a claim — that its author can:
+CredLens is evidence — not a claim — that its author can:
 
 - Translate a vague business tension ("grow the portfolio" vs. "control losses") into specific, well-defined KPIs with explicit formulas and grains.
 - Design a data architecture (ingestion → quality → modeling → analytics → presentation) and justify each layer's technology choice.
@@ -25,9 +25,9 @@ For a portfolio reviewer (recruiter, hiring manager, technical interviewer), Cre
 - Separate description, diagnosis, forecast, and decision instead of blending them into vague "insights."
 - Be explicit about what the work does *not* prove, rather than overstating it.
 
-## Target audience
+## Scope
 
-Recruiters and hiring managers in data analytics, BI, data engineering, and risk/credit roles at fintechs, digital banks, and lending/collections operations; technical interviewers evaluating applied SQL, Python, and analytics-engineering skill; peers evaluating the project as a template for their own portfolio work.
+Applied skill in data analytics, BI, data engineering, and risk/credit domain modeling, in the context of fintech-style lending/collections operations — SQL, Python, and analytics-engineering practice throughout. It also serves as a template for similar portfolio work.
 
 ## Stakeholders
 
