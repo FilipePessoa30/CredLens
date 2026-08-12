@@ -771,13 +771,28 @@ jobs:
       - name: Lockfile is in sync with pyproject.toml
         run: uv lock --check
 
-      - name: Release CLI checks (validate/licenses/sbom/manifest/status)
+      # Order matters (Fase 12): `licenses`/`sbom` now WRITE reports/
+      # release/{license_inventory,sbom.cyclonedx}.json (not just print),
+      # and `sbom`'s own CycloneDX `serialNumber` is a fresh UUID every
+      # single generation, by spec - never byte-identical to the
+      # committed one. `manifest` internally re-runs the full integrity
+      # checklist (including `release_assets_checksums_verified`) to
+      # compute its own readiness decision, so if `licenses`/`sbom` ran
+      # BEFORE it, that internal re-check would see its own smoke-test's
+      # freshly-mutated (and, for sbom, inherently non-reproducible)
+      # files diverging from the still-committed SHA256SUMS and
+      # incorrectly fail - confirmed by a real GitHub Actions run (PR
+      # #3, run 31561622503) failing this exact way. `validate` and
+      # `manifest` (which both need the COMMITTED, untouched state) run
+      # first; `licenses`/`sbom` (pure CLI smoke tests - nothing
+      # downstream depends on their mutated output) run last.
+      - name: Release CLI checks (validate/manifest/status/licenses/sbom)
         run: |
           uv run credlens release validate --json
-          uv run credlens release licenses --json > /dev/null
-          uv run credlens release sbom --json > /dev/null
           uv run credlens release manifest --json > /dev/null
           uv run credlens release status
+          uv run credlens release licenses --json > /dev/null
+          uv run credlens release sbom --json > /dev/null
 
   # A single required check other branch-protection rules can point at,
   # without needing to list every parallel job by name (and without

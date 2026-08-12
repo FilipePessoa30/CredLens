@@ -337,6 +337,44 @@ class TestGenerateSbom:
         assert payload["bomFormat"] == "CycloneDX"
 
 
+@pytest.mark.slow
+class TestReleaseLicensesAndSbomCli:
+    """`credlens release licenses`/`sbom` had no CLI-level test anywhere
+    (only the underlying `inventory_dependency_licenses`/`generate_sbom`
+    functions were tested directly) - exercised here through `main()`,
+    both JSON and human-readable modes, against the real repo."""
+
+    def test_release_licenses_cli_json(self, capsys: pytest.CaptureFixture[str]) -> None:
+        from credlens.cli import main
+
+        assert main(["release", "licenses", "--json"]) == 0
+        payload = json.loads(capsys.readouterr().out)
+        assert payload["n_dependencies"] > 0
+
+    def test_release_licenses_cli_human_readable(self, capsys: pytest.CaptureFixture[str]) -> None:
+        from credlens.cli import main
+
+        assert main(["release", "licenses"]) == 0
+        out = capsys.readouterr().out
+        assert "Written to:" in out
+        assert "dependencies" in out
+
+    def test_release_sbom_cli_json(self, capsys: pytest.CaptureFixture[str]) -> None:
+        from credlens.cli import main
+
+        assert main(["release", "sbom", "--json"]) == 0
+        payload = json.loads(capsys.readouterr().out)
+        assert payload["bomFormat"] == "CycloneDX"
+
+    def test_release_sbom_cli_human_readable(self, capsys: pytest.CaptureFixture[str]) -> None:
+        from credlens.cli import main
+
+        assert main(["release", "sbom"]) == 0
+        out = capsys.readouterr().out
+        assert "Written to:" in out
+        assert "Components:" in out
+
+
 class TestDecideReadiness:
     def test_any_blocker_is_not_ready(self) -> None:
         decision = decide_readiness(
@@ -580,3 +618,38 @@ class TestReleaseManifestRoundTrip:
         )
         # Raises if anything isn't JSON-serializable.
         json.dumps(manifest.to_dict())
+
+
+@pytest.mark.slow
+class TestReleaseManifestAndStatusCliHumanReadableOutput:
+    """Fase 12 - `credlens release manifest`/`status` without `--json`
+    print a human-readable summary, including the `release_state`/
+    `nearest_tag`/`commits_since_tag` fields - exercised here against the
+    REAL repo (never mocked), which is genuinely `unreleased_development`
+    relative to the `v1.0.0rc2` tag while this phase's own work is in
+    progress."""
+
+    def test_release_manifest_cli_prints_release_state(
+        self, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        from credlens.cli import main
+
+        exit_code = main(["release", "manifest"])
+        assert exit_code in (0, 1)
+        out = capsys.readouterr().out
+        assert "release_id:" in out
+        assert "release_state:" in out
+
+    def test_release_status_cli_prints_release_state(
+        self, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        from credlens.cli import main
+
+        assert main(["release", "manifest"]) in (0, 1)
+        capsys.readouterr()
+        exit_code = main(["release", "status"])
+        assert exit_code == 0
+        out = capsys.readouterr().out
+        assert "release_state:" in out
+        assert "nearest_tag:" in out
+        assert "commits_since_tag:" in out

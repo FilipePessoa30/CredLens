@@ -341,6 +341,19 @@ def _check_release_inventory_resolved(repo_root: Path) -> IntegrityCheck:
     )
 
 
+def _check_release_assets_checksums(repo_root: Path) -> IntegrityCheck:
+    """Fase 12 - `reports/release/SHA256SUMS` had no gate checking it
+    against reality (see `credlens.release.checksums`'s module
+    docstring for the full root-cause history) and silently drifted
+    stale. Re-derives the canonical asset set's SHA-256 fresh from disk
+    every run and diffs it against what the file declares - never
+    trusts the file's own claim that it is current."""
+    from credlens.release.checksums import verify_release_checksums
+
+    result = verify_release_checksums(repo_root)
+    return IntegrityCheck("release_assets_checksums_verified", result.status, result.detail)
+
+
 def run_release_integrity_checks(repo_root: Path | None = None) -> ReleaseIntegrityReport:
     repo_root = repo_root or Path.cwd()
     checks = [
@@ -357,5 +370,6 @@ def run_release_integrity_checks(repo_root: Path | None = None) -> ReleaseIntegr
         _check_coverage_gate(repo_root),
         _check_monitoring_detection_gate(repo_root),
         _check_release_inventory_resolved(repo_root),
+        _check_release_assets_checksums(repo_root),
     ]
     return ReleaseIntegrityReport(checks=checks)

@@ -977,6 +977,15 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     release_measure_coverage_parser.add_argument("--json", action="store_true")
 
+    release_checksums_parser = release_subparsers.add_parser(
+        "checksums",
+        help="(Re)generates reports/release/SHA256SUMS from the current content of the "
+        "canonical release-asset set (Fase 12) - must be run AFTER release_manifest.json/"
+        "sbom.cyclonedx.json/license_inventory.json are already up to date, since it only "
+        "reads them, never regenerates them.",
+    )
+    release_checksums_parser.add_argument("--json", action="store_true")
+
     return parser
 
 
@@ -2504,9 +2513,10 @@ def _cmd_release_validate(as_json: bool) -> int:
 
 
 def _cmd_release_licenses(as_json: bool) -> int:
-    from credlens.release.licenses import inventory_dependency_licenses
+    from credlens.release.licenses import inventory_dependency_licenses, write_license_inventory
 
     inventory = inventory_dependency_licenses()
+    path = write_license_inventory(inventory)
     if as_json:
         print(json.dumps(inventory.to_dict(), indent=2))
     else:
@@ -2521,6 +2531,7 @@ def _cmd_release_licenses(as_json: bool) -> int:
         for dep in inventory.dependencies:
             if dep.compatibility != "permissive_compatible":
                 print(f"  REVIEW: {dep.name} {dep.version} - {dep.license} ({dep.compatibility})")
+        print(f"Written to: {path}")
     return 0
 
 
@@ -2564,6 +2575,16 @@ def _cmd_release_manifest(
         print(f"release_id: {manifest.release_id}")
         print(f"readiness_decision: {manifest.readiness_decision}")
         print(f"release_blockers: {manifest.release_blockers}")
+        if manifest.release_state == "tagged_release":
+            print(f"release_state: tagged_release (HEAD is tag {manifest.nearest_tag})")
+        elif manifest.release_state == "unreleased_development":
+            print(
+                f"release_state: unreleased_development "
+                f"({manifest.commits_since_tag} commit(s) past tag {manifest.nearest_tag} - "
+                "this release_id/fingerprint do NOT correspond to any published GitHub Release)"
+            )
+        else:
+            print("release_state: no_tags_reachable")
         print(f"Written to: {path}")
     return 0 if manifest.readiness_decision != "release_candidate_not_ready" else 1
 
@@ -2583,6 +2604,9 @@ def _cmd_release_status(as_json: bool) -> int:
         print(f"project_version: {payload.get('project_version')}")
         print(f"readiness_decision: {payload.get('readiness_decision')}")
         print(f"release_blockers: {payload.get('release_blockers')}")
+        print(f"release_state: {payload.get('release_state')}")
+        print(f"nearest_tag: {payload.get('nearest_tag')}")
+        print(f"commits_since_tag: {payload.get('commits_since_tag')}")
         print(f"generated_at_utc: {payload.get('generated_at_utc')}")
     return 0
 
@@ -2642,6 +2666,23 @@ def _cmd_release_errata(as_json: bool) -> int:
     return 0
 
 
+def _cmd_release_checksums(as_json: bool) -> int:
+    from credlens.release.checksums import ChecksumError, write_release_checksums
+
+    try:
+        path = write_release_checksums()
+    except ChecksumError as exc:
+        print(f"Error: {exc}")
+        return 1
+    if as_json:
+        print(json.dumps({"written_to": str(path)}, indent=2))
+    else:
+        print("CredLens release checksums")
+        print("=" * 40)
+        print(f"Written to: {path}")
+    return 0
+
+
 def _dispatch_release_command(args: argparse.Namespace) -> int:
     if args.release_command == "validate":
         return _cmd_release_validate(args.json)
@@ -2665,10 +2706,12 @@ def _dispatch_release_command(args: argparse.Namespace) -> int:
             args.pytest_exit_code,
             args.json,
         )
+    if args.release_command == "checksums":
+        return _cmd_release_checksums(args.json)
 
     print(
         "usage: credlens release {validate,licenses,sbom,manifest,status,errata,"
-        "measure-coverage} ..."
+        "measure-coverage,checksums} ..."
     )
     print("Run 'credlens release <command> --help' for details.")
     return 1

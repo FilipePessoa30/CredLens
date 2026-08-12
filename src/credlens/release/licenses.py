@@ -9,6 +9,7 @@ incompatible or unknown licenses, not a legal compliance determination.
 
 from __future__ import annotations
 
+import json
 import re
 import tomllib
 from dataclasses import dataclass
@@ -314,3 +315,19 @@ def inventory_dependency_licenses(repo_root: Path | None = None) -> LicenseInven
         ),
         copyleft_count=sum(1 for r in rows if r.compatibility == "review_needed_copyleft"),
     )
+
+
+def write_license_inventory(inventory: LicenseInventory, *, repo_root: Path | None = None) -> Path:
+    """Fase 12 - `reports/release/license_inventory.json` (one of the
+    five canonical release assets `credlens.release.checksums` covers)
+    had no writer anywhere in this codebase: it was committed exactly
+    once, by hand, in the same Fase 11A commit that introduced the
+    now-stale SHA256SUMS, and nothing has ever regenerated it since -
+    the same structural gap, closed the same way `write_sbom` already
+    closes it for the SBOM."""
+    repo_root = repo_root or Path.cwd()
+    out_dir = repo_root / "reports" / "release"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    path = out_dir / "license_inventory.json"
+    path.write_text(json.dumps(inventory.to_dict(), indent=2), encoding="utf-8")
+    return path

@@ -1,6 +1,6 @@
 """Demo aggregate package (Phase 7 section 18) - a small, versionable
 Parquet snapshot of exactly the aggregate tables the dashboard needs, so
-a recruiter can run `credlens dashboard run --demo` without regenerating
+anyone can run `credlens dashboard run --demo` without regenerating
 the synthetic portfolio or building a warehouse.
 
 Hard rules enforced here, not just documented:

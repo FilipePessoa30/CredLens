@@ -1,6 +1,6 @@
 # Assumptions and Limitations
 
-This document exists so nobody reading this repository — a recruiter, a hiring manager, a technical reviewer, or a future contributor — mistakes CredLens for a real operational system or a real risk assessment. It is a portfolio project. These constraints apply to every phase of the project, not only the current one.
+This document exists so nobody reading this repository mistakes CredLens for a real operational system or a real risk assessment. It is a portfolio project. These constraints apply to every phase of the project, not only the current one.
 
 ## Fictional scenario
 
