@@ -54,6 +54,31 @@ class TestComputeCanonicalChecksums:
         for rel in CANONICAL_RELEASE_ASSETS[1:]:
             assert before[rel] == after[rel]
 
+    def test_hash_identical_for_crlf_vs_lf_content(self, tmp_path: Path) -> None:
+        """Real regression (Fase 12): SHA256SUMS generated on a Windows
+        checkout (CRLF) of these JSON files failed `release validate` on
+        the very first real GitHub Actions run against a Linux checkout
+        of the SAME commit (LF, via this repo's own `.gitattributes`
+        `eol=lf` checkout-time normalization) - for all three canonical
+        assets simultaneously. Hashing must match `credlens.release.
+        source_snapshot`'s own already-correct handling of this exact
+        cross-platform problem."""
+        rel = CANONICAL_RELEASE_ASSETS[0]
+        path = tmp_path / rel
+        path.parent.mkdir(parents=True, exist_ok=True)
+        lf_content = '{"a": 1,\n "b": 2}\n'
+        path.write_bytes(lf_content.encode("utf-8"))
+        for other_rel in CANONICAL_RELEASE_ASSETS[1:]:
+            other = tmp_path / other_rel
+            other.parent.mkdir(parents=True, exist_ok=True)
+            other.write_text("x", encoding="utf-8")
+        lf_hash = {e.path: e.sha256 for e in compute_canonical_checksums(tmp_path)}[rel]
+
+        path.write_bytes(lf_content.replace("\n", "\r\n").encode("utf-8"))
+        crlf_hash = {e.path: e.sha256 for e in compute_canonical_checksums(tmp_path)}[rel]
+
+        assert lf_hash == crlf_hash
+
 
 class TestRenderChecksumsFile:
     def test_format_is_two_space_separated_hash_and_path(self, tmp_path: Path) -> None:

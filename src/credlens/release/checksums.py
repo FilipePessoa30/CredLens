@@ -42,6 +42,17 @@ deterministic operations, closing that gap prospectively:
   declares - never trusts the file's own claim that it is up to date.
   Missing asset, undeclared/unexpected entry, and stale/incorrect hash
   are reported as distinct failure modes.
+
+Hashes are computed over `canonicalize_content`'s output (CRLF/CR
+normalized to LF for text files, matching this repo's own
+`.gitattributes`), never raw bytes - the first real PR built on this
+module (Fase 12) failed exactly this way in real CI: hashes generated
+on a Windows checkout (where these JSON files carry CRLF) didn't match
+the same commit checked out fresh on the Linux CI runner (where
+`.gitattributes`' `eol=lf` normalizes them to LF), for all three
+canonical assets at once. `credlens.release.source_snapshot` already
+solved this identical cross-platform problem for the source fingerprint
+- this module reuses that same solution rather than re-inventing it.
 """
 
 from __future__ import annotations
@@ -49,6 +60,8 @@ from __future__ import annotations
 import hashlib
 from dataclasses import dataclass, field
 from pathlib import Path
+
+from credlens.release.canonical_content import canonicalize_content
 
 
 class ChecksumError(Exception):
@@ -72,8 +85,9 @@ def _checksums_path(repo_root: Path) -> Path:
     return repo_root / "reports" / "release" / CHECKSUMS_FILENAME
 
 
-def _sha256_of(path: Path) -> str:
-    return hashlib.sha256(path.read_bytes()).hexdigest()
+def _sha256_of(rel_path: str, path: Path) -> str:
+    content = canonicalize_content(rel_path, path.read_bytes())
+    return hashlib.sha256(content).hexdigest()
 
 
 @dataclass(frozen=True)
@@ -93,7 +107,7 @@ def compute_canonical_checksums(repo_root: Path) -> list[ChecksumEntry]:
             f"Missing canonical release asset(s), cannot compute checksums: {missing}"
         )
     return [
-        ChecksumEntry(path=rel, sha256=_sha256_of(repo_root / rel))
+        ChecksumEntry(path=rel, sha256=_sha256_of(rel, repo_root / rel))
         for rel in CANONICAL_RELEASE_ASSETS
     ]
 
@@ -188,7 +202,7 @@ def verify_release_checksums(repo_root: Path | None = None) -> ChecksumVerificat
     stale_or_incorrect = [
         rel
         for rel in CANONICAL_RELEASE_ASSETS
-        if rel in declared and declared[rel] != _sha256_of(repo_root / rel)
+        if rel in declared and declared[rel] != _sha256_of(rel, repo_root / rel)
     ]
 
     if missing_from_file or undeclared_in_file or stale_or_incorrect:
