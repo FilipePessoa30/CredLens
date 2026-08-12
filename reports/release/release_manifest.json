@@ -1,9 +1,9 @@
 {
-  "release_id": "RC_1.0.0rc2_c26379b9",
+  "release_id": "RC_1.0.0rc2_7b77ebb4",
   "project_version": "1.0.0rc2",
-  "base_commit": "13cc32c99db3cc0932c5841f4fae1abfdc7da260",
-  "source_snapshot_fingerprint": "c26379b9bea0ff725f140eb99bf409e2f43825748723dee5c672e01f49c1b159",
-  "release_inventory_fingerprint": "bca9982ed2c3cbe8ed6986fe68cf898ae6e7374c437ce2f5c556870d2b21735e",
+  "base_commit": "1b456ab2dfd5be5b68f92d2cc5a753900cdccbe0",
+  "source_snapshot_fingerprint": "7b77ebb466e75a40c0363f00f5d910fb5f220f6aebc8b710f22e380998a2f912",
+  "release_inventory_fingerprint": "08b0f8d0a7476c683f1556d5b35ab7286aea4b7108ef07abe632d494a25f278f",
   "release_inventory_summary": {
     "n_entries": 712,
     "n_included": 711,
@@ -12,7 +12,7 @@
     "n_needs_human_review": 0
   },
   "working_tree_clean": false,
-  "modified_file_count": 28,
+  "modified_file_count": 8,
   "model_v1_present": true,
   "model_v2_remediated_present": true,
   "challenger_registered": true,
@@ -46,9 +46,9 @@
   ],
   "release_blockers": [],
   "readiness_decision": "release_candidate_ready_with_limitations",
-  "release_state": "tagged_release",
+  "release_state": "unreleased_development",
   "nearest_tag": "v1.0.0rc2",
-  "commits_since_tag": 0,
-  "generated_at_utc": "2026-08-12T02:30:09.014827+00:00",
-  "content_fingerprint": "75313d1c75d27273166e1e166127c04f58a6300f82590b32787d2c7a474bb2bd"
+  "commits_since_tag": 1,
+  "generated_at_utc": "2026-08-12T03:51:22.693084+00:00",
+  "content_fingerprint": "5a5d7b20f1b2adb3a6d85b2b79db29d2d749d605ca230ab0375163e491885c42"
 }
