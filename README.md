@@ -65,6 +65,11 @@ uv run credlens dashboard run --demo
 <td width="33%"><a href="docs/assets/dashboard/model_monitoring_lab.png"><img src="docs/assets/dashboard/model_monitoring_lab.png" alt="Model Monitoring Lab page"></a><br><sub>Model Monitoring Lab</sub></td>
 <td width="33%"><a href="docs/assets/dashboard/public_benchmarks.png"><img src="docs/assets/dashboard/public_benchmarks.png" alt="Public Benchmarks page"></a><br><sub>Public Benchmarks</sub></td>
 </tr>
+<tr>
+<td width="33%"><a href="docs/assets/dashboard/vintages_roll_rates.png"><img src="docs/assets/dashboard/vintages_roll_rates.png" alt="Vintages & Roll Rates page"></a><br><sub>Vintages & Roll Rates</sub></td>
+<td width="33%"><a href="docs/assets/dashboard/cure_collections_recovery.png"><img src="docs/assets/dashboard/cure_collections_recovery.png" alt="Cure, Collections & Recovery page"></a><br><sub>Cure, Collections & Recovery</sub></td>
+<td width="33%"></td>
+</tr>
 </table>
 
 *All screenshots above use synthetic demo data (or, for Model Lab/Public Benchmarks, the real public UCI/BCB benchmarks — clearly labeled on each page); see [Data Quality & Methodology](docs/assets/dashboard/data_quality.png) for full provenance.*
@@ -395,7 +400,7 @@ The target strategy is **public data + a reproducible synthetic operational laye
 
 A fresh `git clone` of this repository, followed only by the commands below, produces a working dashboard and a working monitoring simulation — no file generated on a prior contributor's machine is ever required (Fase 11C).
 
-- **Versioned**: all source code, SQL, config, tests, docs, the dbt seed ([`warehouse/seeds/dim_dpd_bucket.csv`](warehouse/seeds/dim_dpd_bucket.csv) — small, static reference data, not generated/acquired data), the official candidate model artifacts (`reports/modeling/models/*.joblib`), and the 8 dashboard screenshots (`docs/assets/dashboard/`).
+- **Versioned**: all source code, SQL, config, tests, docs, the dbt seed ([`warehouse/seeds/dim_dpd_bucket.csv`](warehouse/seeds/dim_dpd_bucket.csv) — small, static reference data, not generated/acquired data), the official candidate model artifacts (`reports/modeling/models/*.joblib`), and the 10 dashboard screenshots (`docs/assets/dashboard/`).
 - **Generated on demand, never committed**: the dashboard's demo Parquet bundle and the monitoring reference/simulated batches — both produced deterministically by `credlens demo prepare` (`src/credlens/demo/factory.py`), reusing the same synthetic-generation/warehouse/analysis pipeline described above, never a second implementation. `credlens dashboard run --demo` calls this automatically the first time it's needed; nothing to run by hand for the common case.
 - **Downloaded on demand, never committed**: the real, public UCI "Default of Credit Card Clients" benchmark (`credlens data fetch --source uci-default-credit`) — required by the modeling/monitoring commands, never by the synthetic-portfolio or dashboard-demo path. This is the only step needing network access; everything else is fully offline and deterministic.
 - **Where generated/downloaded data lives**: under this repo's own working tree (`dashboard/demo_data/`, `reports/monitoring/reference/`, `reports/monitoring/runs/`, `data/raw/`, `data/warehouse/`) — all covered by `.gitignore`, never staged by `git add -A`.

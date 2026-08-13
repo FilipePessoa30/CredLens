@@ -111,14 +111,24 @@ def _load_factory_manifest(output_dir: Path) -> FactoryManifest | None:
 
 
 def _atomic_replace_dir(staging_dir: Path, final_dir: Path) -> None:
-    """Swaps `staging_dir` into `final_dir`'s place. Refuses to touch
+    """Swaps `staging_dir`'s CONTENTS into `final_dir` in place - never
+    replaces `final_dir` itself as a directory entry. Fase 13: the
+    original implementation did `rmtree(final_dir)` then `move(staging_
+    dir, final_dir)`, silently assuming `final_dir` is a plain, freely
+    renameable directory entry - true on a normal filesystem, but not
+    when a caller points `--output`/`CREDLENS_DASHBOARD_DEMO_DIR` at a
+    container volume mount point, whose mount inode can never be
+    removed or renamed from inside the container, only its CONTENTS
+    replaced - confirmed by a real `OSError: [Errno 16] Device or
+    resource busy` reproduction under Docker. Still refuses to touch
     `final_dir` at all unless it is either absent, empty, or already
     carries this factory's own completion marker (`FACTORY_MANIFEST_
     FILENAME`) - proving a PRIOR run of this exact factory owns it,
     never an arbitrary directory a caller happened to point --output
     at. Never a recursive delete of unrecognized content."""
     if final_dir.exists():
-        is_empty = not any(final_dir.iterdir())
+        children = list(final_dir.iterdir())
+        is_empty = not children
         is_factory_owned = (final_dir / FACTORY_MANIFEST_FILENAME).is_file()
         if not (is_empty or is_factory_owned):
             raise DemoFactoryError(
@@ -126,9 +136,16 @@ def _atomic_replace_dir(staging_dir: Path, final_dir: Path) -> None:
                 f"carry this factory's own '{FACTORY_MANIFEST_FILENAME}' marker. Point --output "
                 "at an empty or factory-owned directory."
             )
-        shutil.rmtree(final_dir)
-    final_dir.parent.mkdir(parents=True, exist_ok=True)
-    shutil.move(str(staging_dir), str(final_dir))
+        for child in children:
+            if child.is_dir() and not child.is_symlink():
+                shutil.rmtree(child)
+            else:
+                child.unlink()
+    else:
+        final_dir.mkdir(parents=True)
+    for child in list(staging_dir.iterdir()):
+        shutil.move(str(child), str(final_dir / child.name))
+    staging_dir.rmdir()
 
 
 def _existing_dashboard_bundle_is_complete_and_matching(

@@ -1,21 +1,74 @@
 # Keep the dashboard demo image small and free of anything not needed for
-# --demo mode (Phase 7). No data/, no .venv, no tests, no warehouse/dbt
-# project, no notebooks, no synthetic-generation/warehouse source.
+# --demo mode (Phase 7). No data/, no .venv, no tests, no notebooks. The
+# warehouse/ dbt PROJECT (SQL/YAML/macros) IS needed - see the Fase 13 note
+# further down; only its own locally-generated/gitignored pieces are
+# excluded.
+#
+# Fase 13: unlike .gitignore, a bare `dir/` pattern here only matches at
+# the CONTEXT ROOT, not at any depth - confirmed by direct inspection of
+# a real built image, which still contained src/credlens/**/__pycache__/
+# *.pyc despite this file already listing `__pycache__/`/`*.pyc`. Every
+# recursive pattern below is now explicitly `**/`-prefixed.
 .git/
 .github/
 .venv/
-__pycache__/
-*.pyc
+**/__pycache__/
+**/*.pyc
+**/*.pyo
 .pytest_cache/
+**/.pytest_cache/
 .mypy_cache/
+**/.mypy_cache/
 .ruff_cache/
+**/.ruff_cache/
 coverage.xml
+coverage.json
+.coverage
 htmlcov/
 
+# Fase 13: never bake a demo bundle that merely happened to exist on the
+# BUILD MACHINE's disk (gitignored, so its presence/absence/content is
+# purely a function of what a prior local command happened to run) -
+# non-deterministic across developers/CI and could contain state from an
+# unrelated local experiment. `credlens.dashboard.bootstrap` generates it
+# deterministically in-process the first time the running container
+# actually needs it (see CREDLENS_DASHBOARD_DEMO_DIR below).
+dashboard/demo_data/
+
 data/
-warehouse/
+# Fase 13: NOT excluded, unlike the initial assumption written here (a real
+# ConfigError->PermissionError->FileNotFoundError chain, fixed one at a
+# time, proved it wrong) - credlens.dashboard.bootstrap's demo-bundle
+# auto-generation runs credlens.warehouse.build.run_build(), a REAL local
+# dbt-duckdb build against this project directory, even in --demo mode; it
+# never opens an EXTERNAL/live warehouse connection, but it does need its
+# own dbt project files (SQL/YAML/macros/seeds/analyses/tests - all
+# git-tracked) to run `dbt build` against an ephemeral local DuckDB file
+# under data/warehouse/ (already excluded above). Only the locally
+# generated/gitignored pieces stay excluded, matching warehouse/'s own
+# .gitignore entries.
+warehouse/target/
+warehouse/dbt_packages/
+warehouse/profiles.yml
+warehouse/.user.yml
 contracts/
 config/
+# Fase 13: the dashboard's demo-bundle auto-generation calls
+# credlens.generation.suite.generate_suite(scale_name="smoke", ...) with
+# its default `scenarios=CRN_SCENARIOS` - so it loads not just baseline's
+# config but also every CRN_SCENARIOS scenario's own
+# config/synthetic/<scenario>.generation.yaml (policy_expansion,
+# policy_tightening, macroeconomic_stress, collections_change - see
+# credlens.generation.config). Confirmed missing one at a time by real
+# ConfigError tracebacks rendered on 7 of the 10 dashboard pages in
+# containers built before this fix. Re-including the whole
+# `*.generation.yaml` set (not an explicit per-scenario list) so this
+# stays correct if EXECUTABLE_SCENARIOS/CRN_SCENARIOS ever gains a
+# member; config/synthetic/scenarios/*.blueprint.yaml, schema.yaml and
+# README.md are genuinely unused at runtime (confirmed by code reading)
+# and stay excluded, as does every other config/ subdirectory (modeling,
+# monitoring - unused by the demo path).
+!config/synthetic/*.generation.yaml
 notebooks/
 docs/
 reports/

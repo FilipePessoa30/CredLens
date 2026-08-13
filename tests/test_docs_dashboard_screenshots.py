@@ -17,11 +17,17 @@ from PIL import Image
 REPO_ROOT = Path(__file__).resolve().parent.parent
 SCREENSHOT_DIR = REPO_ROOT / "docs" / "assets" / "dashboard"
 
-# The 8 pages Fase 11B section 13 requires, at minimum.
+# The 10 real pages under dashboard/pages/ (Fase 13: 2 were added after
+# Fase 11B section 13's original 8-page list - vintages_roll_rates and
+# cure_collections_recovery - and the screenshot set had drifted out of
+# sync with it ever since; confirmed via `ls dashboard/pages/` and fixed
+# by capturing the 2 missing captures from a real container run).
 REQUIRED_SCREENSHOTS = (
     "executive_overview.png",
     "credit_funnel.png",
     "portfolio_delinquency.png",
+    "vintages_roll_rates.png",
+    "cure_collections_recovery.png",
     "scenario_lab.png",
     "model_lab.png",
     "model_monitoring_lab.png",
