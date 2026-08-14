@@ -2,6 +2,70 @@
 
 All notable changes to this project are documented in this file. Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased] - Docker Runtime, Visual QA, Stability Evidence and Stable-Release Readiness (Fase 13) - 2026-08-13
+
+Validates CredLens as an executable containerized product (Dockerfile.dashboard demo image) and performs full visual QA of the dashboard running INSIDE a real container - not just the local process. No bump to 1.0.0, no tag, no GitHub Release, no image publication, no deploy this phase.
+
+### Fixed - three real, blocking Docker packaging bugs found by actually running the container (not just building it)
+
+- **`config/synthetic/*.generation.yaml` missing from the image**: `credlens.generation.suite.generate_suite()` (invoked by the dashboard's demo-bundle auto-generation) loads baseline's AND every `CRN_SCENARIOS` scenario's own generation config - `.dockerignore` excluded the whole `config/` tree. Produced a real `ConfigError` traceback on 7 of the 10 dashboard pages. Fixed by re-including just the executable `*.generation.yaml` files (not the whole directory).
+- **`data/warehouse/` unwritable by the non-root user**: `credlens.warehouse.build.BUILD_ROOT` is a relative `"data/warehouse"` path with no override parameter, resolving to `/app/data/warehouse` at runtime - only `dashboard/demo_data/` was chowned to the non-root `credlens` user. Fixed by chowning the whole `/app` tree once at build time instead of whack-a-moling individual subdirectories.
+- **`warehouse/` dbt project entirely excluded**: the demo-bundle auto-generation runs a REAL local `dbt build` against an ephemeral, container-local DuckDB file even in `--demo` mode - the image never opens an EXTERNAL/live warehouse connection, but it does need the dbt project's own SQL/YAML/macros/seeds files, and the `warehouse` extra (dbt-core/dbt-duckdb) was never installed. Fixed by adding `COPY warehouse/` (excluding its own gitignored generated pieces) and `--extra warehouse` to `uv sync`. Image size grew from ~660MB to ~1.73GB as a real, disclosed cost of this fix.
+
+All three found and root-caused via a real Selenium (headless Edge) session against the running container - a plain `curl`/HTTP-200 health check was proven insufficient (Streamlit's static SPA shell renders before the server-side Python script executes over its own WebSocket session).
+
+### Fixed - `credlens.demo.factory._atomic_replace_dir` was not container-volume-safe
+
+- Previously did `rmtree(final_dir)` + `move(staging_dir, final_dir)` - replacing the whole directory ENTRY, which silently assumed `final_dir` is a plain, freely renameable path. A container volume mounted exactly at that path can't have its mount-point inode removed/renamed from inside the container (reproduced as a real `OSError: [Errno 16] Device or resource busy`). Rewritten to swap `final_dir`'s CONTENTS in place instead, preserving the exact same "refuse to touch a non-empty, non-factory-owned directory" safety check. Regression tests added (`TestAtomicReplaceDirIsMountPointSafe`) verify the target directory's inode is unchanged across a replace.
+- Documented the correct persistence pattern in `Dockerfile.dashboard`'s own top comment: mount a volume at a PARENT of `CREDLENS_DASHBOARD_DEMO_DIR`, and chown it to uid 1000 once before first use (fresh named volumes are root-owned by default).
+
+### Added - Docker CI job and automated contract tests
+
+- **`.github/workflows/ci.yml`**: new `docker-build` job - builds the real `Dockerfile.dashboard` image, runs the Docker contract + integration test suites, verifies container health and a CLI smoke test, cleans up after itself, never publishes the image, never touches secrets. `ci-summary`'s required-check list now depends on it. The Python-matrix `unit-tests` job's pytest invocation now excludes `-m docker` so a full image build never runs twice per PR.
+- **`tests/test_docker_contract.py`** (new, 16 tests): static Dockerfile.dashboard/.dockerignore assertions (approved base image, non-root user, single exposed port, health check present, frozen lockfile, no `curl`/`ADD`-from-URL/hardcoded-secret/`chmod 777` patterns, sensitive paths excluded) - no Docker daemon needed, runs everywhere.
+- **`tests/test_docker_integration.py`** (new, 5 tests, marked `docker`): builds the real image, verifies CLI (`--help`/`version`), container health, and that the demo bundle genuinely loads inside the container. Skips with an explicit, visible reason (never a silent pass) when no Docker daemon is reachable.
+
+### Fixed - stale "8 dashboard pages" assumption (there are 10)
+
+- `tests/test_docs_dashboard_screenshots.py`'s `REQUIRED_SCREENSHOTS` only listed 8 of the real 10 pages under `dashboard/pages/` - missing Vintages & Roll Rates and Cure, Collections & Recovery (added after the original Fase 11B capture). Captured both from a real container-run dashboard (Selenium, headless Edge, calibrated to the existing screenshots' exact 1894x1260 resolution) and added them to the required set, the README image grid, and the pt-BR README's screenshot count. The CI job title's "8 pages" was also stale; corrected to 10.
+
+### Verified - container functional contract
+
+- CLI works directly without a `uv run` prefix (`docker run --rm <image> credlens --help`/`version`); `credlens doctor` FAILs honestly on `config_file`/`docs`/`tests` (accurate reflection of the image's deliberately narrow `src/`+`dashboard/`+`analysis/`+`config/synthetic/`+`warehouse/` scope, not a bug).
+- Dashboard: all 10 pages load without a traceback at 3 viewports (1440x900, 1280x720, 390x844) inside a real running container; synthetic-data warning visible on every data-bearing page.
+- Offline (`--network none`): demo bundle generates and the health endpoint responds with zero external network access.
+- Shutdown: `docker stop` completes in ~1.3s (well inside the 15s grace period), exit code 0.
+- Persistence: a correctly-mounted, pre-chowned named volume reuses an already-complete bundle idempotently (2.5s vs. 23s cold) with an identical fingerprint.
+- Stability repetitions: 3 independent cold container starts produced byte-identical per-table content SHA-256 hashes (the top-level "Fingerprint" shown in the dashboard sidebar is a warehouse-BUILD-level identifier, not a content hash, and legitimately differs per run - a labeling nuance worth a future look, not a determinism bug). 3x checksum verification and 3x health check cycles all consistent. Both a normal and a `--no-cache --pull` build produce functionally identical (same size, same smoke-test results) images.
+
+### Investigated - `commits_since_tag` reported as 3 instead of 1
+
+- `describe_release_state()`'s `git describe`-based computation is correct (independently cross-checked: `git describe --tags --long HEAD` → `v1.0.0rc2-1-g5cd5b81`, count=1). The committed `reports/release/release_manifest.json` (last touched by commit `5cd5b81` itself) held a stale snapshot from `base_commit e2c2e54c` - a pre-squash commit on the `chore/post-release-portfolio-hardening` branch - carried through the squash-merge without a final post-squash regeneration. No code change made; fixed by regenerating the manifest fresh as part of this phase's evidence pipeline (now correctly reads 1).
+
+### KPI reconciliation (Executive Overview, baseline scenario, against the demo bundle's own canonical tables)
+
+Outstanding balance, PAR30, PAR90, active contracts, and booking-rate-of-approved all reconciled to an EXACT match against `portfolio_monthly`/`delinquency_monthly`/`funnel_monthly`. Applications (301 displayed) and approval rate (57.95% displayed) differ slightly from a naive whole-table sum (303 / 57.54%) - explained by the date-range filter's default bounds being derived from `portfolio_monthly.snapshot_date` (month-end) and applied to `funnel_monthly.submitted_month` (month-start), clipping a handful of edge-of-range rows even with no user filter interaction. A real, minor, EXPLAINED cross-table date-semantics detail, not a data-integrity bug or a KPI/methodology change (out of this phase's scope to alter).
+
+### Basic accessibility smoke check
+
+Heading hierarchy starts at `<h2>` (no `<h1>` - a Streamlit-framework characteristic, not page-specific code); all 10 sidebar nav links have accessible text; Tab-key navigation reaches interactive elements; 2 sampled text/background contrast pairs both pass WCAG AA (12.53:1 and 5.11:1); no horizontal overflow at 125%/150% browser zoom. Explicitly a "basic accessibility smoke check," not a formal WCAG audit.
+
+### RC2 public stability-window audit (read-only)
+
+v1.0.0rc2 published 2026-08-09T03:36:32Z; ~4 days elapsed as of this phase - a short public stabilization window, not long-term burn-in. Exactly one commit landed on master since (the Fase 12 squash-merge, `5cd5b81`); GitHub Actions history shows 2 real failures (both on that same PR, both root-caused and fixed within Fase 12) followed by 2 clean successes, and zero further incidents since the merge. RC2 itself revealed the checksum-staleness release-integrity issue later fixed on master - any future v1.0.0 must be based on validated master, never promoted directly from the RC2 tag.
+
+### Vulnerability/dependency audit
+
+No CVE-level scanner was available/authenticated in this environment (`docker scout` present but requires a Docker Hub login not available here; no `trivy`/`grype`/`snyk`/`pip-audit`/`safety` installed, and none installed without authorization per this phase's constraints) - vulnerability status is honestly UNKNOWN, not "zero vulnerabilities." Base image confirmed as Debian 13 (trixie, actively supported) with Python 3.11.15; the production image carries 96 installed packages (enumerated). `python:3.11-slim` is pinned to major.minor only, not a digest - a real, minor reproducibility note consistent with this project's already-established "functional, not byte-identical" reproducibility bar.
+
+### Validated
+
+- `ruff check`/`ruff format --check`: clean. `mypy src tests`: clean (298 files). Full suite: 1994 passed, 1 skipped (Docker-daemon-dependent module, confirmed separately with a live daemon: 21/21 passed), coverage 95.42% (no regression from the RC2 baseline's 95.41%). `credlens release validate`: 14/14 checks pass, `readiness_decision: release_candidate_ready`.
+
+### Not authorized / not performed this phase
+
+No bump to 1.0.0, no tag `v1.0.0`, no GitHub Release, no Docker image published to any registry, no deploy, no direct push to master, no merge without authorization, no alteration of the `v1.0.0rc2` tag or its Release.
+
 ## [Unreleased] - Immutable Release Identity and GitHub Publication Preflight (Fase 11A) - 2026-08-03
 
 Read-only preflight for publishing `1.0.0rc2`: no commit, push, branch, PR, merge, tag, release, or deploy performed. See the full Fase 11A report for the complete git-safety trail, GitHub read-only preflight, and publication plan pending explicit human authorization.

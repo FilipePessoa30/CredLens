@@ -1,30 +1,32 @@
 {
-  "release_id": "RC_1.0.0rc2_c67f5d9b",
+  "release_id": "RC_1.0.0rc2_20b50798",
   "project_version": "1.0.0rc2",
-  "base_commit": "e2c2e54c06f55566c2f8728d9927d9cde12a3a02",
-  "source_snapshot_fingerprint": "c67f5d9b79252613c41d553c2432dc62170bae35cf749167c91a3219d6b1e259",
-  "release_inventory_fingerprint": "d861257de1185a6340371361e8552e295c3825d860a0f528952c97797cc8e090",
+  "base_commit": "c53f2f4d40d859cd3f53cdb546d79bb5f5f5f517",
+  "source_snapshot_fingerprint": "20b50798f128f2e096aeb9448f7962eb5cb7d578ba633e201f4ddd170e6b9ff9",
+  "release_inventory_fingerprint": "bfcefe1b058f2289ffd3bc38add061d15d09188b1da83982ad4c3bc95ceb121d",
   "release_inventory_summary": {
-    "n_entries": 712,
-    "n_included": 711,
+    "n_entries": 716,
+    "n_included": 715,
     "n_excluded": 1,
     "n_unresolved": 0,
     "n_needs_human_review": 0
   },
   "working_tree_clean": false,
-  "modified_file_count": 7,
+  "modified_file_count": 6,
   "model_v1_present": true,
   "model_v2_remediated_present": true,
   "challenger_registered": true,
   "validation_decision": "validation_passed_with_limitations",
   "monitoring_run_present": true,
   "demo_package_present": true,
-  "test_counts": {},
+  "test_counts": {
+    "total": 1994
+  },
   "dbt_reconciliation_status": "reconciled_within_tolerance",
   "notebook_status": "executed_end_to_end",
   "dashboard_status": "validated_apptest_plus_headless_browser",
   "visual_qa_status": "verified_locally",
-  "docker_status": "not_executed",
+  "docker_status": "built_and_validated",
   "ci_status": "not_run_remotely_this_session",
   "license_inventory_summary": {
     "n_dependencies": 197,
@@ -45,10 +47,10 @@
     "Not suitable for real lending decisions - no fairness certification, no legal compliance assessment, no financial-impact claim."
   ],
   "release_blockers": [],
-  "readiness_decision": "release_candidate_ready_with_limitations",
+  "readiness_decision": "release_candidate_ready",
   "release_state": "unreleased_development",
   "nearest_tag": "v1.0.0rc2",
-  "commits_since_tag": 3,
-  "generated_at_utc": "2026-08-12T05:10:11.646421+00:00",
-  "content_fingerprint": "3865a261424e9658a3704a14ed395e6ffbd32c7c60d402cd26615ad7eb1eaf8f"
+  "commits_since_tag": 2,
+  "generated_at_utc": "2026-08-14T01:48:55.279647+00:00",
+  "content_fingerprint": "eee78f94c372a22bb092224709e2b88bf80f52163f30d4842a3389aa2c0050bf"
 }

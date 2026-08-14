@@ -140,13 +140,19 @@ jobs:
       # model_validation/monitoring integration tests - those run once
       # each, unmatrixed, in the `modeling-validation`/`monitoring` jobs
       # below (not skipped, just relocated so this fast job stays fast).
-      # --python pinned explicitly on every uv run below - see the
-      # `quality` job's identical comment (a committed `.python-version`
-      # file pinned to "3.11" makes a bare `uv run` silently ignore the
-      # 3.12 environment `uv sync --python 3.12` just installed above).
-      - name: Test with coverage (pytest, excluding slow-marked tests)
+      # `and not docker` excludes tests/test_docker_integration.py (Fase
+      # 13) - it would otherwise match here too (no file-scoped pytest
+      # invocation, unlike the domain jobs below) and run a full `docker
+      # build` twice per PR (once per Python-version matrix entry) on top
+      # of the dedicated `docker-build` job below, which already covers
+      # it once. --python pinned explicitly on every uv run below - see
+      # the `quality` job's identical comment (a committed `.python-
+      # version` file pinned to "3.11" makes a bare `uv run` silently
+      # ignore the 3.12 environment `uv sync --python 3.12` just
+      # installed above).
+      - name: Test with coverage (pytest, excluding slow-marked/docker-marked tests)
         run: |
-          uv run --python "${{ matrix.python-version }}" pytest -m "not slow" \
+          uv run --python "${{ matrix.python-version }}" pytest -m "not slow and not docker" \
             --cov=credlens --cov-report=term-missing --cov-report=xml
 
       - name: Upload coverage artifact
@@ -216,7 +222,7 @@ jobs:
           test ! -s ci_git_status_warehouse.txt
 
   analytics-dashboard:
-    name: Analysis, notebook, and dashboard (8 pages, demo + warehouse mode)
+    name: Analysis, notebook, and dashboard (10 pages, demo + warehouse mode)
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
@@ -794,6 +800,59 @@ jobs:
           uv run credlens release licenses --json > /dev/null
           uv run credlens release sbom --json > /dev/null
 
+  # Fase 13: builds the real Dockerfile.dashboard image once per PR and
+  # proves the container contract (health check, CLI reachable without
+  # `uv run`, demo bundle actually loads) - see tests/test_docker_
+  # contract.py (static, no daemon needed - also covered by every other
+  # job) and tests/test_docker_integration.py (needs a real daemon,
+  # `-m docker`, deliberately excluded from the Python-matrix `unit-
+  # tests` job above so a full image build never runs twice per PR).
+  # Never publishes the image anywhere, never touches secrets.
+  docker-build:
+    name: Docker (build, health, CLI smoke - dashboard demo image)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      # The exact, documented, user-facing build command (Dockerfile.
+      # dashboard's own top comment) - proven once here, separately from
+      # tests/test_docker_integration.py's own internally-tagged build,
+      # so a change that breaks the DOCUMENTED command specifically is
+      # caught even if the test fixture's build (same Dockerfile, same
+      # context, different tag) would still have succeeded.
+      - name: Build the dashboard demo image (documented command)
+        run: docker build -f Dockerfile.dashboard -t credlens-dashboard-demo .
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+
+      - name: Set up Python
+        run: uv python install "3.11"
+
+      - name: Install dependencies
+        run: uv sync --extra dashboard --python "3.11"
+
+      # No `-m docker` filter here (unlike the exclusion in `unit-tests`
+      # above) - this job's whole purpose is Docker, so both the static
+      # contract file (unmarked) and the real integration file (marked
+      # `docker`) should simply run in full.
+      - name: Docker contract + integration tests (build/health/CLI smoke/demo load)
+        run: uv run pytest tests/test_docker_contract.py tests/test_docker_integration.py -q --no-cov
+
+      - name: Clean up (documented-command image + any leftover containers)
+        if: always()
+        run: |
+          if docker ps -aq -f ancestor=credlens-dashboard-demo | grep -q .; then
+            docker rm -f $(docker ps -aq -f ancestor=credlens-dashboard-demo)
+          fi
+          if docker images -q credlens-dashboard-demo | grep -q .; then
+            docker rmi -f credlens-dashboard-demo
+          fi
+
   # A single required check other branch-protection rules can point at,
   # without needing to list every parallel job by name (and without
   # `|| true` - if any dependency failed, this job is skipped, and a
@@ -809,6 +868,7 @@ jobs:
       - modeling-validation
       - monitoring
       - release-integrity
+      - docker-build
     steps:
       - name: All required jobs succeeded
         run: echo "All CI jobs passed."

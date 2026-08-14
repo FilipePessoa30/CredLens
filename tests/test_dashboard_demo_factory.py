@@ -16,9 +16,11 @@ from credlens import __version__ as credlens_version
 from credlens.dashboard.demo_package import validate_demo_package
 from credlens.demo.factory import (
     DASHBOARD_GENERATOR_VERSION,
+    FACTORY_MANIFEST_FILENAME,
     FACTORY_MANIFEST_SCHEMA_VERSION,
     DemoFactoryError,
     FactoryManifest,
+    _atomic_replace_dir,
     _existing_dashboard_bundle_is_complete_and_matching,
     _load_factory_manifest,
     prepare_dashboard_demo,
@@ -134,6 +136,70 @@ class TestForceSafety:
             seed=_SEED_A, output_dir=empty_dir, force=True, quiet=True
         )
         assert manifest.component == "dashboard"
+
+
+class TestAtomicReplaceDirIsMountPointSafe:
+    """Fase 13: `_atomic_replace_dir` must swap `final_dir`'s CONTENTS,
+    never the directory entry itself - a container volume mount point's
+    inode can't be removed/renamed from inside the container, only its
+    contents replaced (reproduced for real as `OSError: [Errno 16]
+    Device or resource busy` before this fix). These are fast, direct
+    unit tests of that one function - no real pipeline run needed."""
+
+    def test_final_dir_inode_is_unchanged_by_a_replace_into_an_empty_dir(
+        self, tmp_path: Path
+    ) -> None:
+        staging = tmp_path / "staging"
+        staging.mkdir()
+        (staging / "payload.txt").write_text("v1", encoding="utf-8")
+        final = tmp_path / "final"
+        final.mkdir()
+        final_inode_before = final.stat().st_ino
+
+        _atomic_replace_dir(staging, final)
+
+        assert final.stat().st_ino == final_inode_before
+        assert (final / "payload.txt").read_text(encoding="utf-8") == "v1"
+        assert not staging.exists()
+
+    def test_final_dir_inode_is_unchanged_by_a_second_factory_owned_replace(
+        self, tmp_path: Path
+    ) -> None:
+        final = tmp_path / "final"
+        final.mkdir()
+        final_inode_before = final.stat().st_ino
+
+        staging1 = tmp_path / "staging1"
+        staging1.mkdir()
+        (staging1 / FACTORY_MANIFEST_FILENAME).write_text("{}", encoding="utf-8")
+        (staging1 / "payload.txt").write_text("v1", encoding="utf-8")
+        _atomic_replace_dir(staging1, final)
+
+        staging2 = tmp_path / "staging2"
+        staging2.mkdir()
+        (staging2 / FACTORY_MANIFEST_FILENAME).write_text("{}", encoding="utf-8")
+        (staging2 / "payload.txt").write_text("v2", encoding="utf-8")
+        _atomic_replace_dir(staging2, final)
+
+        assert final.stat().st_ino == final_inode_before
+        assert (final / "payload.txt").read_text(encoding="utf-8") == "v2"
+        assert not staging2.exists()
+
+    def test_refuses_a_non_empty_unrecognized_final_dir_and_leaves_it_untouched(
+        self, tmp_path: Path
+    ) -> None:
+        staging = tmp_path / "staging"
+        staging.mkdir()
+        (staging / "payload.txt").write_text("v1", encoding="utf-8")
+        final = tmp_path / "final"
+        final.mkdir()
+        (final / "unrelated_file.txt").write_text("do not touch me", encoding="utf-8")
+
+        with pytest.raises(DemoFactoryError, match="Refusing to overwrite"):
+            _atomic_replace_dir(staging, final)
+
+        assert (final / "unrelated_file.txt").read_text(encoding="utf-8") == "do not touch me"
+        assert staging.exists()
 
 
 class TestManifestAndHashes:

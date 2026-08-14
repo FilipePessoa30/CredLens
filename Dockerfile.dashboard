@@ -8,15 +8,42 @@
 #   docker build -f Dockerfile.dashboard -t credlens-dashboard-demo .
 # Run:
 #   docker run --rm -p 8501:8501 credlens-dashboard-demo
-# Then open http://localhost:8501 - the demo package baked into the image
-# (dashboard/demo_data/) is the ONLY data source; no data/warehouse/ mount,
-# no network access needed.
+# Then open http://localhost:8501 - dashboard/demo_data/ (Fase 13:
+# deliberately EXCLUDED from the build context by .dockerignore - it is
+# gitignored source-of-truth-wise, so whatever happened to exist on the
+# BUILD MACHINE's disk would otherwise be baked in non-deterministically)
+# is generated in-process, deterministically, from a fixed seed the first
+# time a page needs it (credlens.dashboard.bootstrap, the same factory
+# `credlens demo prepare` calls) - no external network access needed
+# either way. This DOES include a real local dbt-duckdb build against an
+# ephemeral, container-local DuckDB file (see below) - "no warehouse
+# mount" means no EXTERNAL/live warehouse connection, not that the build
+# step is skipped.
+#
+# The CLI also works directly, no `uv run` prefix needed (the venv's own
+# bin/ is first on PATH):
+#   docker run --rm <image> credlens --help
+#   docker run --rm <image> credlens doctor
+#
+# To persist the generated demo bundle across container restarts (optional
+# - a fresh container regenerates it deterministically in ~20s either way),
+# mount a volume at a PARENT of CREDLENS_DASHBOARD_DEMO_DIR, never at that
+# exact path itself (a container volume mount point's inode can't be
+# removed/renamed from inside the container - credlens.demo.factory's
+# atomic-replace step needs to be able to at least create/replace the leaf
+# directory). Fresh named volumes are root-owned by default; this image's
+# non-root `credlens` user (uid 1000) needs it chowned once before first
+# use - standard Docker practice for any non-root image + named volume:
+#   docker volume create credlens-demo-vol
+#   docker run --rm -v credlens-demo-vol:/data --user root \
+#     credlens-dashboard-demo chown -R 1000:1000 /data
+#   docker run --rm -p 8501:8501 -v credlens-demo-vol:/data \
+#     -e CREDLENS_DASHBOARD_DEMO_DIR=/data/demo_data credlens-dashboard-demo
 
 FROM python:3.11-slim AS base
 
-# Runtime deps only: build-essential/curl are not needed since uv installs
-# prebuilt wheels; dbt/duckdb (the "warehouse" extra) are deliberately NOT
-# installed - this image only ever serves --demo mode.
+# Runtime deps only: build-essential/curl are not needed since uv and
+# dbt-duckdb both install prebuilt wheels.
 RUN pip install --no-cache-dir uv==0.11.7
 
 WORKDIR /app
@@ -25,26 +52,53 @@ COPY pyproject.toml uv.lock README.md ./
 COPY src/ ./src/
 COPY dashboard/ ./dashboard/
 COPY analysis/ ./analysis/
+# credlens.generation.suite.generate_suite() (invoked by the demo-bundle
+# auto-generation below) loads baseline's AND every CRN_SCENARIOS
+# scenario's config/synthetic/<scenario>.generation.yaml - see the
+# matching .dockerignore comment for how this was found (real ConfigError
+# tracebacks on 7 of 10 dashboard pages) and why no other config/ file is
+# needed for demo mode.
+COPY config/synthetic/*.generation.yaml ./config/synthetic/
+# The demo-bundle auto-generation's warehouse-build step runs `dbt build`
+# against this project directory (a real, local, ephemeral DuckDB file
+# under data/warehouse/ - never an external connection) - see the matching
+# .dockerignore comment for how the missing directory was found (a real
+# FileNotFoundError for warehouse/profiles.example.yml).
+COPY warehouse/ ./warehouse/
 
-# --extra analysis is needed for credlens.analysis (KPI/insight/provenance
-# logic the dashboard reuses) and --extra dashboard for Streamlit/Plotly -
-# --extra warehouse (dbt-core/dbt-duckdb) is skipped entirely: this image
-# never opens a live warehouse connection.
-RUN uv sync --frozen --no-dev --extra analysis --extra dashboard
+# --extra analysis: credlens.analysis (KPI/insight/provenance logic the
+# dashboard reuses). --extra dashboard: Streamlit/Plotly. --extra
+# warehouse: dbt-core/dbt-duckdb - run_build() invokes a real local `dbt
+# build` even in --demo mode (see the `COPY warehouse/` comment above), so
+# this is needed too, not just the project files.
+RUN uv sync --frozen --no-dev --extra warehouse --extra analysis --extra dashboard
 
-# A non-root user - the demo package is read-only data, no reason to run
-# as root.
-RUN useradd --create-home --uid 1000 credlens
+# A non-root user, owning the whole /app tree. Needed for more than just
+# dashboard/demo_data/ (excluded from the build context - see
+# .dockerignore - so the demo-bundle auto-generation described above
+# creates it at runtime): credlens.warehouse.build.BUILD_ROOT is also a
+# relative "data/warehouse" path with no override parameter, resolving
+# to /app/data/warehouse at runtime - confirmed by a real
+# PermissionError when only demo_data/ was writable. Rather than
+# whack-a-mole further undiscovered relative-path writes the same way,
+# the whole tree is chowned once, consistent with /app being this
+# container's own dedicated application directory, not shared system
+# state - the non-root requirement is about not running the process as
+# root, not about withholding write access from the unprivileged
+# account that owns it.
+RUN useradd --create-home --uid 1000 credlens \
+    && chown -R credlens:credlens /app
 USER credlens
 
 ENV CREDLENS_DASHBOARD_DEMO=1 \
     CREDLENS_DASHBOARD_DEMO_DIR=/app/dashboard/demo_data \
     STREAMLIT_SERVER_HEADLESS=true \
-    STREAMLIT_SERVER_ADDRESS=0.0.0.0
+    STREAMLIT_SERVER_ADDRESS=0.0.0.0 \
+    PATH="/app/.venv/bin:$PATH"
 
 EXPOSE 8501
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
-    CMD uv run python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8501/_stcore/health', timeout=3)" || exit 1
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8501/_stcore/health', timeout=3)" || exit 1
 
-CMD ["uv", "run", "streamlit", "run", "dashboard/app.py", "--server.port=8501", "--server.address=0.0.0.0", "--", "--demo"]
+CMD ["streamlit", "run", "dashboard/app.py", "--server.port=8501", "--server.address=0.0.0.0", "--", "--demo"]

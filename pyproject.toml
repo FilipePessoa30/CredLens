@@ -158,6 +158,7 @@ testpaths = ["tests"]
 addopts = "-ra --cov=credlens --cov-report=term-missing --cov-report=xml"
 markers = [
     "slow: exercises the full Phase 8 modeling pipeline on the real 30k-row UCI benchmark (tuning/bootstrap/robustness) - deselect with -m 'not slow' for a fast smoke path; CI's main job runs the full suite regardless.",
+    "docker: builds and runs the real Dockerfile.dashboard image against a live Docker daemon (Fase 13) - skipped with an explicit, visible reason (never a silent pass) when no daemon is reachable; deselect with -m 'not docker' if Docker is unavailable locally.",
 ]
 
 [tool.coverage.run]
