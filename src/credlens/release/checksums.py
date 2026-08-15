@@ -76,6 +76,14 @@ CANONICAL_RELEASE_ASSETS: tuple[str, ...] = (
     "reports/release/sbom.cyclonedx.json",
     "reports/release/release_manifest.json",
     "reports/release/license_inventory.json",
+    # Fase 14: the security-gate report (credlens.release.security -
+    # pip-audit + Trivy findings judged against this project's blocking
+    # policy) is real, reviewable evidence attached to a stable release,
+    # not an internal scratch file - checksummed and verifiable like
+    # every other canonical asset, not silently exempt from the same
+    # discipline `write_release_checksums` already enforces for the
+    # other three.
+    "reports/release/security_audit.json",
 )
 
 CHECKSUMS_FILENAME = "SHA256SUMS"

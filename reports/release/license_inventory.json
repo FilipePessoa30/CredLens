@@ -195,7 +195,7 @@
     },
     {
       "name": "credlens",
-      "version": "1.0.0rc2",
+      "version": "1.0.0",
       "license": "MIT License",
       "compatibility": "permissive_compatible",
       "dependency_kind": "transitive",
@@ -359,7 +359,7 @@
     },
     {
       "name": "GitPython",
-      "version": "3.1.57",
+      "version": "3.1.59",
       "license": "BSD-3-Clause",
       "compatibility": "permissive_compatible",
       "dependency_kind": "transitive",
@@ -1019,8 +1019,8 @@
     },
     {
       "name": "pyarrow",
-      "version": "18.1.0",
-      "license": "Apache Software License",
+      "version": "24.0.0",
+      "license": "Apache-2.0",
       "compatibility": "permissive_compatible",
       "dependency_kind": "direct",
       "roles": [

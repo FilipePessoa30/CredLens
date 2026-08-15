@@ -1,18 +1,18 @@
 {
-  "release_id": "RC_1.0.0rc2_20b50798",
-  "project_version": "1.0.0rc2",
-  "base_commit": "c53f2f4d40d859cd3f53cdb546d79bb5f5f5f517",
-  "source_snapshot_fingerprint": "20b50798f128f2e096aeb9448f7962eb5cb7d578ba633e201f4ddd170e6b9ff9",
-  "release_inventory_fingerprint": "bfcefe1b058f2289ffd3bc38add061d15d09188b1da83982ad4c3bc95ceb121d",
+  "release_id": "REL_1.0.0_d4992d52",
+  "project_version": "1.0.0",
+  "base_commit": "b069c9f05cd2880c0756ae64a5af88cc8eb787b1",
+  "source_snapshot_fingerprint": "d4992d526d9716dcfefa232cc9bfca74c39fa79b66cfc6ae0520a48376fa6917",
+  "release_inventory_fingerprint": "b6acfc5da753044a9bb5d92eeb7528e55eba6d9039a857ef7ef45d0a58c777fe",
   "release_inventory_summary": {
-    "n_entries": 716,
-    "n_included": 715,
+    "n_entries": 719,
+    "n_included": 718,
     "n_excluded": 1,
     "n_unresolved": 0,
     "n_needs_human_review": 0
   },
   "working_tree_clean": false,
-  "modified_file_count": 6,
+  "modified_file_count": 9,
   "model_v1_present": true,
   "model_v2_remediated_present": true,
   "challenger_registered": true,
@@ -20,13 +20,14 @@
   "monitoring_run_present": true,
   "demo_package_present": true,
   "test_counts": {
-    "total": 1994
+    "total": 2023
   },
   "dbt_reconciliation_status": "reconciled_within_tolerance",
   "notebook_status": "executed_end_to_end",
   "dashboard_status": "validated_apptest_plus_headless_browser",
   "visual_qa_status": "verified_locally",
   "docker_status": "built_and_validated",
+  "security_scan_status": "not_executed",
   "ci_status": "not_run_remotely_this_session",
   "license_inventory_summary": {
     "n_dependencies": 197,
@@ -35,7 +36,7 @@
   },
   "sbom_summary": {
     "n_components": 197,
-    "content_fingerprint": "f08caf40f8c237a54c41af329929291c35d1fe2780e723bc7ad6fdd4122891f0"
+    "content_fingerprint": "8af103f3be639b9750610bb8153258b4d670a211d93fc82c324a3952cc1a4c74"
   },
   "known_limitations": [
     "Historical public benchmark (UCI, Taiwan, 2005) - not a Brazilian population, not a real institution's data.",
@@ -47,10 +48,10 @@
     "Not suitable for real lending decisions - no fairness certification, no legal compliance assessment, no financial-impact claim."
   ],
   "release_blockers": [],
-  "readiness_decision": "release_candidate_ready",
+  "readiness_decision": "release_candidate_ready_with_limitations",
   "release_state": "unreleased_development",
   "nearest_tag": "v1.0.0rc2",
-  "commits_since_tag": 2,
-  "generated_at_utc": "2026-08-14T01:48:55.279647+00:00",
-  "content_fingerprint": "eee78f94c372a22bb092224709e2b88bf80f52163f30d4842a3389aa2c0050bf"
+  "commits_since_tag": 4,
+  "generated_at_utc": "2026-08-15T16:39:37.630306+00:00",
+  "content_fingerprint": "d68d6e9c580b0da63cffbb7df8f24a84a23b709488ff7809e793a3b092db509c"
 }

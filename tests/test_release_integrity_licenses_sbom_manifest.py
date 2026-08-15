@@ -23,7 +23,7 @@ from credlens.release.licenses import (
     _spdx_compatibility,
     inventory_dependency_licenses,
 )
-from credlens.release.manifest import build_release_manifest, decide_readiness
+from credlens.release.manifest import _release_id_prefix, build_release_manifest, decide_readiness
 from credlens.release.sbom import generate_sbom
 
 
@@ -396,9 +396,25 @@ class TestDecideReadiness:
         )
         assert decision == "release_candidate_ready_with_limitations"
 
-    def test_no_blockers_and_both_fully_verified_is_fully_ready(self) -> None:
+    def test_no_blockers_but_security_scan_not_executed_is_ready_with_limitations(self) -> None:
+        """Fase 14 - a security scan that simply hasn't run yet is a
+        visibility downgrade, same treatment as visual_qa/docker - only
+        a genuinely FAILED scan (folded into `blockers` by the caller,
+        not by this function) reaches not_ready."""
         decision = decide_readiness(
-            blockers=[], visual_qa_status="verified_locally", docker_status="built_and_validated"
+            blockers=[],
+            visual_qa_status="verified_locally",
+            docker_status="built_and_validated",
+            security_scan_status="not_executed",
+        )
+        assert decision == "release_candidate_ready_with_limitations"
+
+    def test_no_blockers_and_all_three_fully_verified_is_fully_ready(self) -> None:
+        decision = decide_readiness(
+            blockers=[],
+            visual_qa_status="verified_locally",
+            docker_status="built_and_validated",
+            security_scan_status="verified",
         )
         assert decision == "release_candidate_ready"
 
@@ -444,6 +460,23 @@ class TestBuildReleaseManifest:
             "release_candidate_ready_with_limitations",
             "release_candidate_not_ready",
         )
+
+    def test_failed_security_scan_is_a_real_blocker(self) -> None:
+        """Fase 14 section 13 - a FAILED security gate (an applicable
+        CRITICAL/fixable-HIGH finding, a secret in the image, or a
+        scanner that couldn't run) must reach `release_candidate_
+        not_ready`, unlike a merely not-yet-run scan (ready_with_
+        limitations only)."""
+        manifest = build_release_manifest(
+            test_counts={"total": 1500},
+            visual_qa_status="verified_locally",
+            docker_status="built_and_validated",
+            security_scan_status="failed",
+            ci_status="not_run_remotely_this_session",
+            repo_root=Path.cwd(),
+        )
+        assert manifest.readiness_decision == "release_candidate_not_ready"
+        assert any("Security gate failed" in b for b in manifest.release_blockers)
 
     def test_known_limitations_are_disclosed_not_empty(self) -> None:
         manifest = build_release_manifest(
@@ -568,6 +601,48 @@ class TestBuildReleaseManifest:
         head_prefix = dirty_manifest.base_commit[:8]
         dirty_suffix = dirty_manifest.release_id.rsplit("_", 1)[-1]
         assert dirty_suffix != head_prefix
+
+    def test_release_id_prefix_is_rc_for_a_release_candidate_version(self) -> None:
+        assert _release_id_prefix("1.0.0rc2") == "RC"
+        assert _release_id_prefix("1.0.0rc1") == "RC"
+        assert _release_id_prefix("2.3.1rc10") == "RC"
+
+    def test_release_id_prefix_is_rel_for_a_stable_version(self) -> None:
+        assert _release_id_prefix("1.0.0") == "REL"
+        assert _release_id_prefix("2.3.1") == "REL"
+
+    def test_stable_manifest_release_id_is_rel_prefixed_not_rc(self, tmp_path: Path) -> None:
+        """Fase 14 - a v1.0.0 (stable, no `rc` segment) manifest's
+        release_id must not carry the Release-Candidate-only `RC_`
+        prefix - it must be clearly distinguishable from an actual
+        `RC_1.0.0rc2_*` id at a glance."""
+        import subprocess
+
+        subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
+        subprocess.run(["git", "config", "user.email", "t@example.com"], cwd=tmp_path, check=True)
+        subprocess.run(["git", "config", "user.name", "T"], cwd=tmp_path, check=True)
+        (tmp_path / "a.txt").write_text("content", encoding="utf-8")
+        subprocess.run(["git", "add", "-A"], cwd=tmp_path, check=True)
+        subprocess.run(["git", "commit", "-q", "-m", "init"], cwd=tmp_path, check=True)
+
+        manifest = build_release_manifest(
+            test_counts={"total": 0},
+            visual_qa_status="not_verified",
+            docker_status="not_executed",
+            ci_status="not_run_remotely_this_session",
+            repo_root=tmp_path,
+        )
+        # credlens.__version__ in THIS test run reflects whatever
+        # pyproject.toml currently declares - derive the expected
+        # prefix from the same function under test rather than
+        # hardcoding "1.0.0"/"REL", so this doesn't need editing again
+        # on the next version bump.
+        from credlens import __version__ as current_version
+
+        expected_prefix = _release_id_prefix(current_version)
+        assert manifest.release_id.startswith(f"{expected_prefix}_{current_version}_")
+        if expected_prefix == "REL":
+            assert not manifest.release_id.startswith("RC_")
 
     def test_write_release_manifest_writes_a_real_json_file(self, tmp_path: Path) -> None:
         from credlens.release.manifest import write_release_manifest

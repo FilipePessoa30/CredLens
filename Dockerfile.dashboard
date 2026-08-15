@@ -42,9 +42,32 @@
 
 FROM python:3.11-slim AS base
 
+# Fase 14 security gate: picks up whatever Debian security patches are
+# already published for this image's system packages at build time
+# (standard, recommended Docker practice - the base image's own package
+# snapshot is not automatically current just because the image tag
+# itself is recent). Confirmed necessary by a real Trivy scan finding
+# multiple HIGH/CRITICAL Debian CVEs with an available fix that this
+# step resolves; CVEs still reported with no upstream Debian fix at all
+# (e.g. several perl-base entries) are unaffected by this and are
+# handled as documented, non-blocking exceptions - see
+# credlens.release.security's own module docstring.
+RUN apt-get update && apt-get upgrade -y && rm -rf /var/lib/apt/lists/*
+
 # Runtime deps only: build-essential/curl are not needed since uv and
-# dbt-duckdb both install prebuilt wheels.
-RUN pip install --no-cache-dir uv==0.11.7
+# dbt-duckdb both install prebuilt wheels. uv itself (a compiled Rust
+# binary) vendors its own copies of several crates - 0.11.7 bundled
+# quinn-proto/rustls-webpki versions with real, fixed HIGH-severity
+# advisories (GHSA-4w2j-m93h-cj5j, GHSA-82j2-j2ch-gfr8) - confirmed by a
+# real Trivy scan; upgraded to the newest available release, which
+# bundles patched versions. pip/setuptools (already present in the base
+# image) are also upgraded here: setuptools vendors its own copies of
+# wheel/jaraco.context internally, and the base image's preinstalled
+# pip/setuptools/vendored-wheel were old enough to carry their own real,
+# fixed CVEs (pip CVE-2025-8869 &al., setuptools CVE-2026-59890, wheel
+# CVE-2026-24049, jaraco.context CVE-2026-23949).
+RUN pip install --no-cache-dir --upgrade pip setuptools wheel \
+    && pip install --no-cache-dir uv==0.12.3
 
 WORKDIR /app
 

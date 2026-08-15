@@ -853,6 +853,93 @@ jobs:
             docker rmi -f credlens-dashboard-demo
           fi
 
+  # Fase 14 - the two-part security gate: `pip-audit` against the
+  # effective runtime dependency set (the same extras Dockerfile.
+  # dashboard installs, never the broader local dev/test/notebook
+  # groups), and a Trivy scan of the actual built image. Both are real
+  # external tools, invoked directly - never reimplemented - and
+  # `credlens release security` only judges their OWN JSON output
+  # against this project's blocking policy (see `credlens.release.
+  # security`'s module docstring). Trivy is invoked as a plain, version-
+  # PINNED `docker run` against a saved image tarball, deliberately NOT
+  # via the `aquasecurity/trivy-action`/`setup-trivy` GitHub Actions:
+  # both were part of a real, disclosed supply-chain compromise (2026-
+  # 03-19, credential-stealer code injected into trivy-action tags
+  # 0.0.1-0.34.2 and nearly every setup-trivy tag; the `aquasec/trivy`
+  # Docker Hub tags 0.69.5/0.69.6 were ALSO briefly compromised in the
+  # same incident) - pinning a specific, later, verified-safe image tag
+  # is the safer choice here, not a stylistic preference. Never
+  # publishes the image anywhere, never touches secrets, has a timeout.
+  security-audit:
+    name: Security audit (pip-audit + Trivy image scan)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+
+      - name: Set up Python
+        run: uv python install "3.11"
+
+      - name: Export the effective runtime dependency set
+        run: |
+          uv export --extra warehouse --extra analysis --extra dashboard --no-dev --no-hashes \
+            --format requirements-txt -o runtime-requirements.txt
+
+      - name: Python dependency audit (pip-audit)
+        run: |
+          uvx pip-audit -r runtime-requirements.txt --format json --skip-editable \
+            -o pip-audit-report.json
+
+      - name: Build the dashboard demo image (security-scan candidate)
+        run: docker build -f Dockerfile.dashboard -t credlens:security-scan-candidate .
+
+      - name: Save the image to a tarball (no Docker-socket exposure to the scanner)
+        run: docker save credlens:security-scan-candidate -o candidate-image.tar
+
+      # Pinned to a specific, verified-safe Trivy release - see this
+      # job's own top comment for why not `:latest` and not the
+      # trivy-action/setup-trivy GitHub Actions.
+      - name: Docker image vulnerability scan (Trivy, pinned image)
+        run: |
+          docker run --rm -v "$PWD:/scan" aquasec/trivy:0.73.0 image \
+            --input /scan/candidate-image.tar \
+            --format json \
+            --output /scan/trivy-report.json \
+            --severity CRITICAL,HIGH,MEDIUM,LOW,UNKNOWN \
+            --scanners vuln,secret \
+            --timeout 15m
+
+      - name: Evaluate the combined security gate
+        run: |
+          uv run credlens release security \
+            --pip-audit-report pip-audit-report.json \
+            --trivy-report trivy-report.json
+
+      - name: Upload security reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-reports
+          path: |
+            pip-audit-report.json
+            trivy-report.json
+            reports/release/security_audit.json
+          retention-days: 30
+
+      - name: Clean up (candidate image + tarball - never published anywhere)
+        if: always()
+        run: |
+          if docker images -q credlens:security-scan-candidate | grep -q .; then
+            docker rmi -f credlens:security-scan-candidate
+          fi
+          rm -f candidate-image.tar
+
   # A single required check other branch-protection rules can point at,
   # without needing to list every parallel job by name (and without
   # `|| true` - if any dependency failed, this job is skipped, and a
@@ -869,6 +956,7 @@ jobs:
       - monitoring
       - release-integrity
       - docker-build
+      - security-audit
     steps:
       - name: All required jobs succeeded
         run: echo "All CI jobs passed."

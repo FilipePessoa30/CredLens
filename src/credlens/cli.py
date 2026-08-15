@@ -934,6 +934,11 @@ def _build_parser() -> argparse.ArgumentParser:
         default="not_executed",
         choices=["not_executed", "built_and_validated", "build_failed"],
     )
+    release_manifest_parser.add_argument(
+        "--security-scan-status",
+        default="not_executed",
+        choices=["not_executed", "verified", "failed"],
+    )
     release_manifest_parser.add_argument("--ci-status", default="not_run_remotely_this_session")
     release_manifest_parser.add_argument("--test-total", type=int, default=None)
     release_manifest_parser.add_argument("--json", action="store_true")
@@ -985,6 +990,28 @@ def _build_parser() -> argparse.ArgumentParser:
         "reads them, never regenerates them.",
     )
     release_checksums_parser.add_argument("--json", action="store_true")
+
+    release_security_parser = release_subparsers.add_parser(
+        "security",
+        help="Judges real pip-audit/Trivy JSON reports (Fase 14) against this project's "
+        "blocking policy (CRITICAL always blocks; HIGH blocks only when a fix is already "
+        "available; a missing report or a secret found in the image always blocks) and "
+        "writes reports/release/security_audit.json. Never runs the scanners itself - see "
+        "docs/release_checklist.md for the exact pip-audit/Trivy invocations expected first.",
+    )
+    release_security_parser.add_argument(
+        "--pip-audit-report",
+        required=True,
+        type=Path,
+        help="Path to pip-audit's --format json output.",
+    )
+    release_security_parser.add_argument(
+        "--trivy-report",
+        required=True,
+        type=Path,
+        help="Path to trivy image's --format json output.",
+    )
+    release_security_parser.add_argument("--json", action="store_true")
 
     return parser
 
@@ -2552,7 +2579,12 @@ def _cmd_release_sbom(as_json: bool) -> int:
 
 
 def _cmd_release_manifest(
-    visual_qa_status: str, docker_status: str, ci_status: str, test_total: int | None, as_json: bool
+    visual_qa_status: str,
+    docker_status: str,
+    security_scan_status: str,
+    ci_status: str,
+    test_total: int | None,
+    as_json: bool,
 ) -> int:
     from credlens.release.manifest import build_release_manifest, write_release_manifest
 
@@ -2561,6 +2593,7 @@ def _cmd_release_manifest(
             test_counts={"total": test_total} if test_total is not None else {},
             visual_qa_status=visual_qa_status,
             docker_status=docker_status,
+            security_scan_status=security_scan_status,
             ci_status=ci_status,
         )
     except _release_error_types() as exc:
@@ -2683,6 +2716,31 @@ def _cmd_release_checksums(as_json: bool) -> int:
     return 0
 
 
+def _cmd_release_security(pip_audit_report: Path, trivy_report: Path, as_json: bool) -> int:
+    from credlens.release.security import evaluate_security_gate, write_security_audit
+
+    result = evaluate_security_gate(
+        pip_audit_report_path=pip_audit_report, trivy_report_path=trivy_report
+    )
+    path = write_security_audit(result)
+    if as_json:
+        print(json.dumps(result.to_dict(), indent=2))
+    else:
+        print("CredLens release security")
+        print("=" * 40)
+        print(f"passed: {result.passed}")
+        print(f"pip_audit_report_present: {result.pip_audit_report_present}")
+        print(f"trivy_report_present: {result.trivy_report_present}")
+        print(f"secret_found_in_image: {result.secret_found_in_image}")
+        print(f"blocking_findings: {len(result.blocking_findings)}")
+        for finding in result.blocking_findings:
+            print(
+                f"  [{finding.severity}] {finding.package} {finding.identifier}: {finding.reason}"
+            )
+        print(f"Written to: {path}")
+    return 0 if result.passed else 1
+
+
 def _dispatch_release_command(args: argparse.Namespace) -> int:
     if args.release_command == "validate":
         return _cmd_release_validate(args.json)
@@ -2692,7 +2750,12 @@ def _dispatch_release_command(args: argparse.Namespace) -> int:
         return _cmd_release_sbom(args.json)
     if args.release_command == "manifest":
         return _cmd_release_manifest(
-            args.visual_qa_status, args.docker_status, args.ci_status, args.test_total, args.json
+            args.visual_qa_status,
+            args.docker_status,
+            args.security_scan_status,
+            args.ci_status,
+            args.test_total,
+            args.json,
         )
     if args.release_command == "status":
         return _cmd_release_status(args.json)
@@ -2708,10 +2771,12 @@ def _dispatch_release_command(args: argparse.Namespace) -> int:
         )
     if args.release_command == "checksums":
         return _cmd_release_checksums(args.json)
+    if args.release_command == "security":
+        return _cmd_release_security(args.pip_audit_report, args.trivy_report, args.json)
 
     print(
         "usage: credlens release {validate,licenses,sbom,manifest,status,errata,"
-        "measure-coverage,checksums} ..."
+        "measure-coverage,checksums,security} ..."
     )
     print("Run 'credlens release <command> --help' for details.")
     return 1

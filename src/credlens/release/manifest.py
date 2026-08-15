@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 import subprocess
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
@@ -122,6 +123,7 @@ class ReleaseManifest:
     dashboard_status: str
     visual_qa_status: str
     docker_status: str
+    security_scan_status: str
     ci_status: str
     license_inventory_summary: dict[str, Any]
     sbom_summary: dict[str, Any]
@@ -156,6 +158,7 @@ class ReleaseManifest:
             "dashboard_status": self.dashboard_status,
             "visual_qa_status": self.visual_qa_status,
             "docker_status": self.docker_status,
+            "security_scan_status": self.security_scan_status,
             "ci_status": self.ci_status,
             "license_inventory_summary": self.license_inventory_summary,
             "sbom_summary": self.sbom_summary,
@@ -216,11 +219,29 @@ KNOWN_LIMITATIONS_PT_BR = [
 ]
 
 
+_RC_VERSION_PATTERN = re.compile(r"rc\d+", re.IGNORECASE)
+
+
+def _release_id_prefix(version: str) -> str:
+    """Fase 14 - `release_id` must not carry a Release-Candidate-only
+    `RC_` prefix once `__version__` denotes a stable release: the old
+    code hardcoded `RC_` unconditionally, so a v1.0.0 stable manifest's
+    own id would have started with `RC_1.0.0_...`, indistinguishable in
+    KIND from an actual release candidate's id at a glance. Derived
+    from the version string itself (this project's own convention:
+    `X.Y.ZrcN`, never alpha/beta/dev segments) - `RC` for a release
+    candidate, `REL` for a stable release - never from any external
+    flag, so it stays correct automatically the next time `__version__`
+    changes, with no call site to remember to update."""
+    return "RC" if _RC_VERSION_PATTERN.search(version) else "REL"
+
+
 def build_release_manifest(
     *,
     test_counts: dict[str, Any],
     visual_qa_status: str,
     docker_status: str,
+    security_scan_status: str = "not_executed",
     ci_status: str,
     repo_root: Path | None = None,
 ) -> ReleaseManifest:
@@ -299,6 +320,17 @@ def build_release_manifest(
         pass
     if visual_qa_status == "not_verified":
         pass
+    if security_scan_status == "failed":
+        # Unlike docker_status/visual_qa_status (classified separately,
+        # absence only downgrades to ready_with_limitations - Phase 10),
+        # a FAILED security gate is a real blocker (Fase 14 section 13:
+        # an applicable CRITICAL/fixable-HIGH finding, a secret in the
+        # image, or a scanner that could not run at all) - "not executed
+        # yet" is still just a visibility downgrade below, never this.
+        blockers.append(
+            "Security gate failed - see reports/release/security_audit.json for the "
+            "blocking finding(s)."
+        )
     if release_inventory.unresolved:
         blockers.append(
             "Release inventory has "
@@ -312,6 +344,7 @@ def build_release_manifest(
         blockers=blockers,
         visual_qa_status=visual_qa_status,
         docker_status=docker_status,
+        security_scan_status=security_scan_status,
     )
 
     # Fase 11A: the release_id suffix identifies the CONTENT the release
@@ -322,8 +355,16 @@ def build_release_manifest(
     # `source_snapshot_fingerprint` (hashes the CURRENT on-disk content
     # of every tracked file) can distinguish them; when the tree is
     # clean, this is legitimately equal to what a HEAD-derived id would
-    # have produced - equality is then correct, not a bug.
-    release_id = f"RC_{__version__}_{source_snapshot.fingerprint[:8]}"
+    # have produced - equality is then correct, not a bug. Fase 14: the
+    # prefix itself (`RC`/`REL`, see `_release_id_prefix`) now reflects
+    # whether `__version__` is actually a release candidate, never
+    # hardcoded - deterministic, based on version + fingerprint alone,
+    # no git SHA as the primary identity, stable across an equivalent
+    # commit/checkout on any OS (source_snapshot.fingerprint already
+    # canonicalizes CRLF/LF - see its own docstring).
+    release_id = (
+        f"{_release_id_prefix(__version__)}_{__version__}_{source_snapshot.fingerprint[:8]}"
+    )
     release_state_info = describe_release_state(repo_root)
     manifest = ReleaseManifest(
         release_id=release_id,
@@ -352,6 +393,7 @@ def build_release_manifest(
         dashboard_status=dashboard_status,
         visual_qa_status=visual_qa_status,
         docker_status=docker_status,
+        security_scan_status=security_scan_status,
         ci_status=ci_status,
         license_inventory_summary={
             "n_dependencies": len(license_inventory.dependencies),
@@ -377,18 +419,30 @@ def build_release_manifest(
 
 
 def decide_readiness(
-    *, blockers: list[str], visual_qa_status: str, docker_status: str
+    *,
+    blockers: list[str],
+    visual_qa_status: str,
+    docker_status: str,
+    security_scan_status: str = "not_executed",
 ) -> ReadinessDecision:
     """Never forced to `release_candidate_ready`. Blocking gates: any
     entry in `blockers` (release-integrity failure, a failed validation
-    decision, a missing official model). Visual QA/Docker are classified
+    decision, a missing official model, or - Fase 14 - a FAILED security
+    gate, already folded into `blockers` by the caller). Visual QA/
+    Docker/a security scan that simply has not run YET are classified
     SEPARATELY per Phase 10's instructions ("podem ser classificados
     separadamente... mas sua ausência deve aparecer claramente") - their
     absence downgrades `ready` to `ready_with_limitations`, never to
-    `not_ready` on their own."""
+    `not_ready` on their own (a genuinely FAILED security scan already
+    reached `not_ready` via `blockers` before this function is even
+    called)."""
     if blockers:
         return "release_candidate_not_ready"
-    if visual_qa_status != "verified_locally" or docker_status != "built_and_validated":
+    if (
+        visual_qa_status != "verified_locally"
+        or docker_status != "built_and_validated"
+        or security_scan_status != "verified"
+    ):
         return "release_candidate_ready_with_limitations"
     return "release_candidate_ready"
 

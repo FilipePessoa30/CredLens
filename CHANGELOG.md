@@ -2,6 +2,28 @@
 
 All notable changes to this project are documented in this file. Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased] - CredLens v1.0.0 stable release candidate (Fase 14) - pending publication
+
+First stable release, built from validated `master` after the `v1.0.0rc2` readiness work (Fase 13, PR #4) - never a promotion or retag of the RC2 tag itself, which remains published as a historical Pre-Release. This section is finalized to `[1.0.0] - <publication date>` only in the commit that is actually tagged (see Fase 14's own release procedure); until then it summarizes the full end-to-end scope validated for this release.
+
+### Summary of what v1.0.0 delivers
+
+- **Reproducible data pipelines and contracts**: public-dataset acquisition/audit (UCI, BCB), a conceptual data model, formal data contracts with schema/loader/registry/validators, and a deterministic, performance-optimized synthetic-portfolio generator (five executable scenarios, common random numbers, quarantine paths for data-quality incidents).
+- **Warehouse**: a DuckDB + dbt analytical warehouse with hardened integrity gates (safe source selection, cross-run key isolation, exact-cents reconciliation, raw-source tamper detection, build idempotency).
+- **KPIs and analysis**: a reproducible portfolio-analysis layer answering a versioned business-question registry, bilingual reports, professional charts, and a case-study notebook.
+- **Interpretable modeling**: a behavioral early-warning default model trained and validated on the real, public UCI benchmark, with leakage/calibration/uncertainty/subgroup/robustness rigor.
+- **Independent validation**: a separate layer that recomputes evidence from frozen artifacts (never copying the modeling report's own numbers), a formally registered `challenger` model, and a post-validation remediated model variant.
+- **Monitoring**: a drift/incident monitoring simulation with a governed reason-code policy and a signal→alert→incident escalation hierarchy, family-wise-calibrated false-alert control.
+- **Dashboard**: a 10-page Streamlit Decision Intelligence Dashboard with a verifiable insights registry and a small, versioned demo package.
+- **Deterministic demo**: `credlens demo prepare` / the dashboard's own auto-generation reproduce the same demo bundle from a fixed seed, with no dependency on locally-acquired raw data.
+- **Docker runtime**: a non-root, health-checked container image (`Dockerfile.dashboard`) validated end-to-end - build, CLI, dashboard, offline mode, persistence, shutdown - inside a real running container, not just at build time.
+- **CI**: parallel domain-scoped jobs across Python 3.11/3.12, a dedicated Docker job, and a dedicated security-audit job, all required through a single `CI summary` aggregate check enforced by branch protection.
+- **Release integrity**: a deterministic release manifest, SBOM, license inventory, and canonical checksums, validated by an automated, tested gate - never a hand-edited `SHA256SUMS`.
+
+### Limitations (see the full list in the README's own "Limitations" section)
+
+Portfolio/demonstration project, not a production banking system: no real lender's data, no fairness certification, no legal/regulatory compliance assessment, not suitable for real lending decisions. The dashboard is desktop-first (basic accessibility smoke check only, not a formal WCAG audit). Historical `v1.0.0rc1`/`v1.0.0rc2` release-candidate evidence remains preserved and unaltered.
+
 ## [Unreleased] - Docker Runtime, Visual QA, Stability Evidence and Stable-Release Readiness (Fase 13) - 2026-08-13
 
 Validates CredLens as an executable containerized product (Dockerfile.dashboard demo image) and performs full visual QA of the dashboard running INSIDE a real container - not just the local process. No bump to 1.0.0, no tag, no GitHub Release, no image publication, no deploy this phase.
