@@ -1,9 +1,9 @@
 {
-  "release_id": "REL_1.0.0_1e39046a",
+  "release_id": "REL_1.0.0_d4992d52",
   "project_version": "1.0.0",
-  "base_commit": "b78e26a30eb75ff4b0f38af152294f8e17b89b0e",
-  "source_snapshot_fingerprint": "1e39046ad95654b1088348efe6504032ff4a21cd6e5a89271f72d131470f23d3",
-  "release_inventory_fingerprint": "62c8aa3e02db40db3b5e6b061e39d1608ac44acd969bf8bf90a644c0b224c0e2",
+  "base_commit": "b069c9f05cd2880c0756ae64a5af88cc8eb787b1",
+  "source_snapshot_fingerprint": "d4992d526d9716dcfefa232cc9bfca74c39fa79b66cfc6ae0520a48376fa6917",
+  "release_inventory_fingerprint": "b6acfc5da753044a9bb5d92eeb7528e55eba6d9039a857ef7ef45d0a58c777fe",
   "release_inventory_summary": {
     "n_entries": 719,
     "n_included": 718,
@@ -12,7 +12,7 @@
     "n_needs_human_review": 0
   },
   "working_tree_clean": false,
-  "modified_file_count": 10,
+  "modified_file_count": 9,
   "model_v1_present": true,
   "model_v2_remediated_present": true,
   "challenger_registered": true,
@@ -20,7 +20,7 @@
   "monitoring_run_present": true,
   "demo_package_present": true,
   "test_counts": {
-    "total": 2022
+    "total": 2023
   },
   "dbt_reconciliation_status": "reconciled_within_tolerance",
   "notebook_status": "executed_end_to_end",
@@ -51,7 +51,7 @@
   "readiness_decision": "release_candidate_ready_with_limitations",
   "release_state": "unreleased_development",
   "nearest_tag": "v1.0.0rc2",
-  "commits_since_tag": 3,
-  "generated_at_utc": "2026-08-15T03:33:17.180457+00:00",
-  "content_fingerprint": "ecf4676019e1cd50f13729901a6510e3cbb82d3703ff204ecf470d8817b97d16"
+  "commits_since_tag": 4,
+  "generated_at_utc": "2026-08-15T16:39:37.630306+00:00",
+  "content_fingerprint": "d68d6e9c580b0da63cffbb7df8f24a84a23b709488ff7809e793a3b092db509c"
 }

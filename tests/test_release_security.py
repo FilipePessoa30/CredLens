@@ -171,6 +171,29 @@ _TRIVY_CRITICAL_SAME_ID_BUT_NOW_FIXED = {
     ]
 }
 
+# Matches a REAL "not_applicable_to_runtime" entry in _DOCUMENTED_EXCEPTIONS
+# (found by the real CI Trivy scan of credlens:1.0.0-candidate, Fase 14 -
+# pip's own pre-upgrade vendored msgpack, confirmed absent from the live
+# container's filesystem despite `docker save` preserving the old layer).
+_TRIVY_HIGH_NOT_APPLICABLE_EXCEPTION_WITH_A_FIX_AVAILABLE = {
+    "Results": [
+        {
+            "Target": "Python",
+            "Class": "lang-pkgs",
+            "Type": "python-pkg",
+            "Vulnerabilities": [
+                {
+                    "VulnerabilityID": "GHSA-6v7p-g79w-8964",
+                    "PkgName": "msgpack",
+                    "InstalledVersion": "1.1.2",
+                    "FixedVersion": "1.2.1",
+                    "Severity": "HIGH",
+                }
+            ],
+        }
+    ]
+}
+
 _TRIVY_HIGH_NO_FIX = {
     "Results": [
         {
@@ -265,6 +288,25 @@ class TestParseTrivyReport:
         findings = parse_trivy_report(path)
         assert len(findings) == 1
         assert findings[0].blocking is True
+
+    def test_not_applicable_to_runtime_exception_ignores_fix_availability(
+        self, tmp_path: Path
+    ) -> None:
+        """Unlike a `no_fix_available` exception, a `not_applicable_to_
+        runtime` one (e.g. a stale Docker-layer artifact confirmed
+        absent from the live container) stays non-blocking even though
+        a fix genuinely exists elsewhere - the justification is about
+        exploitability/presence, not fix availability."""
+        path = _write(
+            tmp_path,
+            "not_applicable.json",
+            _TRIVY_HIGH_NOT_APPLICABLE_EXCEPTION_WITH_A_FIX_AVAILABLE,
+        )
+        findings = parse_trivy_report(path)
+        assert len(findings) == 1
+        assert findings[0].fixed_version == "1.2.1"
+        assert findings[0].blocking is False
+        assert "documented exception" in findings[0].reason
 
     def test_high_without_a_fix_is_not_blocking(self, tmp_path: Path) -> None:
         path = _write(tmp_path, "high_nofix.json", _TRIVY_HIGH_NO_FIX)

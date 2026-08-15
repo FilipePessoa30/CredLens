@@ -46,19 +46,32 @@ class SecurityGateError(Exception):
     """Raised when a security report is missing or cannot be parsed."""
 
 
+ExceptionBasis = Literal["no_fix_available", "not_applicable_to_runtime"]
+
+
 @dataclass(frozen=True)
 class SecurityException:
     """One individually-justified, narrow blocking exception - never a
     blanket allowlist (Fase 14 section 13's explicit requirement: every
     entry needs its own CVE/package/justification/impact/review date).
-    Re-checked against the CURRENT scan every time (see `parse_trivy_
-    report`): if a fix ships later, the finding stops matching `fixed_
-    version is None` and reverts to blocking automatically - this list
-    only ever excuses "no fix exists", never "we don't want to deal
-    with it right now"."""
+    `basis` distinguishes the two grounds section 13 actually allows,
+    since they behave differently as new scan data arrives:
+      - `"no_fix_available"`: valid only while `fixed_version is None`
+        for that exact finding - the moment upstream ships a fix, this
+        exception stops applying and the finding reverts to blocking
+        automatically, no code change needed here (a fix existing is
+        precisely what invalidates this specific justification).
+      - `"not_applicable_to_runtime"`: applies regardless of fix
+        availability - the justification is about the vulnerable code
+        never actually executing in this image (e.g. a build-time-only
+        tool, or a stale/superseded artifact confirmed absent from the
+        live filesystem), which a fix being published elsewhere does
+        not change. Still bounded by `review_by`, re-checked by hand.
+    """
 
     identifier: str
     package: str
+    basis: ExceptionBasis
     justification: str
     impact: str
     review_by: str
@@ -78,6 +91,7 @@ _DOCUMENTED_EXCEPTIONS: tuple[SecurityException, ...] = (
     SecurityException(
         identifier="CVE-2026-13221",
         package="perl-base",
+        basis="no_fix_available",
         justification="No fix published in the Debian 13 security archive as of the scan "
         "date; perl-base is pulled in transitively by Debian's own package tooling "
         "(dpkg/apt), not invoked by any application code path in this image.",
@@ -89,6 +103,7 @@ _DOCUMENTED_EXCEPTIONS: tuple[SecurityException, ...] = (
     SecurityException(
         identifier="CVE-2026-42496",
         package="perl-base",
+        basis="no_fix_available",
         justification="No fix published in the Debian 13 security archive as of the scan "
         "date; same transitive-dependency situation as CVE-2026-13221.",
         impact="Same as CVE-2026-13221 - perl is never executed at runtime in this image.",
@@ -97,6 +112,7 @@ _DOCUMENTED_EXCEPTIONS: tuple[SecurityException, ...] = (
     SecurityException(
         identifier="CVE-2026-57433",
         package="perl-base",
+        basis="no_fix_available",
         justification="No fix published in the Debian 13 security archive as of the scan "
         "date; same transitive-dependency situation as CVE-2026-13221.",
         impact="Same as CVE-2026-13221 - perl is never executed at runtime in this image.",
@@ -105,13 +121,71 @@ _DOCUMENTED_EXCEPTIONS: tuple[SecurityException, ...] = (
     SecurityException(
         identifier="CVE-2026-8376",
         package="perl-base",
+        basis="no_fix_available",
         justification="No fix published in the Debian 13 security archive as of the scan "
         "date; same transitive-dependency situation as CVE-2026-13221.",
         impact="Same as CVE-2026-13221 - perl is never executed at runtime in this image.",
         review_by="2026-11-14",
     ),
+    # Fase 14 - a SECOND, different real finding from the same CI Trivy
+    # scan, after the fixes above were applied: `docker save`'s exported
+    # tarball preserves every individual Docker layer, including ones a
+    # LATER layer overwrites/removes in the final merged filesystem view
+    # (`pip install --upgrade pip` uninstalls the base image's original
+    # pip package, whose OWN vendored `pip/_vendor/msgpack` bundle and
+    # Python's own `ensurepip/_bundled/setuptools-*.whl` sit in an
+    # EARLIER layer) - Trivy's language-package detector, scanning the
+    # tarball layer-by-layer, still finds these stale, superseded files.
+    # Confirmed - not assumed - via two independent checks: (1) manually
+    # inspecting the saved image tarball's individual `layer.tar`
+    # members directly (a build tool, not runtime), finding the old
+    # versions ONLY in an early layer that a later layer's whiteout
+    # entry removes from the merged view; (2) `find / -iname
+    # 'msgpack*dist-info' -o -iname 'setuptools*dist-info'` run INSIDE a
+    # live container from this exact image, which finds only the
+    # correctly upgraded versions (pip 26.2.1 - which no longer vendors
+    # msgpack at all - and setuptools 84.0.0) - no trace of the old
+    # ones in the actual, active, running filesystem this container
+    # ever executes from. This is the FIRST exception-clause ground
+    # ("comprovadamente não aplicável ao runtime"), not the second.
+    SecurityException(
+        identifier="GHSA-6v7p-g79w-8964",
+        package="msgpack",
+        basis="not_applicable_to_runtime",
+        justification="Confirmed via direct layer-by-layer tarball inspection to be pip's "
+        "OWN pre-upgrade vendored copy (pip/_vendor/msgpack) in an early Docker layer, "
+        "superseded by `pip install --upgrade pip` in a later layer - `docker save` "
+        "preserves the old layer's content even though it is absent from the final merged "
+        "filesystem. Confirmed absent from a live container's actual filesystem (`find / "
+        "-iname msgpack*dist-info` finds only the correct, current dashboard-venv copy).",
+        impact="Not applicable to the runtime - pip's own internal msgpack usage never "
+        "executes in this image at all (pip itself is a build-time tool, not invoked by the "
+        "running dashboard/CLI), and the specific vulnerable file does not exist in the "
+        "image's actual, active filesystem.",
+        review_by="2026-11-14",
+    ),
+    SecurityException(
+        identifier="CVE-2025-47273",
+        package="setuptools",
+        basis="not_applicable_to_runtime",
+        justification="Confirmed via direct layer-by-layer tarball inspection to be an "
+        "early-layer artifact (Python's own `ensurepip/_bundled/setuptools-*.whl`, an inert "
+        "wheel FILE the standard library ships, never installed/imported/executed) and/or "
+        "the base image's pre-upgrade setuptools, superseded by `pip install --upgrade "
+        "setuptools` in a later layer - same `docker save` layer-preservation situation as "
+        "the msgpack entry above. Confirmed absent from a live container's actual "
+        "filesystem (`find / -iname setuptools*dist-info` finds only the correct, current "
+        "84.0.0 install).",
+        impact="Not applicable to the runtime - a dormant wheel file inside Python's own "
+        "stdlib `ensurepip` module (never invoked by this image's entrypoint or any "
+        "application code path) is not the same as an installed, importable package "
+        "actually exposed to attacker-controlled input.",
+        review_by="2026-11-14",
+    ),
 )
-_EXCEPTION_KEYS = {(e.identifier, e.package) for e in _DOCUMENTED_EXCEPTIONS}
+_EXCEPTIONS_BY_KEY: dict[tuple[str, str], SecurityException] = {
+    (e.identifier, e.package): e for e in _DOCUMENTED_EXCEPTIONS
+}
 
 
 @dataclass(frozen=True)
@@ -200,20 +274,32 @@ def parse_trivy_report(path: Path) -> list[SecurityFinding]:
             fixed_version = vuln.get("FixedVersion") or None
             identifier = str(vuln.get("VulnerabilityID", "unknown"))
             package = str(vuln.get("PkgName", "unknown"))
-            is_documented_exception = (identifier, package) in _EXCEPTION_KEYS
+            exception = _EXCEPTIONS_BY_KEY.get((identifier, package))
 
-            if severity == "CRITICAL" and fixed_version:
-                blocking = True
-                reason = f"CRITICAL severity with a fix available at {fixed_version} - apply it"
-            elif severity == "CRITICAL" and is_documented_exception:
+            # The exception check comes FIRST, before severity/fix-
+            # availability - Fase 14 section 13's two grounds behave
+            # differently as new scan data arrives (see `SecurityException`'s
+            # own docstring): a `not_applicable_to_runtime` exception
+            # applies regardless of fix availability; a `no_fix_available`
+            # exception applies ONLY while no fix actually exists yet,
+            # reverting to blocking automatically the moment one ships.
+            applies = exception is not None and (
+                exception.basis == "not_applicable_to_runtime"
+                or (exception.basis == "no_fix_available" and fixed_version is None)
+            )
+            if applies:
+                assert exception is not None  # narrows the type for mypy
                 blocking = False
                 reason = (
-                    "CRITICAL, no fix available - documented exception, see "
+                    f"{severity}, documented exception ({exception.basis}) - see "
                     "credlens.release.security._DOCUMENTED_EXCEPTIONS"
                 )
             elif severity == "CRITICAL":
                 blocking = True
-                reason = "CRITICAL, no fix available, and not a documented exception - blocking"
+                if fixed_version:
+                    reason = f"CRITICAL severity with a fix available at {fixed_version} - apply it"
+                else:
+                    reason = "CRITICAL, no fix available, and not a documented exception - blocking"
             elif severity == "HIGH" and fixed_version:
                 blocking = True
                 reason = f"HIGH severity with a fix available at {fixed_version} - apply it"
