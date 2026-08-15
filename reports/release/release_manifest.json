@@ -1,18 +1,18 @@
 {
-  "release_id": "REL_1.0.0_2d5e13a0",
+  "release_id": "REL_1.0.0_1e39046a",
   "project_version": "1.0.0",
-  "base_commit": "2006895c6d759cdd82c10bad3fc37229a3a5266f",
-  "source_snapshot_fingerprint": "2d5e13a0a4b75e36f8a3e5236ac349fae91fd074d88ba4b1eb2379c7d6177f2c",
-  "release_inventory_fingerprint": "0b1c8a50bd26ee02014b3c13eacae1ccaf7ecd4fbc5bbf4225558d8a99b5da25",
+  "base_commit": "b78e26a30eb75ff4b0f38af152294f8e17b89b0e",
+  "source_snapshot_fingerprint": "1e39046ad95654b1088348efe6504032ff4a21cd6e5a89271f72d131470f23d3",
+  "release_inventory_fingerprint": "62c8aa3e02db40db3b5e6b061e39d1608ac44acd969bf8bf90a644c0b224c0e2",
   "release_inventory_summary": {
     "n_entries": 719,
     "n_included": 718,
     "n_excluded": 1,
     "n_unresolved": 0,
-    "n_needs_human_review": 3
+    "n_needs_human_review": 0
   },
   "working_tree_clean": false,
-  "modified_file_count": 22,
+  "modified_file_count": 10,
   "model_v1_present": true,
   "model_v2_remediated_present": true,
   "challenger_registered": true,
@@ -20,7 +20,7 @@
   "monitoring_run_present": true,
   "demo_package_present": true,
   "test_counts": {
-    "total": 2020
+    "total": 2022
   },
   "dbt_reconciliation_status": "reconciled_within_tolerance",
   "notebook_status": "executed_end_to_end",
@@ -51,7 +51,7 @@
   "readiness_decision": "release_candidate_ready_with_limitations",
   "release_state": "unreleased_development",
   "nearest_tag": "v1.0.0rc2",
-  "commits_since_tag": 2,
-  "generated_at_utc": "2026-08-15T02:00:27.463867+00:00",
-  "content_fingerprint": "af24abd41672293a67ac51f0db247a61b56625c62e04f3c06c4c7bd413cc0e3f"
+  "commits_since_tag": 3,
+  "generated_at_utc": "2026-08-15T03:33:17.180457+00:00",
+  "content_fingerprint": "ecf4676019e1cd50f13729901a6510e3cbb82d3703ff204ecf470d8817b97d16"
 }

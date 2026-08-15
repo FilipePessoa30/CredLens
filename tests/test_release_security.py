@@ -112,6 +112,65 @@ _TRIVY_CRITICAL = {
     ]
 }
 
+_TRIVY_CRITICAL_NO_FIX_NOT_EXCEPTED = {
+    "Results": [
+        {
+            "Target": "app",
+            "Class": "lang-pkgs",
+            "Type": "python-pkg",
+            "Vulnerabilities": [
+                {
+                    "VulnerabilityID": "CVE-2099-9999",
+                    "PkgName": "some-other-package",
+                    "InstalledVersion": "1.0.0",
+                    "FixedVersion": "",
+                    "Severity": "CRITICAL",
+                }
+            ],
+        }
+    ]
+}
+
+# Matches a REAL entry in credlens.release.security._DOCUMENTED_EXCEPTIONS
+# (found by an actual Trivy scan of credlens:1.0.0-candidate, Fase 14).
+_TRIVY_CRITICAL_DOCUMENTED_EXCEPTION_NO_FIX = {
+    "Results": [
+        {
+            "Target": "debian 13.6",
+            "Class": "os-pkgs",
+            "Type": "debian",
+            "Vulnerabilities": [
+                {
+                    "VulnerabilityID": "CVE-2026-13221",
+                    "PkgName": "perl-base",
+                    "InstalledVersion": "5.40.1-6",
+                    "FixedVersion": "",
+                    "Severity": "CRITICAL",
+                }
+            ],
+        }
+    ]
+}
+
+_TRIVY_CRITICAL_SAME_ID_BUT_NOW_FIXED = {
+    "Results": [
+        {
+            "Target": "debian 13.6",
+            "Class": "os-pkgs",
+            "Type": "debian",
+            "Vulnerabilities": [
+                {
+                    "VulnerabilityID": "CVE-2026-13221",
+                    "PkgName": "perl-base",
+                    "InstalledVersion": "5.40.1-6",
+                    "FixedVersion": "5.40.1-7",
+                    "Severity": "CRITICAL",
+                }
+            ],
+        }
+    ]
+}
+
 _TRIVY_HIGH_NO_FIX = {
     "Results": [
         {
@@ -171,6 +230,40 @@ class TestParseTrivyReport:
         findings = parse_trivy_report(path)
         assert len(findings) == 1
         assert findings[0].severity == "CRITICAL"
+        assert findings[0].blocking is True
+
+    def test_critical_with_no_fix_and_no_documented_exception_is_blocking(
+        self, tmp_path: Path
+    ) -> None:
+        path = _write(tmp_path, "critical_nofix.json", _TRIVY_CRITICAL_NO_FIX_NOT_EXCEPTED)
+        findings = parse_trivy_report(path)
+        assert len(findings) == 1
+        assert findings[0].blocking is True
+
+    def test_critical_matching_a_documented_exception_with_no_fix_is_not_blocking(
+        self, tmp_path: Path
+    ) -> None:
+        """Fase 14 section 13 - a CRITICAL finding with genuinely no fix
+        available CAN be a documented, non-blocking exception, but only
+        when it matches a specific, individually-justified entry in
+        `_DOCUMENTED_EXCEPTIONS` - never a blanket allowlist."""
+        path = _write(
+            tmp_path, "critical_excepted.json", _TRIVY_CRITICAL_DOCUMENTED_EXCEPTION_NO_FIX
+        )
+        findings = parse_trivy_report(path)
+        assert len(findings) == 1
+        assert findings[0].blocking is False
+        assert "documented exception" in findings[0].reason
+
+    def test_a_documented_exception_reverts_to_blocking_once_a_fix_exists(
+        self, tmp_path: Path
+    ) -> None:
+        """The exception only ever excuses "no fix exists" - the same
+        CVE/package becomes blocking again the moment a fix is
+        published, with no code change needed here."""
+        path = _write(tmp_path, "now_fixed.json", _TRIVY_CRITICAL_SAME_ID_BUT_NOW_FIXED)
+        findings = parse_trivy_report(path)
+        assert len(findings) == 1
         assert findings[0].blocking is True
 
     def test_high_without_a_fix_is_not_blocking(self, tmp_path: Path) -> None:

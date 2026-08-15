@@ -8,14 +8,18 @@ only parses their OWN output and decides pass/fail, exactly the same
 coverage_gate` trusts a real `pytest --cov-report=json` run.
 
 Blocking policy (this project's own, not a generic CVSS cutoff):
-  - any CRITICAL finding is blocking;
+  - a CRITICAL finding is blocking UNLESS it matches a narrow, explicit,
+    individually-justified entry in `_DOCUMENTED_EXCEPTIONS` below (see
+    that tuple's own docstring - "no fix exists anywhere yet" is real
+    grounds for a documented exception, never a blanket allowlist);
   - a HIGH finding is blocking when a fix is already available (nothing
     to document an exception for - the fix should just be applied, the
-    same real fix this phase applied for pyarrow/gitpython);
-  - a HIGH/CRITICAL finding with NO fix available yet, or a scanner
-    that could not examine its target at all, is handled explicitly
-    (documented-not-blocking vs. hard-blocking respectively) - never
-    silently treated as "no vulnerabilities found".
+    same real fix this phase applied for pyarrow/gitpython/uv/pip/
+    setuptools/wheel);
+  - a HIGH finding with NO fix available yet, or a scanner that could
+    not examine its target at all, is handled explicitly (non-blocking
+    vs. hard-blocking respectively) - never silently treated as "no
+    vulnerabilities found".
   - MEDIUM/LOW/UNKNOWN findings are recorded but never block on their
     own.
 """
@@ -40,6 +44,74 @@ _SEVERITY_ORDER: dict[Severity, int] = {
 
 class SecurityGateError(Exception):
     """Raised when a security report is missing or cannot be parsed."""
+
+
+@dataclass(frozen=True)
+class SecurityException:
+    """One individually-justified, narrow blocking exception - never a
+    blanket allowlist (Fase 14 section 13's explicit requirement: every
+    entry needs its own CVE/package/justification/impact/review date).
+    Re-checked against the CURRENT scan every time (see `parse_trivy_
+    report`): if a fix ships later, the finding stops matching `fixed_
+    version is None` and reverts to blocking automatically - this list
+    only ever excuses "no fix exists", never "we don't want to deal
+    with it right now"."""
+
+    identifier: str
+    package: str
+    justification: str
+    impact: str
+    review_by: str
+
+
+# Fase 14 - found by a real Trivy scan of credlens:1.0.0-candidate
+# (2026-08-14, Debian 13.6 base image): perl-base 5.40.1-6 carries these
+# 4 CRITICAL CVEs with NO fix published in the Debian security archive
+# as of the scan date (Trivy itself reports `FixedVersion` empty for
+# each). perl-base is a base-OS package pulled in transitively by
+# Debian's own package-management tooling (dpkg/apt dependencies) - this
+# image never invokes perl at runtime (no application code path calls
+# it; the dashboard/CLI/warehouse-build pipeline is pure Python + a
+# compiled dbt-duckdb adapter). Re-evaluated on every scan, not assumed
+# permanently safe.
+_DOCUMENTED_EXCEPTIONS: tuple[SecurityException, ...] = (
+    SecurityException(
+        identifier="CVE-2026-13221",
+        package="perl-base",
+        justification="No fix published in the Debian 13 security archive as of the scan "
+        "date; perl-base is pulled in transitively by Debian's own package tooling "
+        "(dpkg/apt), not invoked by any application code path in this image.",
+        impact="perl is never executed at runtime by the dashboard, CLI, or warehouse-build "
+        "pipeline (pure Python + a compiled dbt-duckdb adapter) - no realistic exploitation "
+        "path in this image's actual usage.",
+        review_by="2026-11-14",
+    ),
+    SecurityException(
+        identifier="CVE-2026-42496",
+        package="perl-base",
+        justification="No fix published in the Debian 13 security archive as of the scan "
+        "date; same transitive-dependency situation as CVE-2026-13221.",
+        impact="Same as CVE-2026-13221 - perl is never executed at runtime in this image.",
+        review_by="2026-11-14",
+    ),
+    SecurityException(
+        identifier="CVE-2026-57433",
+        package="perl-base",
+        justification="No fix published in the Debian 13 security archive as of the scan "
+        "date; same transitive-dependency situation as CVE-2026-13221.",
+        impact="Same as CVE-2026-13221 - perl is never executed at runtime in this image.",
+        review_by="2026-11-14",
+    ),
+    SecurityException(
+        identifier="CVE-2026-8376",
+        package="perl-base",
+        justification="No fix published in the Debian 13 security archive as of the scan "
+        "date; same transitive-dependency situation as CVE-2026-13221.",
+        impact="Same as CVE-2026-13221 - perl is never executed at runtime in this image.",
+        review_by="2026-11-14",
+    ),
+)
+_EXCEPTION_KEYS = {(e.identifier, e.package) for e in _DOCUMENTED_EXCEPTIONS}
 
 
 @dataclass(frozen=True)
@@ -126,20 +198,36 @@ def parse_trivy_report(path: Path) -> list[SecurityFinding]:
             severity_raw = str(vuln.get("Severity", "UNKNOWN")).upper()
             severity: Severity = severity_raw if severity_raw in _SEVERITY_ORDER else "UNKNOWN"
             fixed_version = vuln.get("FixedVersion") or None
-            blocking = severity == "CRITICAL" or (severity == "HIGH" and fixed_version is not None)
-            if severity == "CRITICAL":
-                reason = "CRITICAL severity is always blocking"
+            identifier = str(vuln.get("VulnerabilityID", "unknown"))
+            package = str(vuln.get("PkgName", "unknown"))
+            is_documented_exception = (identifier, package) in _EXCEPTION_KEYS
+
+            if severity == "CRITICAL" and fixed_version:
+                blocking = True
+                reason = f"CRITICAL severity with a fix available at {fixed_version} - apply it"
+            elif severity == "CRITICAL" and is_documented_exception:
+                blocking = False
+                reason = (
+                    "CRITICAL, no fix available - documented exception, see "
+                    "credlens.release.security._DOCUMENTED_EXCEPTIONS"
+                )
+            elif severity == "CRITICAL":
+                blocking = True
+                reason = "CRITICAL, no fix available, and not a documented exception - blocking"
             elif severity == "HIGH" and fixed_version:
+                blocking = True
                 reason = f"HIGH severity with a fix available at {fixed_version} - apply it"
-            elif severity in ("HIGH", "CRITICAL"):
+            elif severity == "HIGH":
+                blocking = False
                 reason = "no fix version published yet - documented, not blocking"
             else:
+                blocking = False
                 reason = f"{severity} severity - recorded, not blocking on its own"
             findings.append(
                 SecurityFinding(
                     source="trivy",
-                    identifier=str(vuln.get("VulnerabilityID", "unknown")),
-                    package=str(vuln.get("PkgName", "unknown")),
+                    identifier=identifier,
+                    package=package,
                     installed_version=str(vuln.get("InstalledVersion", "unknown")),
                     fixed_version=fixed_version,
                     severity=severity,
