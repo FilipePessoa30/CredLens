@@ -81,6 +81,7 @@ _EXCLUDED_PATH_FRAGMENTS = (
     "reports/release/sbom.cyclonedx.json",
     "reports/release/license_inventory.json",
     "reports/release/SHA256SUMS",
+    "reports/release/security_audit.json",
 )
 
 

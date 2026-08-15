@@ -1,0 +1,10 @@
+{
+  "passed": false,
+  "pip_audit_report_present": true,
+  "trivy_report_present": false,
+  "secret_found_in_image": false,
+  "total_findings": 0,
+  "blocking_findings": [],
+  "non_blocking_findings": [],
+  "generated_at_utc": "2026-08-15T01:58:44.000518+00:00"
+}

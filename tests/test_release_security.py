@@ -1,0 +1,258 @@
+"""Tests for credlens.release.security (Fase 14 security gate) - parses
+real-shaped pip-audit/Trivy JSON and applies this project's blocking
+policy. Fixtures below mirror the ACTUAL schema observed from real
+`pip-audit --format json` and `trivy image --format json` runs during
+Fase 14 (pyarrow/gitpython CVEs found and fixed - see CHANGELOG), not
+invented shapes.
+"""
+
+from __future__ import annotations
+
+import json
+from pathlib import Path
+from typing import Any
+
+import pytest
+
+from credlens.release.security import (
+    SecurityGateError,
+    evaluate_security_gate,
+    parse_pip_audit_report,
+    parse_trivy_report,
+    write_security_audit,
+)
+
+_PIP_AUDIT_CLEAN = {"dependencies": [{"name": "requests", "version": "2.34.2", "vulns": []}]}
+
+_PIP_AUDIT_WITH_FIX = {
+    "dependencies": [
+        {
+            "name": "pyarrow",
+            "version": "18.1.0",
+            "vulns": [
+                {
+                    "id": "PYSEC-2026-113",
+                    "fix_versions": ["23.0.1"],
+                    "aliases": ["GHSA-rgxp-2hwp-jwgg", "CVE-2026-25087"],
+                }
+            ],
+        }
+    ]
+}
+
+_PIP_AUDIT_NO_FIX = {
+    "dependencies": [
+        {
+            "name": "somepkg",
+            "version": "1.0.0",
+            "vulns": [{"id": "PYSEC-2026-999", "fix_versions": [], "aliases": []}],
+        }
+    ]
+}
+
+
+def _write(tmp_path: Path, name: str, payload: dict[str, Any]) -> Path:
+    path = tmp_path / name
+    path.write_text(json.dumps(payload), encoding="utf-8")
+    return path
+
+
+class TestParsePipAuditReport:
+    def test_clean_report_has_no_findings(self, tmp_path: Path) -> None:
+        path = _write(tmp_path, "clean.json", _PIP_AUDIT_CLEAN)
+        assert parse_pip_audit_report(path) == []
+
+    def test_finding_with_a_fix_is_blocking(self, tmp_path: Path) -> None:
+        path = _write(tmp_path, "vuln.json", _PIP_AUDIT_WITH_FIX)
+        findings = parse_pip_audit_report(path)
+        assert len(findings) == 1
+        f = findings[0]
+        assert f.package == "pyarrow"
+        assert f.identifier == "PYSEC-2026-113"
+        assert f.fixed_version == "23.0.1"
+        assert f.blocking is True
+        assert f.severity == "HIGH"
+
+    def test_finding_with_no_fix_is_not_blocking(self, tmp_path: Path) -> None:
+        path = _write(tmp_path, "nofix.json", _PIP_AUDIT_NO_FIX)
+        findings = parse_pip_audit_report(path)
+        assert len(findings) == 1
+        assert findings[0].blocking is False
+        assert findings[0].fixed_version is None
+
+    def test_missing_report_raises(self, tmp_path: Path) -> None:
+        with pytest.raises(SecurityGateError, match="not found"):
+            parse_pip_audit_report(tmp_path / "does_not_exist.json")
+
+    def test_invalid_json_raises(self, tmp_path: Path) -> None:
+        path = tmp_path / "broken.json"
+        path.write_text("{not valid json", encoding="utf-8")
+        with pytest.raises(SecurityGateError, match="not valid JSON"):
+            parse_pip_audit_report(path)
+
+
+_TRIVY_CLEAN = {"Results": [{"Target": "app", "Class": "lang-pkgs", "Type": "python-pkg"}]}
+
+_TRIVY_CRITICAL = {
+    "Results": [
+        {
+            "Target": "app",
+            "Class": "lang-pkgs",
+            "Type": "python-pkg",
+            "Vulnerabilities": [
+                {
+                    "VulnerabilityID": "CVE-2099-0001",
+                    "PkgName": "badpkg",
+                    "InstalledVersion": "1.0.0",
+                    "FixedVersion": "1.0.1",
+                    "Severity": "CRITICAL",
+                }
+            ],
+        }
+    ]
+}
+
+_TRIVY_HIGH_NO_FIX = {
+    "Results": [
+        {
+            "Target": "debian 13",
+            "Class": "os-pkgs",
+            "Type": "debian",
+            "Vulnerabilities": [
+                {
+                    "VulnerabilityID": "CVE-2099-0002",
+                    "PkgName": "libsomething",
+                    "InstalledVersion": "2.0",
+                    "FixedVersion": "",
+                    "Severity": "HIGH",
+                }
+            ],
+        }
+    ]
+}
+
+_TRIVY_MEDIUM_ONLY = {
+    "Results": [
+        {
+            "Target": "app",
+            "Class": "lang-pkgs",
+            "Type": "python-pkg",
+            "Vulnerabilities": [
+                {
+                    "VulnerabilityID": "CVE-2099-0003",
+                    "PkgName": "mediumpkg",
+                    "InstalledVersion": "1.0.0",
+                    "FixedVersion": "1.0.1",
+                    "Severity": "MEDIUM",
+                }
+            ],
+        }
+    ]
+}
+
+_TRIVY_WITH_SECRET = {
+    "Results": [
+        {
+            "Target": "app/.env",
+            "Class": "secret",
+            "Secrets": [{"RuleID": "aws-access-key-id", "Category": "AWS"}],
+        }
+    ]
+}
+
+
+class TestParseTrivyReport:
+    def test_clean_report_has_no_findings(self, tmp_path: Path) -> None:
+        path = _write(tmp_path, "clean.json", _TRIVY_CLEAN)
+        assert parse_trivy_report(path) == []
+
+    def test_critical_is_always_blocking(self, tmp_path: Path) -> None:
+        path = _write(tmp_path, "critical.json", _TRIVY_CRITICAL)
+        findings = parse_trivy_report(path)
+        assert len(findings) == 1
+        assert findings[0].severity == "CRITICAL"
+        assert findings[0].blocking is True
+
+    def test_high_without_a_fix_is_not_blocking(self, tmp_path: Path) -> None:
+        path = _write(tmp_path, "high_nofix.json", _TRIVY_HIGH_NO_FIX)
+        findings = parse_trivy_report(path)
+        assert len(findings) == 1
+        assert findings[0].severity == "HIGH"
+        assert findings[0].fixed_version is None
+        assert findings[0].blocking is False
+
+    def test_medium_is_never_blocking(self, tmp_path: Path) -> None:
+        path = _write(tmp_path, "medium.json", _TRIVY_MEDIUM_ONLY)
+        findings = parse_trivy_report(path)
+        assert len(findings) == 1
+        assert findings[0].blocking is False
+
+
+class TestEvaluateSecurityGate:
+    def test_two_clean_reports_pass(self, tmp_path: Path) -> None:
+        pip_path = _write(tmp_path, "pip.json", _PIP_AUDIT_CLEAN)
+        trivy_path = _write(tmp_path, "trivy.json", _TRIVY_CLEAN)
+        result = evaluate_security_gate(
+            pip_audit_report_path=pip_path, trivy_report_path=trivy_path
+        )
+        assert result.passed is True
+        assert result.blocking_findings == []
+
+    def test_a_missing_report_fails_the_gate(self, tmp_path: Path) -> None:
+        pip_path = _write(tmp_path, "pip.json", _PIP_AUDIT_CLEAN)
+        result = evaluate_security_gate(
+            pip_audit_report_path=pip_path, trivy_report_path=tmp_path / "missing.json"
+        )
+        assert result.passed is False
+        assert result.trivy_report_present is False
+
+    def test_a_blocking_pip_audit_finding_fails_the_gate(self, tmp_path: Path) -> None:
+        pip_path = _write(tmp_path, "pip.json", _PIP_AUDIT_WITH_FIX)
+        trivy_path = _write(tmp_path, "trivy.json", _TRIVY_CLEAN)
+        result = evaluate_security_gate(
+            pip_audit_report_path=pip_path, trivy_report_path=trivy_path
+        )
+        assert result.passed is False
+        assert len(result.blocking_findings) == 1
+
+    def test_a_blocking_trivy_finding_fails_the_gate(self, tmp_path: Path) -> None:
+        pip_path = _write(tmp_path, "pip.json", _PIP_AUDIT_CLEAN)
+        trivy_path = _write(tmp_path, "trivy.json", _TRIVY_CRITICAL)
+        result = evaluate_security_gate(
+            pip_audit_report_path=pip_path, trivy_report_path=trivy_path
+        )
+        assert result.passed is False
+
+    def test_a_non_blocking_finding_alone_still_passes(self, tmp_path: Path) -> None:
+        pip_path = _write(tmp_path, "pip.json", _PIP_AUDIT_NO_FIX)
+        trivy_path = _write(tmp_path, "trivy.json", _TRIVY_HIGH_NO_FIX)
+        result = evaluate_security_gate(
+            pip_audit_report_path=pip_path, trivy_report_path=trivy_path
+        )
+        assert result.passed is True
+        assert len(result.findings) == 2
+        assert result.blocking_findings == []
+
+    def test_a_secret_in_the_image_fails_the_gate_even_with_no_vulnerabilities(
+        self, tmp_path: Path
+    ) -> None:
+        pip_path = _write(tmp_path, "pip.json", _PIP_AUDIT_CLEAN)
+        trivy_path = _write(tmp_path, "trivy.json", _TRIVY_WITH_SECRET)
+        result = evaluate_security_gate(
+            pip_audit_report_path=pip_path, trivy_report_path=trivy_path
+        )
+        assert result.passed is False
+        assert result.secret_found_in_image is True
+
+
+class TestWriteSecurityAudit:
+    def test_writes_a_readable_json_report(self, tmp_path: Path) -> None:
+        pip_path = _write(tmp_path, "pip.json", _PIP_AUDIT_CLEAN)
+        trivy_path = _write(tmp_path, "trivy.json", _TRIVY_CLEAN)
+        result = evaluate_security_gate(
+            pip_audit_report_path=pip_path, trivy_report_path=trivy_path
+        )
+        out_path = write_security_audit(result, repo_root=tmp_path)
+        assert out_path.is_file()
+        payload = json.loads(out_path.read_text(encoding="utf-8"))
+        assert payload["passed"] is True
